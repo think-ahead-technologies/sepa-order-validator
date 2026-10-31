@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.thinkahead.sepa.validation.Violation;
 import dev.thinkahead.sepa.validation.pain001.CreditTransferTransaction;
+import dev.thinkahead.sepa.validation.pain001.RemittanceInformation;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,7 @@ class SepaCreditTransferRulesTest {
     private static void invalidTransactions(SepaCreditTransferRules rules, int count) {
         for (int i = 1; i <= count; i++) {
             rules.transaction(new CreditTransferTransaction("PmtInf[1]/CdtTrfTxInf[" + i + "]", "E2E-" + i,
-                    new BigDecimal("1.00"), "EUR", "NL91ABNA0417164301"));
+                    new BigDecimal("1.00"), "EUR", "NL91ABNA0417164301", null, RemittanceInformation.NONE));
         }
     }
 }

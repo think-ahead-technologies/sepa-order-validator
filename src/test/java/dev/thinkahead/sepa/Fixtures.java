@@ -55,6 +55,24 @@ public final class Fixtures {
                 .replace("<CtrlSum>150.50</CtrlSum>", "<CtrlSum>" + sum + "</CtrlSum>");
     }
 
+    public static final String LONG_CREDITOR_NAME =
+            "Gesellschaft für Informationstechnologie und Datenverarbeitung mbH & Co. KG";
+
+    /**
+     * A schema-valid pain.001 breaking the SEPA field rules that the ISO schema does not enforce: a zero amount (AM01)
+     * and a creditor agent without BIC (RC01) in the first transaction; three decimal places (AM12), a creditor name
+     * over 70 characters (FF01) and both unstructured and structured remittance information (FF01) in the second.
+     */
+    public static String withSepaFieldRuleViolations(String messageId) {
+        return validPain001(messageId)
+                .replace("Ccy=\"EUR\">100.00<", "Ccy=\"EUR\">0.00<")
+                .replace("Ccy=\"EUR\">50.50<", "Ccy=\"EUR\">50.505<")
+                .replace("<CtrlSum>150.50</CtrlSum>", "<CtrlSum>50.505</CtrlSum>")
+                .replace("<BICFI>ABNANL2A</BICFI>", "<ClrSysMmbId><MmbId>12345</MmbId></ClrSysMmbId>")
+                .replace("<Nm>Fournisseur SA</Nm>", "<Nm>" + LONG_CREDITOR_NAME.replace("&", "&amp;") + "</Nm>")
+                .replaceFirst("<RmtInf>(\\s*)<Strd>", "<RmtInf>$1<Ustrd>Facture 0815</Ustrd>$1<Strd>");
+    }
+
     public static byte[] bytes(String xml) {
         return xml.getBytes(StandardCharsets.UTF_8);
     }

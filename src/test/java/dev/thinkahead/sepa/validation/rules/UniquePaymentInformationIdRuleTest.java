@@ -15,16 +15,16 @@ class UniquePaymentInformationIdRuleTest {
 
     @Test
     void acceptsDistinctPaymentInformationIds() {
-        assertThat(rule.validate(new PaymentInformation("PmtInf[1]", "PMT-001", IBAN))).isEmpty();
-        assertThat(rule.validate(new PaymentInformation("PmtInf[2]", "PMT-002", IBAN))).isEmpty();
+        assertThat(rule.validate(new PaymentInformation("PmtInf[1]", "PMT-001", IBAN, null))).isEmpty();
+        assertThat(rule.validate(new PaymentInformation("PmtInf[2]", "PMT-002", IBAN, null))).isEmpty();
     }
 
     @Test
     void reportsDu02AtTheRepeatedOccurrence() {
-        rule.validate(new PaymentInformation("PmtInf[1]", "PMT-001", IBAN));
-        rule.validate(new PaymentInformation("PmtInf[2]", "PMT-002", IBAN));
+        rule.validate(new PaymentInformation("PmtInf[1]", "PMT-001", IBAN, null));
+        rule.validate(new PaymentInformation("PmtInf[2]", "PMT-002", IBAN, null));
 
-        assertThat(rule.validate(new PaymentInformation("PmtInf[3]", "PMT-001", IBAN)))
+        assertThat(rule.validate(new PaymentInformation("PmtInf[3]", "PMT-001", IBAN, null)))
                 .singleElement()
                 .satisfies(v -> {
                     assertThat(v.reasonCode()).isEqualTo("DU02");

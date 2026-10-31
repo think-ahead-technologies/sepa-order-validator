@@ -2,9 +2,12 @@
 // ABOUTME: Covers acceptance, rule violations, schema failures, unsupported formats and the validation deadline.
 package dev.thinkahead.sepa.validation;
 
+import static dev.thinkahead.sepa.Fixtures.SAMPLE_MESSAGE_ID;
 import static dev.thinkahead.sepa.Fixtures.VALID_PAIN_001;
 import static dev.thinkahead.sepa.Fixtures.bytes;
+import static dev.thinkahead.sepa.Fixtures.withSepaFieldRuleViolations;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.groups.Tuple.tuple;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -55,6 +58,31 @@ class PaymentFileValidatorTest {
                         org.assertj.core.groups.Tuple.tuple("AC03", "PmtInf[1]/CdtTrfTxInf[1]/CdtrAcct/Id/IBAN"),
                         org.assertj.core.groups.Tuple.tuple("AM03", "PmtInf[1]/CdtTrfTxInf[2]/Amt/InstdAmt/@Ccy"),
                         org.assertj.core.groups.Tuple.tuple("AM18", "GrpHdr/NbOfTxs"));
+    }
+
+    @Test
+    void rejectsSchemaValidFileBreakingSepaFieldRules() {
+        ValidationResult result = validator.validate(
+                bytes(withSepaFieldRuleViolations(SAMPLE_MESSAGE_ID)), NO_DEADLINE);
+
+        assertThat(result.accepted()).isFalse();
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactlyInAnyOrder(
+                        tuple("AM01", "PmtInf[1]/CdtTrfTxInf[1]/Amt/InstdAmt"),
+                        tuple("RC01", "PmtInf[1]/CdtTrfTxInf[1]/CdtrAgt"),
+                        tuple("AM12", "PmtInf[1]/CdtTrfTxInf[2]/Amt/InstdAmt"),
+                        tuple("FF01", "PmtInf[1]/CdtTrfTxInf[2]/Cdtr/Nm"),
+                        tuple("FF01", "PmtInf[1]/CdtTrfTxInf[2]/RmtInf"));
+    }
+
+    @Test
+    void acceptsADebtorAgentIdentifiedByOtherIdentificationInsteadOfBic() {
+        var xml = VALID_PAIN_001.replace("<BICFI>COBADEFFXXX</BICFI>", "<Othr><Id>NOTPROVIDED</Id></Othr>");
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.violations()).isEmpty();
     }
 
     @Test

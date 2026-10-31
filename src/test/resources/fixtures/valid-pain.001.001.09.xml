@@ -44,6 +44,11 @@
         <Amt>
           <InstdAmt Ccy="EUR">100.00</InstdAmt>
         </Amt>
+        <CdtrAgt>
+          <FinInstnId>
+            <BICFI>ABNANL2A</BICFI>
+          </FinInstnId>
+        </CdtrAgt>
         <Cdtr>
           <Nm>Lieferant AG</Nm>
         </Cdtr>
@@ -72,7 +77,17 @@
           </Id>
         </CdtrAcct>
         <RmtInf>
-          <Ustrd>Facture 0815</Ustrd>
+          <Strd>
+            <CdtrRefInf>
+              <Tp>
+                <CdOrPrtry>
+                  <Cd>SCOR</Cd>
+                </CdOrPrtry>
+                <Issr>ISO</Issr>
+              </Tp>
+              <Ref>RF18539007547034</Ref>
+            </CdtrRefInf>
+          </Strd>
         </RmtInf>
       </CdtTrfTxInf>
     </PmtInf>

@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.thinkahead.sepa.validation.Violation;
 import dev.thinkahead.sepa.validation.pain001.CreditTransferTransaction;
 import dev.thinkahead.sepa.validation.pain001.PaymentInformation;
+import dev.thinkahead.sepa.validation.pain001.RemittanceInformation;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 
@@ -14,7 +15,7 @@ class TransactionRulesTest {
 
     private static CreditTransferTransaction transaction(String currency, String creditorIban) {
         return new CreditTransferTransaction("PmtInf[1]/CdtTrfTxInf[2]", "E2E-002",
-                new BigDecimal("50.50"), currency, creditorIban);
+                new BigDecimal("50.50"), currency, creditorIban, null, RemittanceInformation.NONE);
     }
 
     @Test
@@ -42,7 +43,7 @@ class TransactionRulesTest {
 
     @Test
     void debtorIbanRuleReportsAc02WithLocation() {
-        var pmtInf = new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013001");
+        var pmtInf = new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013001", null);
 
         assertThat(new DebtorIbanRule().validate(pmtInf))
                 .singleElement()
@@ -54,7 +55,7 @@ class TransactionRulesTest {
 
     @Test
     void debtorIbanRuleAcceptsValidIban() {
-        var pmtInf = new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013000");
+        var pmtInf = new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013000", null);
 
         assertThat(new DebtorIbanRule().validate(pmtInf)).isEmpty();
     }

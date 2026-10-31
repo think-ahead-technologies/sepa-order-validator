@@ -185,6 +185,20 @@ class PaymentFileValidationIntegrationTest {
     }
 
     @Test
+    void rejectsSepaFieldRuleViolationsWithoutLoggingPaymentContent(CapturedOutput output) {
+        PaymentFileValidated validated = uploadAndAwaitValidation(
+                dev.thinkahead.sepa.Fixtures.withSepaFieldRuleViolations(uniqueMessageId()));
+
+        assertThat(validated.accepted()).isFalse();
+        assertThat(validated.violations()).extracting(Violation::reasonCode)
+                .containsExactlyInAnyOrder("AM01", "RC01", "AM12", "FF01", "FF01");
+        assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
+        assertThat(validationOutcomes.find(validated.fileId())).as("stored outcome with violations")
+                .isEqualTo(validated);
+        assertThat(output).doesNotContain("Informationstechnologie").doesNotContain("50.505");
+    }
+
+    @Test
     void acceptsCreditorsInCountriesThatJoinedSepaIn2025() {
         PaymentFileValidated validated = uploadAndAwaitValidation(validPain001(uniqueMessageId())
                 .replace("NL91ABNA0417164300", "AL47212110090000000235698741")

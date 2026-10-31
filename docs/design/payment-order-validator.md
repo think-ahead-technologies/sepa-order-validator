@@ -155,13 +155,13 @@ public record Violation(
 | Rule | Reason code |
 |---|---|
 | IBAN: country, length, mod-97 check digits | AC02 (debtor) / AC03 (creditor) |
-| BIC format (8 or 11), optional per DK | RC01 |
+| BIC format (8 or 11) — enforced by the XSD; debtor agent identified by `BICFI` or `Othr/Id`, creditor agent only as `BICFI` (EPC C2PSP IG 2.54, 2.114) | FF01 / RC01 |
 | Currency is `EUR` | AM03 |
-| Amount > 0, ≤ 2 decimals, ≤ 999,999,999.99 | AM01 / AM02 |
+| Amount ≥ 0.01, ≤ 999,999,999.99, ≤ 2 decimals (EPC C2PSP IG 2.95) | AM01 / AM02 / AM12 |
 | Character set: DK extended Latin set; conversion for interbank use | CH16 / FF01 |
-| Field lengths (names 70, remittance 140, End-to-End ID 35) | FF01 |
-| Structured **or** unstructured remittance, not both | FF01 |
-| ISO 11649 creditor reference check digits | RR12 |
+| Field lengths: party names 70 (initiating party, debtor, creditor, ultimate parties); remittance 140 and End-to-End ID 35 via the XSD | FF01 |
+| One structured **or** one unstructured remittance, not both; structured ≤ 140 characters including tags (EPC C2PSP IG 2.164–2.166) | FF01 |
+| Creditor reference has type and reference, coded type is `SCOR`. ISO 11649 check digits are not validated: EPC C2PSP IG 2.175 does not require it and lets the PSP continue on failure | FF01 |
 | Postal address structured or hybrid (rulebook-version dependent) | RR (tbd) |
 | End-to-End ID unique within configurable window (not yet implemented) | DU04 |
 

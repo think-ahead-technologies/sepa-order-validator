@@ -9,4 +9,6 @@ public interface Pain001Handler {
     void transaction(CreditTransferTransaction transaction);
 
     void totals(Totals totals);
+
+    void partyName(PartyName partyName);
 }

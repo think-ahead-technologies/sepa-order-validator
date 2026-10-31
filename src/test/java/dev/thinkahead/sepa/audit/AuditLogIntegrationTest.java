@@ -1,5 +1,5 @@
 // ABOUTME: Integration tests for the audit module alone against a real PostgreSQL container.
-// ABOUTME: Module events are recorded as JSON audit entries, and the audit table rejects updates and deletes.
+// ABOUTME: Module events are recorded as JSON audit entries; the audit table rejects updates, deletes and truncation.
 package dev.thinkahead.sepa.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -73,6 +73,10 @@ class AuditLogIntegrationTest {
         assertThatThrownBy(() -> jdbc.sql("delete from audit_event where file_id = ?").param(fileId).update())
                 .isInstanceOf(DataAccessException.class)
                 .hasMessageContaining("append-only");
+        assertThatThrownBy(() -> jdbc.sql("truncate audit_event").update())
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("append-only");
+        assertThat(eventTypes(fileId)).hasSize(1);
     }
 
     private List<String> eventTypes(UUID fileId) {

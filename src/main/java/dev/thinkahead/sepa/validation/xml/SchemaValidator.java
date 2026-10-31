@@ -1,5 +1,5 @@
 // ABOUTME: Validates payment files against the bundled XSD of their message format using a hardened parser.
-// ABOUTME: Collects schema errors up to a cap; compiled schemas are cached per format because they are thread-safe.
+// ABOUTME: Collects schema errors up to a cap and only logs warnings; compiled schemas are cached per format.
 package dev.thinkahead.sepa.validation.xml;
 
 import java.io.ByteArrayInputStream;
@@ -12,12 +12,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.xml.transform.sax.SAXSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.Validator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xml.sax.ErrorHandler;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 public class SchemaValidator {
+
+    private static final Logger LOG = LoggerFactory.getLogger(SchemaValidator.class);
 
     private final Map<MessageFormat, Schema> schemas = new ConcurrentHashMap<>();
     private final int maxErrors;
@@ -66,11 +70,15 @@ public class SchemaValidator {
     private static final class ErrorCapReached extends SAXException {
     }
 
-    private record CollectingErrorHandler(List<SchemaError> errors, int maxErrors) implements ErrorHandler {
+    /**
+     * Collects errors as schema violations. Warnings do not make a file schema-invalid, so they are only logged.
+     */
+    record CollectingErrorHandler(List<SchemaError> errors, int maxErrors) implements ErrorHandler {
 
         @Override
-        public void warning(SAXParseException e) throws SAXException {
-            collect(e);
+        public void warning(SAXParseException e) {
+            LOG.info("Schema validation warning at line {}, column {}: {}",
+                    e.getLineNumber(), e.getColumnNumber(), e.getMessage());
         }
 
         @Override

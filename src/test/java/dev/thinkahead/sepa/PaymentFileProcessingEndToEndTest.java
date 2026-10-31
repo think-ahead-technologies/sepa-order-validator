@@ -69,6 +69,24 @@ class PaymentFileProcessingEndToEndTest {
     }
 
     @Test
+    void paymentToACountryThatJoinedSepaIn2025IsAccepted() throws Exception {
+        Delivery delivery = submit(validPain001(uniqueMessageId())
+                .replace("NL91ABNA0417164300", "MK07250120000058984"));
+
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
+        assertThat(fileStatus(delivery.fileName())).isEqualTo("ACCEPTED");
+    }
+
+    @Test
+    void lowerCaseIbanIsRejectedWithAc03RatherThanAsSchemaError() throws Exception {
+        Delivery delivery = submit(validPain001(uniqueMessageId())
+                .replace("NL91ABNA0417164300", "NL91abna0417164300"));
+
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(reasonCodes(delivery.report())).containsExactly("AC03");
+    }
+
+    @Test
     void schemaInvalidFileIsRejectedWithFf01() throws Exception {
         Delivery delivery = submit(validPain001(uniqueMessageId())
                 .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>XYZ</PmtMtd>"));

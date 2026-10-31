@@ -27,6 +27,38 @@ class IbanCheckTest {
 
     @ParameterizedTest
     @ValueSource(strings = {
+            "AL47212110090000000235698741", // Albania
+            "MD24AG000225100013104168",     // Moldova
+            "ME25505000012345678951",       // Montenegro
+            "MK07250120000058984",          // North Macedonia
+            "RS35260005601001611379"        // Serbia
+    })
+    void acceptsIbansOfCountriesThatJoinedSepaIn2025(String iban) {
+        assertThat(IbanCheck.isValid(iban)).isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "AL4721211009000000023569874",  // too short for AL
+            "MK072501200000589840",         // too long for MK
+            "RS35260005601001611378"        // wrong check digits
+    })
+    void checksLengthAndCheckDigitsOfCountriesThatJoinedSepaIn2025(String iban) {
+        assertThat(IbanCheck.isValid(iban)).isFalse();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "NL91abna0417164300",          // BBAN letters in lower case: allowed by the pain.001 schema
+            "FR1420041010050500013m02606", // single lower case letter in the BBAN
+            "nl91ABNA0417164300"           // lower case country code
+    })
+    void rejectsLowerCaseLettersAlthoughTheSchemaAllowsThemInTheBban(String iban) {
+        assertThat(IbanCheck.isValid(iban)).isFalse();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
             "DE89370400440532013001",   // wrong check digits
             "DE8937040044053201300",    // too short for DE
             "DE893704004405320130000",  // too long for DE

@@ -109,6 +109,25 @@ class PaymentFileValidationIntegrationTest {
     }
 
     @Test
+    void acceptsCreditorsInCountriesThatJoinedSepaIn2025() {
+        PaymentFileValidated validated = uploadAndAwaitValidation(validPain001(uniqueMessageId())
+                .replace("NL91ABNA0417164300", "AL47212110090000000235698741")
+                .replace("FR1420041010050500013M02606", "RS35260005601001611379"));
+
+        assertThat(validated.violations()).isEmpty();
+        assertThat(validated.accepted()).isTrue();
+    }
+
+    @Test
+    void rejectsASchemaValidLowerCaseIbanWithAc03() {
+        PaymentFileValidated validated = uploadAndAwaitValidation(
+                validPain001(uniqueMessageId()).replace("NL91ABNA0417164300", "NL91abna0417164300"));
+
+        assertThat(validated.accepted()).isFalse();
+        assertThat(validated.violations()).extracting(Violation::reasonCode).containsExactly("AC03");
+    }
+
+    @Test
     void rejectsResubmissionOfAnAcceptedMessageIdWithDu01() {
         String xml = validPain001(uniqueMessageId());
         PaymentFileValidated first = uploadAndAwaitValidation(xml);

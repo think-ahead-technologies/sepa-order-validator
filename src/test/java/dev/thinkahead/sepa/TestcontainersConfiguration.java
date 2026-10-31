@@ -9,10 +9,13 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.integration.sftp.session.DefaultSftpSessionFactory;
 import org.springframework.test.context.DynamicPropertyRegistrar;
 import org.springframework.util.function.SingletonSupplier;
 import org.testcontainers.containers.GenericContainer;
@@ -89,6 +92,58 @@ public class TestcontainersConfiguration {
         properties.put("sepa.intake.max-file-size", "1MB");
         properties.put("sepa.intake.reply-check-interval", "PT1H");
         return properties;
+    }
+
+    /**
+     * A customer client with its own password-authenticated connection, independent of any application instance.
+     */
+    public static SftpTestClient newCustomerClient(GenericContainer<?> sftp) {
+        var sessions = new DefaultSftpSessionFactory();
+        sessions.setHost(sftp.getHost());
+        sessions.setPort(sftp.getMappedPort(SFTP_PORT));
+        sessions.setUser(SFTP_USER);
+        sessions.setPassword(SFTP_PASSWORD);
+        sessions.setKnownHostsResource(new FileSystemResource(knownHostsFile(sftp)));
+        return new SftpTestClient(sessions);
+    }
+
+    /**
+     * Generates a passphrase-protected ECDSA client key in the SFTP container, optionally authorizes it for the
+     * customer account, and returns the private key as a local file in OpenSSH format.
+     */
+    public static Path newClientKey(GenericContainer<?> sftp, String passphrase, boolean authorize) {
+        String keyFile = "/tmp/client-key-" + UUID.randomUUID();
+        String sshDirectory = "/home/" + SFTP_USER + "/.ssh";
+        try {
+            exec(sftp, "ssh-keygen", "-q", "-t", "ecdsa", "-b", "256", "-N", passphrase, "-f", keyFile);
+            if (authorize) {
+                exec(sftp, "sh", "-c", "mkdir -p " + sshDirectory
+                        + " && cat " + keyFile + ".pub >> " + sshDirectory + "/authorized_keys"
+                        + " && chown -R " + SFTP_USER + ":" + SFTP_USER + " " + sshDirectory
+                        + " && chmod 700 " + sshDirectory + " && chmod 600 " + sshDirectory + "/authorized_keys");
+            }
+            Path file = Files.createTempFile("sftp-client-key", "");
+            file.toFile().deleteOnExit();
+            return Files.writeString(file, exec(sftp, "cat", keyFile));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static String exec(GenericContainer<?> container, String... command) {
+        try {
+            var result = container.execInContainer(command);
+            if (result.getExitCode() != 0) {
+                throw new IllegalStateException("Command " + String.join(" ", command) + " failed: "
+                        + result.getStderr());
+            }
+            return result.getStdout();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
     }
 
     private static Path knownHostsFile(GenericContainer<?> sftp) {

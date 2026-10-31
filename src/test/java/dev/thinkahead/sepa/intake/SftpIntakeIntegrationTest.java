@@ -1,5 +1,5 @@
 // ABOUTME: Integration tests for the intake module alone against real SFTP and PostgreSQL containers.
-// ABOUTME: Covers claiming, idempotent storage, archiving, failure isolation, reply monitoring and report delivery.
+// ABOUTME: Covers claiming, unfinished uploads, connection reuse, idempotency, archiving, failures and replies.
 package dev.thinkahead.sepa.intake;
 
 import static dev.thinkahead.sepa.Fixtures.VALID_PAIN_001;
@@ -24,6 +24,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.modulith.test.ApplicationModuleTest;
+import org.testcontainers.containers.GenericContainer;
 
 @ApplicationModuleTest
 @ExtendWith(OutputCaptureExtension.class)
@@ -52,6 +53,9 @@ class SftpIntakeIntegrationTest {
 
     @Autowired
     UnansweredFileMonitor unansweredFiles;
+
+    @Autowired
+    GenericContainer<?> sftp;
 
     @Test
     void anUnreadableFileDoesNotBlockTheFilesBehindIt(CapturedOutput output) {
@@ -222,6 +226,35 @@ class SftpIntakeIntegrationTest {
 
         await().during(Duration.ofMillis(1_500)).atMost(Duration.ofSeconds(3)).untilAsserted(() ->
                 assertThat(customer.list("inbound")).as("left alone across several poll cycles").contains(fileName));
+    }
+
+    @Test
+    void doesNotClaimAnXmlFileWhileItIsStillBeingUploaded() {
+        String fileName = "slow-upload-" + UUID.randomUUID() + ".xml";
+        byte[] content = bytes(VALID_PAIN_001);
+
+        customer.uploadSlowly("inbound", fileName, content, 20, Duration.ofMillis(100), () ->
+                assertThat(customer.list("inbound")).as("left alone while still growing").contains(fileName));
+
+        PaymentFileReceived received = await().atMost(TIMEOUT).until(
+                () -> events.ofType(PaymentFileReceived.class).stream()
+                        .filter(e -> e.fileName().equals(fileName)).findFirst().orElse(null),
+                e -> e != null);
+        assertThat(paymentFiles.content(received.fileId()))
+                .hasValueSatisfying(stored -> assertThat(stored).isEqualTo(content));
+    }
+
+    @Test
+    void reusesItsSshConnectionAcrossPolls() {
+        await().atMost(TIMEOUT).until(() -> sshLogins() > 0);
+        long loginsBefore = sshLogins();
+
+        await().during(Duration.ofSeconds(2)).atMost(Duration.ofSeconds(3)).untilAsserted(() ->
+                assertThat(sshLogins()).as("no new SSH login across several polls").isEqualTo(loginsBefore));
+    }
+
+    private long sshLogins() {
+        return sftp.getLogs().lines().filter(line -> line.contains("Accepted password for")).count();
     }
 
     @Test

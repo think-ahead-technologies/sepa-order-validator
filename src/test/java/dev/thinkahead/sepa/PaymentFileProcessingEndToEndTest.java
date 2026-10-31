@@ -94,6 +94,25 @@ class PaymentFileProcessingEndToEndTest {
     }
 
     @Test
+    void slowlyUploadedFileIsValidatedOnlyOnceComplete() throws Exception {
+        String messageId = uniqueMessageId();
+        String fileName = "slow-e2e-" + UUID.randomUUID() + ".xml";
+        String reportPrefix = fileName.replace(".xml", "") + "-";
+
+        customer.uploadSlowly("inbound", fileName, bytes(validPain001(messageId)), 20, Duration.ofMillis(100),
+                () -> assertThat(customer.list("outbound")).noneMatch(name -> name.startsWith(reportPrefix)));
+
+        String reportName = await().atMost(TIMEOUT).until(
+                () -> customer.list("outbound").stream().filter(name -> name.startsWith(reportPrefix))
+                        .findFirst().orElse(null),
+                name -> name != null);
+        byte[] report = customer.download("outbound", reportName);
+        assertThat(xpath(report, GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
+        assertThat(xpath(report, GROUP + "/*[local-name()='OrgnlMsgId']")).isEqualTo(messageId);
+        assertThat(fileStatus(fileName)).isEqualTo("ACCEPTED");
+    }
+
+    @Test
     void fileLeftInProcessingByACrashedInstanceIsReportedExactlyOnce() {
         String fileName = "left-behind-" + UUID.randomUUID() + ".xml";
         String reportPrefix = fileName.replace(".xml", "") + "-";

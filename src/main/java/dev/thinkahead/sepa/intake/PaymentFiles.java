@@ -45,6 +45,8 @@ public class PaymentFiles {
         StoredPaymentFile file = repository.find(fileId);
         switch (file.channel()) {
             case SFTP -> sftp.writeOutbound(statusReportName(file), report);
+            default -> throw new IllegalStateException(
+                    "No status report delivery for channel " + file.channel() + " of file " + fileId);
         }
         repository.markReplied(fileId);
     }

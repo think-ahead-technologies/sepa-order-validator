@@ -15,14 +15,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.IntStream;
-import org.apache.sshd.sftp.client.SftpClient;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.integration.file.remote.session.SessionFactory;
 import org.springframework.integration.util.UUIDConverter;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -46,6 +44,7 @@ class LeaderElectionEndToEndTest {
     void startInfrastructure() {
         postgres.start();
         sftp.start();
+        customer = TestcontainersConfiguration.newCustomerClient(sftp);
         var dataSource = new DriverManagerDataSource(postgres.getJdbcUrl(), postgres.getUsername(),
                 postgres.getPassword());
         jdbc = JdbcClient.create(dataSource);
@@ -111,7 +110,6 @@ class LeaderElectionEndToEndTest {
         assertThat(currentLockHolder()).isNotEqualTo(crashedClient);
     }
 
-    @SuppressWarnings("unchecked")
     private ConfigurableApplicationContext startInstance() {
         Map<String, Object> properties = new HashMap<>(TestcontainersConfiguration.applicationProperties(sftp));
         properties.put("spring.datasource.url", postgres.getJdbcUrl());
@@ -124,9 +122,6 @@ class LeaderElectionEndToEndTest {
         ConfigurableApplicationContext instance = new SpringApplicationBuilder(PaymentOrderValidatorApplication.class)
                 .run(commandLine);
         instances.add(instance);
-        if (customer == null) {
-            customer = new SftpTestClient(instance.getBean(SessionFactory.class));
-        }
         return instance;
     }
 

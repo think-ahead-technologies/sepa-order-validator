@@ -1,4 +1,4 @@
-// ABOUTME: On the elected leader only: claims new SFTP inbound files, then receives and archives every claimed file.
+// ABOUTME: On the elected leader only: claims finished SFTP inbound uploads, then receives and archives claimed files.
 // ABOUTME: Each file is handled in isolation: a failing file is logged and retried without blocking the others.
 package dev.thinkahead.sepa.intake;
 
@@ -7,11 +7,12 @@ import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.annotation.SchedulingConfigurer;
+import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 import org.springframework.stereotype.Component;
 
 @Component
-class SftpInboundPoller {
+class SftpInboundPoller implements SchedulingConfigurer {
 
     private static final Logger LOG = LoggerFactory.getLogger(SftpInboundPoller.class);
 
@@ -19,21 +20,29 @@ class SftpInboundPoller {
     private final PaymentFileIntake intake;
     private final IntakeLeadership leadership;
     private final IntakeProperties properties;
+    private final SftpProperties sftpProperties;
+    private final FinishedUploads finishedUploads = new FinishedUploads();
 
     SftpInboundPoller(SftpChannel sftp, PaymentFileIntake intake, IntakeLeadership leadership,
-            IntakeProperties properties) {
+            IntakeProperties properties, SftpProperties sftpProperties) {
         this.sftp = sftp;
         this.intake = intake;
         this.leadership = leadership;
         this.properties = properties;
+        this.sftpProperties = sftpProperties;
     }
 
-    @Scheduled(fixedDelayString = "${sepa.sftp.poll-interval}")
+    @Override
+    public void configureTasks(ScheduledTaskRegistrar registrar) {
+        registrar.addFixedDelayTask(this::poll, sftpProperties.pollInterval());
+    }
+
     void poll() {
         if (!leadership.isLeader()) {
+            finishedUploads.forget();
             return;
         }
-        for (String fileName : sftp.listInbound()) {
+        for (String fileName : finishedUploads.finished(sftp.listInbound())) {
             try {
                 sftp.claim(fileName, new ClaimedFile(UUID.randomUUID(), fileName).claimedName());
             } catch (RuntimeException e) {

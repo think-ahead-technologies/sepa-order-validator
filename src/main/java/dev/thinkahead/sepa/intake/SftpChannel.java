@@ -6,7 +6,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import org.apache.sshd.sftp.client.SftpClient;
@@ -35,9 +38,9 @@ class SftpChannel {
     /**
      * Customer files waiting in inbound. Only *.xml files count, so customers can upload under a temporary name.
      */
-    List<String> listInbound() {
+    List<RemoteFile> listInbound() {
         return list(properties.inboundDirectory()).stream()
-                .filter(name -> name.toLowerCase(Locale.ROOT).endsWith(".xml"))
+                .filter(file -> file.name().toLowerCase(Locale.ROOT).endsWith(".xml"))
                 .toList();
     }
 
@@ -56,15 +59,7 @@ class SftpChannel {
     }
 
     List<RemoteFile> listProcessing() {
-        try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
-            return Arrays.stream(session.list(properties.processingDirectory()))
-                    .filter(entry -> entry.getAttributes().isRegularFile())
-                    .map(entry -> new RemoteFile(entry.getFilename(), entry.getAttributes().getSize()))
-                    .sorted(java.util.Comparator.comparing(RemoteFile::name))
-                    .toList();
-        } catch (IOException e) {
-            throw new UncheckedIOException("Cannot list SFTP processing directory", e);
-        }
+        return list(properties.processingDirectory());
     }
 
     /**
@@ -96,7 +91,11 @@ class SftpChannel {
         }
     }
 
-    record RemoteFile(String name, long size) {
+    /**
+     * A regular file as listed by the server; modifiedAt has the server's resolution, often whole seconds,
+     * and is null if the server does not report it.
+     */
+    record RemoteFile(String name, long size, Instant modifiedAt) {
     }
 
     /**
@@ -119,16 +118,22 @@ class SftpChannel {
         }
     }
 
-    private List<String> list(String directory) {
+    private List<RemoteFile> list(String directory) {
         try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
             return Arrays.stream(session.list(directory))
                     .filter(entry -> entry.getAttributes().isRegularFile())
-                    .map(SftpClient.DirEntry::getFilename)
-                    .sorted()
+                    .map(SftpChannel::remoteFile)
+                    .sorted(Comparator.comparing(RemoteFile::name))
                     .toList();
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot list SFTP directory " + directory, e);
         }
+    }
+
+    private static RemoteFile remoteFile(SftpClient.DirEntry entry) {
+        FileTime modified = entry.getAttributes().getModifyTime();
+        return new RemoteFile(entry.getFilename(), entry.getAttributes().getSize(),
+                modified == null ? null : modified.toInstant());
     }
 
     private static boolean renameIfPresent(Session<SftpClient.DirEntry> session, String from, String to)

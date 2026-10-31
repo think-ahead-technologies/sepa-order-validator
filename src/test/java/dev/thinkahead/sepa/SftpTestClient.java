@@ -5,7 +5,9 @@ package dev.thinkahead.sepa;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.sshd.sftp.client.SftpClient;
@@ -25,6 +27,31 @@ public final class SftpTestClient {
             session.write(new ByteArrayInputStream(content), directory + "/" + fileName);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Uploads like a customer on a slow line: in chunks under the final name, pausing after each chunk.
+     * Runs the given check after every chunk while the file is still incomplete.
+     */
+    public void uploadSlowly(String directory, String fileName, byte[] content, int chunks, Duration pause,
+            Runnable whileIncomplete) {
+        int chunkSize = Math.ceilDiv(content.length, chunks);
+        try (Session<SftpClient.DirEntry> session = sessions.getSession();
+                OutputStream out = ((SftpClient) session.getClientInstance()).write(directory + "/" + fileName)) {
+            for (int offset = 0; offset < content.length; offset += chunkSize) {
+                out.write(content, offset, Math.min(chunkSize, content.length - offset));
+                out.flush();
+                Thread.sleep(pause);
+                if (offset + chunkSize < content.length) {
+                    whileIncomplete.run();
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
         }
     }
 

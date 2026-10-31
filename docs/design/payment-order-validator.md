@@ -170,8 +170,11 @@ public record Violation(
 
 | Rule | Reason code |
 |---|---|
-| Requested execution date is a TARGET business day (closed on weekends, 1 January, Good Friday, Easter Monday, 1 May, 25 and 26 December) and not before today in Europe/Berlin | DT01 |
-| SCT Inst amount within configured limits (scheme and customer) | AM02 |
+| SCT: requested execution date is a TARGET business day (closed on weekends, 1 January, Good Friday, Easter Monday, 1 May, 25 and 26 December) and not before today in Europe/Berlin. SCT Inst: the date is the earliest start of execution, any day, past dates mean immediately (DK Anlage 3 v3.7, 2.2.4.1) | DT01 |
+| SCT Inst is marked by local instrument `INST`; no other local instrument, SCT carries none (DK Anlage 3 v3.7, 2.2.4.1) | AG02 |
+| A file holds either SCT or SCT Inst, never both (separate DK order types CCT and CIP) | AG02 |
+| Payment type information on payment information or transaction level, not both | FF01 |
+| SCT Inst amount: no scheme maximum since the SCT Inst Rulebook 2025; customer limits pending Q15 | AM02 |
 
 **SDD Core / B2B**
 
@@ -275,3 +278,4 @@ Test-first development; unit, integration and end-to-end tests for every feature
 | Q12 | How long must a `MsgId` stay unique per submitter (forever, or e.g. 90 days)? Does DK prescribe a window? | ADR-0016 |
 | Q13 | Maximum accepted file size (default 100 MB) and overdue-reply threshold (default 10 min): confirm with business and operations, size pods accordingly | ADR-0004, ADR-0007 |
 | Q14 | Characters outside the DK set (e.g. `é`, `ł`) are rejected with CH16. Should they be accepted and converted per EPC217-08 instead, and if so by this system or by downstream payment processing? | Rule catalogue, ADR on order modification |
+| Q15 | SCT Inst customer limits (Instant Payments Regulation: payer-set limits, not lower than for SCT): does this system check them, and where do the limits come from? | Rule catalogue, customer data |

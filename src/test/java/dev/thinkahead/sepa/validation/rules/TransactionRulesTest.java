@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.thinkahead.sepa.validation.Violation;
 import dev.thinkahead.sepa.validation.pain001.CreditTransferTransaction;
+import dev.thinkahead.sepa.validation.pain001.CreditTransferScheme;
 import dev.thinkahead.sepa.validation.pain001.PaymentInformation;
 import dev.thinkahead.sepa.validation.pain001.RemittanceInformation;
 import java.math.BigDecimal;
@@ -46,7 +47,7 @@ class TransactionRulesTest {
     @Test
     void debtorIbanRuleReportsAc02WithLocation() {
         var pmtInf = new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013001", null,
-                LocalDate.of(2026, 11, 2));
+                LocalDate.of(2026, 11, 2), CreditTransferScheme.SCT);
 
         assertThat(new DebtorIbanRule().validate(pmtInf))
                 .singleElement()
@@ -59,7 +60,7 @@ class TransactionRulesTest {
     @Test
     void debtorIbanRuleAcceptsValidIban() {
         var pmtInf = new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013000", null,
-                LocalDate.of(2026, 11, 2));
+                LocalDate.of(2026, 11, 2), CreditTransferScheme.SCT);
 
         assertThat(new DebtorIbanRule().validate(pmtInf)).isEmpty();
     }

@@ -126,6 +126,34 @@ public final class Fixtures {
                 .replace("<Nm>Fournisseur SA</Nm>", "<Nm>" + FRENCH_CREDITOR_NAME + "</Nm>");
     }
 
+    /**
+     * The valid sample as SEPA Instant credit transfer: local instrument INST on payment information level.
+     */
+    public static String validInstantPain001(String messageId, LocalDate executionDate) {
+        return validPain001(messageId, executionDate).replace("</SvcLvl>",
+                "</SvcLvl>\n        <LclInstrm>\n          <Cd>INST</Cd>\n        </LclInstrm>");
+    }
+
+    /**
+     * A file mixing schemes: the sample's payment information block as SEPA Instant, followed by a copy as plain SEPA
+     * credit transfer (PMT-002), which DK forbids within one file (AG02 at PmtInf[2]).
+     */
+    public static String withMixedSchemes(String messageId) {
+        String instant = validInstantPain001(messageId, futureExecutionDate());
+        String sct = validPain001(messageId);
+        String instantBlock = paymentInformationBlock(instant);
+        String sctBlock = paymentInformationBlock(sct).replace("<PmtInfId>PMT-001</PmtInfId>",
+                "<PmtInfId>PMT-002</PmtInfId>");
+        return instant
+                .replace(instantBlock, instantBlock + "\n    " + sctBlock)
+                .replace("<NbOfTxs>2</NbOfTxs>\n      <CtrlSum>150.50</CtrlSum>\n      <InitgPty>",
+                        "<NbOfTxs>4</NbOfTxs>\n      <CtrlSum>301.00</CtrlSum>\n      <InitgPty>");
+    }
+
+    private static String paymentInformationBlock(String xml) {
+        return xml.substring(xml.indexOf("<PmtInf>"), xml.indexOf("</PmtInf>") + "</PmtInf>".length());
+    }
+
     public static byte[] bytes(String xml) {
         return xml.getBytes(StandardCharsets.UTF_8);
     }

@@ -138,6 +138,18 @@ class PaymentFileProcessingEndToEndTest {
     }
 
     @Test
+    void sepaInstantWithAPastSundayAsEarliestExecutionIsAccepted() throws Exception {
+        java.time.LocalDate pastSunday = java.time.LocalDate.of(2026, 10, 25);
+
+        Delivery delivery = submit(Fixtures.validInstantPain001(uniqueMessageId(), pastSunday));
+
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
+        assertThat(reasonCodes(delivery.report())).isEmpty();
+        assertThat(fileStatus(delivery.fileName())).isEqualTo("ACCEPTED");
+        assertAuditTrailComplete(delivery.fileName());
+    }
+
+    @Test
     void executionOnAWeekendIsRejectedWithDt01() throws Exception {
         java.time.LocalDate saturday = Fixtures.futureExecutionDate()
                 .with(java.time.temporal.TemporalAdjusters.next(java.time.DayOfWeek.SATURDAY));

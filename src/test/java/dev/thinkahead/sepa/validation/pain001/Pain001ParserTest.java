@@ -203,12 +203,58 @@ class Pain001ParserTest {
     }
 
     @Test
+    void emitsPaymentTypeInformationOfEveryLevel() {
+        var xml = instant(VALID_PAIN_001).replaceFirst("(<PmtId>\\s*<EndToEndId>E2E-002</EndToEndId>\\s*</PmtId>)",
+                "$1<PmtTpInf><LclInstrm><Prtry>EXPRESS</Prtry></LclInstrm></PmtTpInf>");
+
+        new Pain001Parser().parse(bytes(xml), handler);
+
+        assertThat(handler.paymentTypes).containsExactly(
+                new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null),
+                new PaymentTypeInformation("PmtInf[1]/CdtTrfTxInf[2]/PmtTpInf", null, "EXPRESS"));
+    }
+
+    @Test
+    void classifiesPaymentInformationAsSepaInstantFromItsOwnLevel() {
+        new Pain001Parser().parse(bytes(instant(VALID_PAIN_001)), handler);
+
+        assertThat(handler.paymentInformation.getFirst().scheme()).isEqualTo(CreditTransferScheme.SCT_INST);
+    }
+
+    @Test
+    void classifiesPaymentInformationAsSepaInstantFromItsTransactions() {
+        String instantPaymentType = "$1<PmtTpInf><LclInstrm><Cd>INST</Cd></LclInstrm></PmtTpInf>";
+        var xml = VALID_PAIN_001.replaceFirst("(?s)<PmtTpInf>.*?</PmtTpInf>", "")
+                .replaceAll("(<PmtId>\\s*<EndToEndId>E2E-00[12]</EndToEndId>\\s*</PmtId>)", instantPaymentType);
+
+        new Pain001Parser().parse(bytes(xml), handler);
+
+        assertThat(handler.paymentInformation.getFirst().scheme()).isEqualTo(CreditTransferScheme.SCT_INST);
+    }
+
+    @Test
+    void classifiesPaymentInformationWithBothSchemesAsMixed() {
+        var xml = VALID_PAIN_001.replaceFirst("(?s)<PmtTpInf>.*?</PmtTpInf>", "")
+                .replaceFirst("(<PmtId>\\s*<EndToEndId>E2E-002</EndToEndId>\\s*</PmtId>)",
+                        "$1<PmtTpInf><LclInstrm><Cd>INST</Cd></LclInstrm></PmtTpInf>");
+
+        new Pain001Parser().parse(bytes(xml), handler);
+
+        assertThat(handler.paymentInformation.getFirst().scheme()).isEqualTo(CreditTransferScheme.MIXED);
+    }
+
+    private static String instant(String xml) {
+        return xml.replace("</SvcLvl>", "</SvcLvl><LclInstrm><Cd>INST</Cd></LclInstrm>");
+    }
+
+    @Test
     void emitsPaymentInformation() {
         new Pain001Parser().parse(bytes(VALID_PAIN_001), handler);
 
         assertThat(handler.paymentInformation).containsExactly(
                 new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013000",
-                        new Agent("COBADEFFXXX", null, false), LocalDate.of(2026, 11, 2)));
+                        new Agent("COBADEFFXXX", null, false), LocalDate.of(2026, 11, 2),
+                        CreditTransferScheme.SCT));
     }
 
     @Test
@@ -240,6 +286,7 @@ class Pain001ParserTest {
         final List<PartyName> partyNames = new ArrayList<>();
         final List<PostalAddress> postalAddresses = new ArrayList<>();
         final List<ElementText> elementTexts = new ArrayList<>();
+        final List<PaymentTypeInformation> paymentTypes = new ArrayList<>();
 
         @Override
         public void paymentInformation(PaymentInformation pmtInf) {
@@ -269,6 +316,11 @@ class Pain001ParserTest {
         @Override
         public void elementText(ElementText elementText) {
             elementTexts.add(elementText);
+        }
+
+        @Override
+        public void paymentTypeInformation(PaymentTypeInformation paymentTypeInformation) {
+            paymentTypes.add(paymentTypeInformation);
         }
     }
 }

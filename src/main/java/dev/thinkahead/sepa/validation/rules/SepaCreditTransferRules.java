@@ -8,6 +8,7 @@ import dev.thinkahead.sepa.validation.pain001.ElementText;
 import dev.thinkahead.sepa.validation.pain001.Pain001Handler;
 import dev.thinkahead.sepa.validation.pain001.PartyName;
 import dev.thinkahead.sepa.validation.pain001.PaymentInformation;
+import dev.thinkahead.sepa.validation.pain001.PaymentTypeInformation;
 import dev.thinkahead.sepa.validation.pain001.PostalAddress;
 import dev.thinkahead.sepa.validation.pain001.Totals;
 import java.time.LocalDate;
@@ -26,6 +27,8 @@ public final class SepaCreditTransferRules implements Pain001Handler {
     private static final List<ValidationRule<ElementText>> ELEMENT_TEXT_RULES = List.of(new CharacterSetRule());
 
     private final List<ValidationRule<PaymentInformation>> paymentInformationRules;
+    private final List<ValidationRule<PaymentTypeInformation>> paymentTypeRules =
+            List.of(new LocalInstrumentRule(), new PaymentTypeInformationLevelRule());
     private final List<Violation> violations = new ArrayList<>();
     private final int maxReportedViolations;
     private long unreportedViolations;
@@ -37,7 +40,7 @@ public final class SepaCreditTransferRules implements Pain001Handler {
     public SepaCreditTransferRules(int maxReportedViolations, LocalDate today) {
         this.maxReportedViolations = maxReportedViolations;
         this.paymentInformationRules = List.of(new DebtorIbanRule(), new DebtorAgentRule(),
-                new UniquePaymentInformationIdRule(), new ExecutionDateRule(today));
+                new UniquePaymentInformationIdRule(), new ExecutionDateRule(today), new SingleSchemeRule());
     }
 
     @Override
@@ -68,6 +71,11 @@ public final class SepaCreditTransferRules implements Pain001Handler {
     @Override
     public void elementText(ElementText elementText) {
         apply(ELEMENT_TEXT_RULES, elementText);
+    }
+
+    @Override
+    public void paymentTypeInformation(PaymentTypeInformation paymentTypeInformation) {
+        apply(paymentTypeRules, paymentTypeInformation);
     }
 
     public List<Violation> violations() {

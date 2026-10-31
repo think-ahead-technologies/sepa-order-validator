@@ -222,6 +222,18 @@ class PaymentFileValidationIntegrationTest {
     }
 
     @Test
+    void rejectsAFileMixingSepaInstantAndSepaCreditTransfersWithAg02() {
+        PaymentFileValidated validated = uploadAndAwaitValidation(
+                dev.thinkahead.sepa.Fixtures.withMixedSchemes(uniqueMessageId()));
+
+        assertThat(validated.accepted()).isFalse();
+        assertThat(validated.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("AG02", "PmtInf[2]"));
+        assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
+    }
+
+    @Test
     void rejectsAnExecutionDateInThePastWithDt01() {
         PaymentFileValidated validated = uploadAndAwaitValidation(
                 validPain001(uniqueMessageId(), java.time.LocalDate.of(2026, 10, 1)));

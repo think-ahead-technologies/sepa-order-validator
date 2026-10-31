@@ -4,6 +4,7 @@ package dev.thinkahead.sepa.validation.rules;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.thinkahead.sepa.validation.pain001.CreditTransferScheme;
 import dev.thinkahead.sepa.validation.pain001.PaymentInformation;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
@@ -15,8 +16,24 @@ class ExecutionDateRuleTest {
     private final ExecutionDateRule rule = new ExecutionDateRule(TODAY);
 
     private static PaymentInformation paymentInformation(LocalDate requestedExecutionDate) {
+        return paymentInformation(requestedExecutionDate, CreditTransferScheme.SCT);
+    }
+
+    private static PaymentInformation paymentInformation(LocalDate requestedExecutionDate,
+            CreditTransferScheme scheme) {
         return new PaymentInformation("PmtInf[2]", "PMT-002", "DE89370400440532013000", null,
-                requestedExecutionDate);
+                requestedExecutionDate, scheme);
+    }
+
+    @Test
+    void acceptsAnyDateForSepaInstantAsEarliestStartOfExecution() {
+        // DK Anlage 3 v3.7, 2.2.4.1: a date not in the future means "immediately"; SCT Inst runs 24/7/365.
+        assertThat(rule.validate(paymentInformation(LocalDate.of(2026, 10, 1), CreditTransferScheme.SCT_INST)))
+                .isEmpty();
+        assertThat(rule.validate(paymentInformation(LocalDate.of(2026, 11, 7), CreditTransferScheme.SCT_INST)))
+                .isEmpty();
+        assertThat(rule.validate(paymentInformation(LocalDate.of(2026, 12, 25), CreditTransferScheme.SCT_INST)))
+                .isEmpty();
     }
 
     @Test

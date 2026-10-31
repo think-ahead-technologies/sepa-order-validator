@@ -29,6 +29,53 @@ class PaymentFileValidatorTest {
     }
 
     @Test
+    void acceptsSepaInstantWithAnExecutionDateInThePastOnASunday() {
+        String xml = dev.thinkahead.sepa.Fixtures.validInstantPain001(SAMPLE_MESSAGE_ID,
+                java.time.LocalDate.of(2026, 10, 25));
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.violations()).isEmpty();
+        assertThat(result.accepted()).isTrue();
+    }
+
+    @Test
+    void rejectsAFileMixingSepaInstantAndSepaCreditTransfersWithAg02() {
+        ValidationResult result = validator.validate(
+                bytes(dev.thinkahead.sepa.Fixtures.withMixedSchemes(SAMPLE_MESSAGE_ID)), NO_DEADLINE);
+
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(tuple("AG02", "PmtInf[2]"));
+    }
+
+    @Test
+    void rejectsALocalInstrumentOtherThanInstWithAg02() {
+        String xml = dev.thinkahead.sepa.Fixtures.validInstantPain001(SAMPLE_MESSAGE_ID,
+                java.time.LocalDate.of(2026, 11, 2)).replace("<Cd>INST</Cd>", "<Cd>SDCL</Cd>");
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(tuple("AG02", "PmtInf[1]/PmtTpInf/LclInstrm"));
+    }
+
+    @Test
+    void rejectsPaymentTypeInformationOnBothLevelsWithFf01() {
+        String xml = dev.thinkahead.sepa.Fixtures.validInstantPain001(SAMPLE_MESSAGE_ID,
+                java.time.LocalDate.of(2026, 11, 2)).replaceFirst(
+                "(<PmtId>\\s*<EndToEndId>E2E-001</EndToEndId>\\s*</PmtId>)",
+                "$1<PmtTpInf><LclInstrm><Cd>INST</Cd></LclInstrm></PmtTpInf>");
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(tuple("FF01", "PmtInf[1]/CdtTrfTxInf[1]/PmtTpInf"));
+    }
+
+    @Test
     void rejectsCharactersOutsideTheDkCharacterSetWithCh16() {
         ValidationResult result = validator.validate(
                 bytes(dev.thinkahead.sepa.Fixtures.withCharacterSetViolations(SAMPLE_MESSAGE_ID)), NO_DEADLINE);

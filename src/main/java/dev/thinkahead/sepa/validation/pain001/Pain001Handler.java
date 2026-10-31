@@ -15,4 +15,6 @@ public interface Pain001Handler {
     void postalAddress(PostalAddress postalAddress);
 
     void elementText(ElementText elementText);
+
+    void paymentTypeInformation(PaymentTypeInformation paymentTypeInformation);
 }

@@ -62,6 +62,10 @@ public class Pain001Parser {
         private String paymentNumberOfTransactions;
         private BigDecimal paymentControlSum;
         private LocalDate requestedExecutionDate;
+        private String paymentInformationLocalInstrument;
+        private int instantTransactions;
+        private String paymentTypeCode;
+        private String paymentTypeProprietary;
         private String debtorIban;
         private AgentBuilder debtorAgent;
         private long paymentCount;
@@ -75,6 +79,8 @@ public class Pain001Parser {
         private String creditorIban;
         private AgentBuilder creditorAgent;
         private String creditorName;
+        private boolean transactionHasPaymentType;
+        private String transactionLocalInstrument;
         private AddressBuilder address;
         private int unstructuredCount;
         private int structuredCount;
@@ -134,6 +140,8 @@ public class Pain001Parser {
                     debtorIban = null;
                     debtorAgent = null;
                     requestedExecutionDate = null;
+                    paymentInformationLocalInstrument = null;
+                    instantTransactions = 0;
                     paymentCount = 0;
                     paymentSum = BigDecimal.ZERO;
                     transactionIndex = 0;
@@ -147,6 +155,8 @@ public class Pain001Parser {
                     creditorIban = null;
                     creditorAgent = null;
                     creditorName = null;
+                    transactionHasPaymentType = false;
+                    transactionLocalInstrument = null;
                     unstructuredCount = 0;
                     structuredCount = 0;
                     longestStructuredLength = 0;
@@ -159,6 +169,15 @@ public class Pain001Parser {
                 case DEBTOR_AGENT -> debtorAgent = new AgentBuilder();
                 case CREDITOR_AGENT -> creditorAgent = new AgentBuilder();
                 case DEBTOR_ADDRESS, CREDITOR_ADDRESS -> address = new AddressBuilder();
+                case PMT_INF + "/PmtTpInf" -> {
+                    paymentTypeCode = null;
+                    paymentTypeProprietary = null;
+                }
+                case TX + "/PmtTpInf" -> {
+                    paymentTypeCode = null;
+                    paymentTypeProprietary = null;
+                    transactionHasPaymentType = true;
+                }
                 case STRD -> {
                     structuredCount++;
                     structuredLength = 0;
@@ -185,13 +204,27 @@ public class Pain001Parser {
                 case PMT_INF + "/PmtInfId" -> paymentInformationId = value;
                 case PMT_INF + "/NbOfTxs" -> paymentNumberOfTransactions = value;
                 case PMT_INF + "/CtrlSum" -> paymentControlSum = new BigDecimal(value);
+                case PMT_INF + "/PmtTpInf/LclInstrm/Cd", TX + "/PmtTpInf/LclInstrm/Cd" -> paymentTypeCode = value;
+                case PMT_INF + "/PmtTpInf/LclInstrm/Prtry", TX + "/PmtTpInf/LclInstrm/Prtry" ->
+                        paymentTypeProprietary = value;
+                case PMT_INF + "/PmtTpInf" -> {
+                    paymentInformationLocalInstrument = paymentTypeCode;
+                    handler.paymentTypeInformation(new PaymentTypeInformation(paymentInformationPath + "/PmtTpInf",
+                            paymentTypeCode, paymentTypeProprietary));
+                }
+                case TX + "/PmtTpInf" -> {
+                    transactionLocalInstrument = paymentTypeCode;
+                    handler.paymentTypeInformation(new PaymentTypeInformation(transactionPath + "/PmtTpInf",
+                            paymentTypeCode, paymentTypeProprietary));
+                }
                 case PMT_INF + "/ReqdExctnDt/Dt" -> requestedExecutionDate = LocalDate.parse(value);
                 case PMT_INF + "/ReqdExctnDt/DtTm" -> requestedExecutionDate = LocalDate.parse(value.substring(0, 10));
                 case DEBTOR_ADDRESS -> handler.postalAddress(
                         address.build(paymentInformationPath + "/Dbtr/PstlAdr", Party.DEBTOR, requestedExecutionDate));
                 case CREDITOR_ADDRESS -> handler.postalAddress(
                         address.build(transactionPath + "/Cdtr/PstlAdr", Party.CREDITOR, requestedExecutionDate));
-                case PMT_INF + "/Dbtr/Nm" -> handler.partyName(new PartyName(paymentInformationPath + "/Dbtr/Nm", value));
+                case PMT_INF + "/Dbtr/Nm" ->
+                        handler.partyName(new PartyName(paymentInformationPath + "/Dbtr/Nm", value));
                 case PMT_INF + "/UltmtDbtr/Nm" ->
                         handler.partyName(new PartyName(paymentInformationPath + "/UltmtDbtr/Nm", value));
                 case PMT_INF + "/DbtrAcct/Id/IBAN" -> debtorIban = value;
@@ -218,6 +251,13 @@ public class Pain001Parser {
                 default -> {
                 }
             }
+        }
+
+        private CreditTransferScheme scheme() {
+            if (instantTransactions == 0) {
+                return CreditTransferScheme.SCT;
+            }
+            return instantTransactions == paymentCount ? CreditTransferScheme.SCT_INST : CreditTransferScheme.MIXED;
         }
 
         /**
@@ -249,6 +289,12 @@ public class Pain001Parser {
         }
 
         private void endTransaction() {
+            String localInstrument = transactionHasPaymentType
+                    ? transactionLocalInstrument
+                    : paymentInformationLocalInstrument;
+            if ("INST".equals(localInstrument)) {
+                instantTransactions++;
+            }
             CreditorReference reference = creditorReferencePresent
                     ? new CreditorReference(creditorReferenceTypePresent, creditorReferenceTypeCode, creditorReference)
                     : null;
@@ -267,7 +313,7 @@ public class Pain001Parser {
 
         private void endPaymentInformation() {
             handler.paymentInformation(new PaymentInformation(paymentInformationPath, paymentInformationId, debtorIban,
-                    debtorAgent == null ? null : debtorAgent.build(), requestedExecutionDate));
+                    debtorAgent == null ? null : debtorAgent.build(), requestedExecutionDate, scheme()));
             handler.totals(new Totals(paymentInformationPath, paymentNumberOfTransactions, paymentControlSum,
                     paymentCount, paymentSum));
         }

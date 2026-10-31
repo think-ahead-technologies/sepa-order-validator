@@ -4,6 +4,7 @@ package dev.thinkahead.sepa.validation.rules;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.thinkahead.sepa.validation.pain001.CreditTransferScheme;
 import dev.thinkahead.sepa.validation.pain001.PaymentInformation;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
@@ -15,18 +16,23 @@ class UniquePaymentInformationIdRuleTest {
 
     private final UniquePaymentInformationIdRule rule = new UniquePaymentInformationIdRule();
 
+    private static PaymentInformation paymentInformation(int index, String paymentInformationId) {
+        return new PaymentInformation("PmtInf[" + index + "]", paymentInformationId, IBAN, null, EXECUTION_DATE,
+                CreditTransferScheme.SCT);
+    }
+
     @Test
     void acceptsDistinctPaymentInformationIds() {
-        assertThat(rule.validate(new PaymentInformation("PmtInf[1]", "PMT-001", IBAN, null, EXECUTION_DATE))).isEmpty();
-        assertThat(rule.validate(new PaymentInformation("PmtInf[2]", "PMT-002", IBAN, null, EXECUTION_DATE))).isEmpty();
+        assertThat(rule.validate(paymentInformation(1, "PMT-001"))).isEmpty();
+        assertThat(rule.validate(paymentInformation(2, "PMT-002"))).isEmpty();
     }
 
     @Test
     void reportsDu02AtTheRepeatedOccurrence() {
-        rule.validate(new PaymentInformation("PmtInf[1]", "PMT-001", IBAN, null, EXECUTION_DATE));
-        rule.validate(new PaymentInformation("PmtInf[2]", "PMT-002", IBAN, null, EXECUTION_DATE));
+        rule.validate(paymentInformation(1, "PMT-001"));
+        rule.validate(paymentInformation(2, "PMT-002"));
 
-        assertThat(rule.validate(new PaymentInformation("PmtInf[3]", "PMT-001", IBAN, null, EXECUTION_DATE)))
+        assertThat(rule.validate(paymentInformation(3, "PMT-001")))
                 .singleElement()
                 .satisfies(v -> {
                     assertThat(v.reasonCode()).isEqualTo("DU02");

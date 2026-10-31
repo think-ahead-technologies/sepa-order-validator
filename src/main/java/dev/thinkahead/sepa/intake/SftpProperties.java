@@ -11,6 +11,7 @@ import org.springframework.util.StringUtils;
  * @param password             password of the SFTP account; exactly one of password and privateKey is set
  * @param privateKey           private key in OpenSSH or PEM format for public key authentication
  * @param privateKeyPassphrase passphrase of the private key, if it is encrypted
+ * @param stagingDirectory     where reports are written before the rename into outbound; same file system as outbound
  * @param pollInterval         pause between the end of one inbound poll and the start of the next
  */
 @ConfigurationProperties("sepa.sftp")
@@ -26,6 +27,7 @@ record SftpProperties(
         String processingDirectory,
         String processedDirectory,
         String outboundDirectory,
+        String stagingDirectory,
         Duration pollInterval) {
 
     SftpProperties {
@@ -44,6 +46,9 @@ record SftpProperties(
         }
         if (knownHosts == null) {
             throw new IllegalArgumentException("sepa.sftp.known-hosts must point to a known_hosts file");
+        }
+        if (!StringUtils.hasText(stagingDirectory)) {
+            throw new IllegalArgumentException("sepa.sftp.staging-directory is required");
         }
         if (pollInterval == null || !pollInterval.isPositive()) {
             throw new IllegalArgumentException("sepa.sftp.poll-interval must be positive, was " + pollInterval);

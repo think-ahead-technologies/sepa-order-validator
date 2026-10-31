@@ -1,13 +1,14 @@
-// ABOUTME: Turns each validation outcome into exactly one stored pain.002 report and announces it for delivery.
+// ABOUTME: Turns each validation outcome into exactly one stored pain.002 report and schedules its delivery.
 // ABOUTME: Report message ids are "STS" plus a UUID without dashes, exactly fitting ISO Max35Text.
 package dev.thinkahead.sepa.reporting;
 
 import dev.thinkahead.sepa.LogContext;
+import dev.thinkahead.sepa.processing.Step;
+import dev.thinkahead.sepa.processing.WorkQueue;
 import dev.thinkahead.sepa.validation.PaymentFileValidated;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.UUID;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
@@ -16,14 +17,13 @@ class StatusReportListener {
 
     private final Pain002Writer writer;
     private final StatusReportRepository repository;
-    private final ApplicationEventPublisher events;
+    private final WorkQueue workQueue;
     private final Clock clock;
 
-    StatusReportListener(Pain002Writer writer, StatusReportRepository repository, ApplicationEventPublisher events,
-            Clock clock) {
+    StatusReportListener(Pain002Writer writer, StatusReportRepository repository, WorkQueue workQueue, Clock clock) {
         this.writer = writer;
         this.repository = repository;
-        this.events = events;
+        this.workQueue = workQueue;
         this.clock = clock;
     }
 
@@ -41,7 +41,7 @@ class StatusReportListener {
                 validated.accepted() ? GroupStatus.ACCP : GroupStatus.RJCT,
                 validated.violations());
         if (repository.insertIfAbsent(validated.fileId(), report, writer.write(report))) {
-            events.publishEvent(new StatusReportCreated(validated.fileId(), report.messageId()));
+            workQueue.enqueue(validated.fileId(), Step.DELIVER);
         }
     }
 }

@@ -24,10 +24,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT, properties = {
-        "sepa.events.resubmit-after=PT3S",
-        "sepa.events.resubmit-interval=PT1S"
-})
+@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @Import({TestcontainersConfiguration.class, TestSupportConfiguration.class})
 class ObservabilityEndToEndTest {
 

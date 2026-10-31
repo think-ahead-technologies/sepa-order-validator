@@ -111,20 +111,50 @@ class StatusReportIntegrationTest {
     }
 
     @Test
-    void redeliveredCreationResendsTheStoredReportUnchanged() {
+    void aReDrivenDeliveryResendsTheStoredReportUnchanged() {
         String fileName = "report-resent-" + UUID.randomUUID() + ".xml";
         UUID fileId = receive(fileName);
         StatusReportDelivered first = validated(
                 new PaymentFileValidated(fileId, "MSG-RESENT", "pain.001.001.09", true, List.of()));
         byte[] stored = storedReport(fileId);
+        String reportName = fileName.replace(".xml", "") + "-" + fileId + ".pain002.xml";
+        assertThat(customer.list("outbound")).contains(reportName);
 
-        transaction.executeWithoutResult(status ->
-                publisher.publishEvent(new StatusReportCreated(fileId, first.reportMessageId())));
+        jdbc.sql("""
+                        update work_item set state = 'PENDING', next_attempt_at = now(), lease_token = null,
+                                             locked_until = null
+                        where file_id = ? and step = 'DELIVER'""").param(fileId).update();
 
         await().atMost(TIMEOUT).until(() -> deliveriesFor(fileId) == 2);
-        String reportName = fileName.replace(".xml", "") + "-" + fileId + ".pain002.xml";
         assertThat(customer.download("outbound", reportName)).isEqualTo(stored);
+        assertThat(customer.list("outbound")).filteredOn(name -> name.startsWith(fileName.replace(".xml", "")))
+                .hasSize(1);
         assertThat(storedReportMessageId(fileId)).isEqualTo(first.reportMessageId());
+    }
+
+    @Test
+    void deliveryIsRetriedUntilTheOutboundChannelRecovers() {
+        String fileName = "report-retried-" + UUID.randomUUID() + ".xml";
+        UUID fileId = receive(fileName);
+
+        customer.chmod(".", "outbound", 0555);
+        try {
+            transaction.executeWithoutResult(status -> publisher.publishEvent(
+                    new PaymentFileValidated(fileId, "MSG-RETRIED", "pain.001.001.09", true, List.of())));
+
+            await().atMost(TIMEOUT).untilAsserted(() -> assertThat(jdbc.sql("""
+                            select attempts from work_item where file_id = ? and step = 'DELIVER'
+                            and state = 'PENDING' and last_error like 'Cannot write SFTP outbound file%'""")
+                    .param(fileId).query(Integer.class).optional()).hasValueSatisfying(
+                            attempts -> assertThat(attempts).isGreaterThanOrEqualTo(2)));
+            assertThat(deliveriesFor(fileId)).isZero();
+        } finally {
+            customer.chmod(".", "outbound", 0755);
+        }
+
+        await().atMost(TIMEOUT).until(() -> deliveriesFor(fileId) == 1);
+        assertThat(jdbc.sql("select state from work_item where file_id = ? and step = 'DELIVER'").param(fileId)
+                .query(String.class).single()).isEqualTo("DONE");
     }
 
     private long deliveriesFor(UUID fileId) {

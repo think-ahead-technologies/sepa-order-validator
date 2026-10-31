@@ -4,7 +4,7 @@ Date: 2026-10-31
 
 ## Status
 
-Accepted
+Accepted; its event-related parts (module events as the processing chain, resubmission, republishing on restart) are superseded by [ADR-0017](0017-file-processing-driven-by-persisted-state-with-a-postgresql-work-queue.md)
 
 ## Context
 

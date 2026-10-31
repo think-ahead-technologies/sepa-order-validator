@@ -1,5 +1,5 @@
-// ABOUTME: End-to-end test of recovery from an instance killed while a module event listener was running.
-// ABOUTME: A starting instance leaves the in-progress work alone; once stale it is resubmitted and finished exactly once.
+// ABOUTME: End-to-end test of recovery from an instance killed while a module event listener (audit) was running.
+// ABOUTME: A starting instance leaves the in-progress run alone; once stale it is resubmitted and recorded exactly once.
 package dev.thinkahead.sepa;
 
 import static dev.thinkahead.sepa.Fixtures.bytes;
@@ -28,7 +28,7 @@ class StuckPublicationRecoveryEndToEndTest {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final Duration STALE_AFTER = Duration.ofSeconds(6);
-    private static final String DELIVERY_LISTENER = "%StatusReportDeliveryListener%";
+    private static final String AUDIT_LISTENER = "%AuditLog.on(dev.thinkahead.sepa.intake.PaymentFileReceived)%";
 
     private final PostgreSQLContainer postgres = TestcontainersConfiguration.newPostgresContainer();
     private final GenericContainer<?> sftp = TestcontainersConfiguration.newSftpContainer();
@@ -54,40 +54,49 @@ class StuckPublicationRecoveryEndToEndTest {
     }
 
     @Test
-    void deliveryInterruptedByACrashIsFinishedOnceItIsStaleAndNotEarlier() {
-        String fileName = "crash-during-delivery-" + UUID.randomUUID() + ".xml";
-        String reportPrefix = fileName.replace(".xml", "") + "-";
+    void auditListenerRunInterruptedByACrashIsFinishedOnceItIsStaleAndNotEarlier() {
+        String fileName = "crash-during-audit-" + UUID.randomUUID() + ".xml";
 
         ConfigurableApplicationContext crashed = startInstance();
-        customer.chmod(".", "outbound", 0555);
+        jdbc.sql("""
+                create function block_audit_insert() returns trigger language plpgsql as $$
+                begin raise exception 'audit store unavailable'; end; $$""").update();
+        jdbc.sql("""
+                create trigger block_audit_insert before insert on audit_event
+                for each row execute function block_audit_insert()""").update();
         customer.upload("inbound", fileName, bytes(validPain001(uniqueMessageId())));
-        await().atMost(TIMEOUT).until(() -> deliveryPublications("FAILED") == 1);
+        await().atMost(TIMEOUT).until(() -> auditPublications("FAILED") == 1);
         crashed.close();
-        customer.chmod(".", "outbound", 0755);
-        // What a pod killed in the middle of the delivery listener leaves behind.
+        jdbc.sql("drop trigger block_audit_insert on audit_event").update();
+        // What a pod killed in the middle of the audit listener leaves behind.
         jdbc.sql("""
                         update event_publication
                         set status = 'PROCESSING', publication_date = now(), last_resubmission_date = null
                         where listener_id like ? and completion_date is null""")
-                .param(DELIVERY_LISTENER).update();
+                .param(AUDIT_LISTENER).update();
 
         startInstance();
 
         await().during(Duration.ofSeconds(3)).atMost(Duration.ofSeconds(4)).untilAsserted(() ->
-                assertThat(customer.list("outbound")).as("work in progress elsewhere is not taken over on startup")
-                        .noneMatch(name -> name.startsWith(reportPrefix)));
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("outbound"))
-                .filteredOn(name -> name.startsWith(reportPrefix)).hasSize(1));
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(jdbc.sql(
-                        "select replied_at is not null from payment_file where file_name = ?")
-                .param(fileName).query(Boolean.class).single()).isTrue());
+                assertThat(receivedAuditEntries(fileName)).as("run in progress elsewhere is not taken over on startup")
+                        .isZero());
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(receivedAuditEntries(fileName)).isEqualTo(1));
+        await().during(Duration.ofSeconds(2)).atMost(Duration.ofSeconds(3)).untilAsserted(() ->
+                assertThat(receivedAuditEntries(fileName)).as("recorded exactly once").isEqualTo(1));
     }
 
-    private int deliveryPublications(String status) {
+    private int auditPublications(String status) {
         return jdbc.sql("""
                         select count(*) from event_publication
                         where listener_id like ? and status = ? and completion_date is null""")
-                .params(DELIVERY_LISTENER, status).query(Integer.class).single();
+                .params(AUDIT_LISTENER, status).query(Integer.class).single();
+    }
+
+    private int receivedAuditEntries(String fileName) {
+        return jdbc.sql("""
+                        select count(*) from audit_event a join payment_file f on f.id = a.file_id
+                        where f.file_name = ? and a.event_type = 'PaymentFileReceived'""")
+                .param(fileName).query(Integer.class).single();
     }
 
     private ConfigurableApplicationContext startInstance() {

@@ -1,5 +1,5 @@
 // ABOUTME: End-to-end test of recovery from a failed processing step: SFTP outbound is temporarily read-only.
-// ABOUTME: The failed event delivery is resubmitted automatically and the customer receives exactly one report.
+// ABOUTME: The delivery work item is retried with backoff and the customer receives exactly one report.
 package dev.thinkahead.sepa;
 
 import static dev.thinkahead.sepa.Fixtures.bytes;
@@ -19,10 +19,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-@SpringBootTest(properties = {
-        "sepa.events.resubmit-after=PT3S",
-        "sepa.events.resubmit-interval=PT1S"
-})
+@SpringBootTest
 @ExtendWith(OutputCaptureExtension.class)
 @Import({TestcontainersConfiguration.class, TestSupportConfiguration.class})
 class DeliveryRecoveryEndToEndTest {
@@ -51,7 +48,7 @@ class DeliveryRecoveryEndToEndTest {
                     .query(UUID.class).single();
             assertThat(LogLines.forFile(output, fileId)).as("delivery failure logged with the file id")
                     .anySatisfy(line -> {
-                        assertThat(line.path("log").path("level").asString()).isEqualTo("ERROR");
+                        assertThat(line.path("log").path("level").asString()).isEqualTo("WARN");
                         assertThat(line.path("error").path("message").asString())
                                 .startsWith("Cannot write SFTP outbound file " + reportPrefix);
                     });

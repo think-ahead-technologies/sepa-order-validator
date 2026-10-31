@@ -35,7 +35,9 @@ public class TestcontainersConfiguration {
             "sepa.sftp.host", "sepa.sftp.port", "sepa.sftp.username", "sepa.sftp.password",
             "sepa.sftp.known-hosts", "sepa.sftp.poll-interval",
             "sepa.leader-election.lock-time-to-live", "sepa.leader-election.heartbeat", "sepa.intake.max-file-size",
-            "sepa.intake.reply-check-interval", "server.port");
+            "sepa.intake.reply-check-interval", "server.port", "sepa.processing.deliver.poll-interval",
+            "sepa.processing.deliver.initial-backoff", "sepa.processing.deliver.max-backoff",
+            "sepa.processing.deliver.lease");
 
     private static final String[] HOST_KEYS = {
             "/etc/ssh/ssh_host_ecdsa_key.pub",
@@ -93,6 +95,10 @@ public class TestcontainersConfiguration {
         properties.put("sepa.intake.max-file-size", "1MB");
         properties.put("sepa.intake.reply-check-interval", "PT1H");
         properties.put("server.port", 0);
+        properties.put("sepa.processing.deliver.poll-interval", "PT0.2S");
+        properties.put("sepa.processing.deliver.initial-backoff", "PT0.5S");
+        properties.put("sepa.processing.deliver.max-backoff", "PT1S");
+        properties.put("sepa.processing.deliver.lease", "PT10S");
         return properties;
     }
 

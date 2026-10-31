@@ -97,7 +97,7 @@ class SftpIntakeIntegrationTest {
         assertThat(output).contains("without a reply").contains(fileId.toString());
         assertThat(unansweredGauge()).isEqualTo(unansweredBefore + 1);
 
-        paymentFiles.deliverStatusReport(fileId, bytes("<Document/>"));
+        paymentFiles.markReplied(fileId);
 
         assertThat(unansweredFiles.check()).doesNotContain(fileId);
         assertThat(unansweredGauge()).isEqualTo(unansweredBefore);
@@ -284,15 +284,30 @@ class SftpIntakeIntegrationTest {
     }
 
     @Test
-    void deliversStatusReportThroughTheSftpChannel() {
+    void writesStatusReportThroughTheSftpChannelViaTheStagingDirectory() {
         String fileName = "deliver-" + UUID.randomUUID() + ".xml";
         UUID fileId = receive(fileName);
         byte[] report = bytes("<Document/>");
 
-        paymentFiles.deliverStatusReport(fileId, report);
+        paymentFiles.writeStatusReport(fileId, report);
 
         String reportName = fileName.replace(".xml", "") + "-" + fileId + ".pain002.xml";
         assertThat(customer.list("outbound")).contains(reportName);
+        assertThat(customer.download("outbound", reportName)).isEqualTo(report);
+        assertThat(customer.list("staging")).doesNotContain(reportName);
+    }
+
+    @Test
+    void writingTheSameStatusReportAgainReplacesItUnderTheSameName() {
+        String fileName = "deliver-twice-" + UUID.randomUUID() + ".xml";
+        UUID fileId = receive(fileName);
+        byte[] report = bytes("<Document/>");
+
+        paymentFiles.writeStatusReport(fileId, report);
+        paymentFiles.writeStatusReport(fileId, report);
+
+        String reportName = fileName.replace(".xml", "") + "-" + fileId + ".pain002.xml";
+        assertThat(customer.list("outbound")).filteredOn(name -> name.equals(reportName)).hasSize(1);
         assertThat(customer.download("outbound", reportName)).isEqualTo(report);
     }
 

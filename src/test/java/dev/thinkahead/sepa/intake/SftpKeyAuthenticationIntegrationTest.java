@@ -67,7 +67,7 @@ class SftpKeyAuthenticationIntegrationTest {
                 new FileSystemResource(privateKey),
                 PASSPHRASE,
                 new UrlResource((String) connection.get("sepa.sftp.known-hosts")),
-                "inbound", "processing", "processed", "outbound",
+                "inbound", "processing", "processed", "outbound", "staging",
                 Duration.ofSeconds(5));
         return new SftpConfiguration().sftpSessionFactory(properties);
     }

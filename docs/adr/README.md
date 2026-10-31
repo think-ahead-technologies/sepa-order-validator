@@ -10,7 +10,7 @@ Decisions for the SEPA Payment Order Validator. Format: [Michael Nygard's ADR te
 | [0004](0004-streaming-xml-with-hardened-parsing.md) | Streaming XML processing with hardened parsing | Accepted |
 | [0005](0005-format-detection-and-versioned-rule-sets.md) | Format detection by namespace and versioned rule sets | Accepted |
 | [0006](0006-whole-file-rejection-collecting-all-violations.md) | Whole-file rejection, collecting all violations | Accepted |
-| [0007](0007-asynchronous-processing-with-file-lifecycle.md) | Asynchronous processing with a persisted file lifecycle | Accepted |
+| [0007](0007-asynchronous-processing-with-file-lifecycle.md) | Asynchronous processing with a persisted file lifecycle | Accepted, partly superseded by 0017 |
 | [0008](0008-postgresql-with-flyway.md) | PostgreSQL with Flyway | Accepted |
 | [0009](0009-integrate-with-ebics-bank-server.md) | Integrate with an EBICS bank server instead of implementing EBICS | Proposed |
 | [0010](0010-screening-behind-ports-with-hold-for-review.md) | Screening behind ports, hits put the file on hold | Proposed |
@@ -20,6 +20,6 @@ Decisions for the SEPA Payment Order Validator. Format: [Michael Nygard's ADR te
 | [0014](0014-supply-chain-sbom-signing-verification.md) | Supply chain: SBOM, signing and verification | Accepted |
 | [0015](0015-leader-election-with-postgresql-locks.md) | Leader election with PostgreSQL locks | Accepted |
 | [0016](0016-duplicate-detection-by-message-id.md) | Duplicate detection by message id per submitter | Accepted |
-| [0017](0017-file-processing-driven-by-persisted-state-with-a-postgresql-work-queue.md) | File processing driven by persisted state with a PostgreSQL work queue | Proposed |
+| [0017](0017-file-processing-driven-by-persisted-state-with-a-postgresql-work-queue.md) | File processing driven by persisted state with a PostgreSQL work queue | Accepted |
 | [0018](0018-structured-logging-and-operational-endpoints.md) | Structured logging, file correlation and operational endpoints | Accepted |
-| [0017](0017-file-processing-driven-by-persisted-state-with-a-postgresql-work-queue.md) | File processing driven by persisted state with a PostgreSQL work queue | Proposed |
+| [0017](0017-file-processing-driven-by-persisted-state-with-a-postgresql-work-queue.md) | File processing driven by persisted state with a PostgreSQL work queue | Accepted |

@@ -20,6 +20,6 @@ class ModularityTests {
     @Test
     void containsTheWalkingSkeletonModules() {
         assertThat(modules.stream().map(ApplicationModule::getIdentifier).map(Object::toString))
-                .containsExactlyInAnyOrder("intake", "validation", "reporting", "audit");
+                .containsExactlyInAnyOrder("intake", "validation", "reporting", "audit", "processing");
     }
 }

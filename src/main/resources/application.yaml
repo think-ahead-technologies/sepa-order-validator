@@ -27,6 +27,7 @@ sepa:
     processing-directory: processing
     processed-directory: processed
     outbound-directory: outbound
+    staging-directory: staging
     poll-interval: PT5S
   intake:
     max-file-size: 100MB
@@ -35,6 +36,14 @@ sepa:
   events:
     resubmit-after: PT5M
     resubmit-interval: PT1M
+  processing:
+    deliver:
+      workers: 2
+      lease: PT2M
+      max-attempts: 10
+      poll-interval: PT1S
+      initial-backoff: PT10S
+      max-backoff: PT10M
   leader-election:
     lock-time-to-live: PT10S
     heartbeat: PT1S

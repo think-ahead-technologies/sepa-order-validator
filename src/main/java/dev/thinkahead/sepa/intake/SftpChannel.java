@@ -110,9 +110,15 @@ class SftpChannel {
         }
     }
 
+    /**
+     * Writes to the staging directory, then renames into outbound, so the customer never sees a partial file.
+     * An existing file of the same name in outbound is replaced.
+     */
     void writeOutbound(String fileName, byte[] content) {
+        String staged = properties.stagingDirectory() + "/" + fileName;
         try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
-            session.write(new ByteArrayInputStream(content), properties.outboundDirectory() + "/" + fileName);
+            session.write(new ByteArrayInputStream(content), staged);
+            session.rename(staged, properties.outboundDirectory() + "/" + fileName);
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot write SFTP outbound file " + fileName, e);
         }

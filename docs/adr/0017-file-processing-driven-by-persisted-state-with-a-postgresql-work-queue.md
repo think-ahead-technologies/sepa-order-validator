@@ -4,7 +4,7 @@ Date: 2026-10-31
 
 ## Status
 
-Proposed. Once accepted, it supersedes the event-related parts of ADR-0007: at-least-once module events as the processing chain, scheduled resubmission and republishing on restart.
+Accepted. It supersedes the event-related parts of ADR-0007: at-least-once module events as the processing chain, scheduled resubmission and republishing on restart. Migration is in progress: `DELIVER` runs on the work queue; `VALIDATE` and `REPORT` still run on module events.
 
 ## Context
 

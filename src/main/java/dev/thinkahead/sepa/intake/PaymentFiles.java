@@ -1,4 +1,4 @@
-// ABOUTME: Public facade of the intake module for other modules: file content, status updates, report delivery.
+// ABOUTME: Public facade of the intake module for other modules: file content, status updates, report writing.
 // ABOUTME: Status reports are delivered through the channel the payment file arrived on (ADR-0013).
 package dev.thinkahead.sepa.intake;
 
@@ -41,13 +41,23 @@ public class PaymentFiles {
                 accepted ? FileStatus.ACCEPTED : FileStatus.REJECTED);
     }
 
-    public void deliverStatusReport(UUID fileId, byte[] report) {
+    /**
+     * Writes the report to the customer through the file's channel; writing it again replaces it under the same name.
+     * Channel I/O only: call it outside a transaction and record the reply with {@link #markReplied(UUID)}.
+     */
+    public void writeStatusReport(UUID fileId, byte[] report) {
         StoredPaymentFile file = repository.find(fileId);
         switch (file.channel()) {
             case SFTP -> sftp.writeOutbound(statusReportName(file), report);
             default -> throw new IllegalStateException(
                     "No status report delivery for channel " + file.channel() + " of file " + fileId);
         }
+    }
+
+    /**
+     * Records that the customer was sent a status report for the file, which ends the overdue-reply alert.
+     */
+    public void markReplied(UUID fileId) {
         repository.markReplied(fileId);
     }
 

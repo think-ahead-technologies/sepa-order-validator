@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: payment-order-validator
+  threads:
+    virtual:
+      enabled: true
+  modulith:
+    events:
+      republish-outstanding-events-on-restart: true
+
+sepa:
+  sftp:
+    port: 22
+    inbound-directory: inbound
+    processed-directory: processed
+    outbound-directory: outbound
+    poll-interval: PT5S

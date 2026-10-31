@@ -9,9 +9,11 @@ import static org.awaitility.Awaitility.await;
 
 import dev.thinkahead.sepa.CapturedEvents;
 import dev.thinkahead.sepa.Fixtures;
+import dev.thinkahead.sepa.LogLines;
 import dev.thinkahead.sepa.SftpTestClient;
 import dev.thinkahead.sepa.TestSupportConfiguration;
 import dev.thinkahead.sepa.TestcontainersConfiguration;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.HexFormat;
@@ -57,6 +59,9 @@ class SftpIntakeIntegrationTest {
     @Autowired
     GenericContainer<?> sftp;
 
+    @Autowired
+    MeterRegistry meters;
+
     @Test
     void anUnreadableFileDoesNotBlockTheFilesBehindIt(CapturedOutput output) {
         var poison = new ClaimedFile(UUID.fromString("00000000-0000-0000-0000-000000000000"),
@@ -72,6 +77,8 @@ class SftpIntakeIntegrationTest {
                     .anySatisfy(name -> assertThat(name).endsWith(behind)));
             assertThat(customer.list("processing")).contains(poison.claimedName());
             assertThat(output).contains("Could not take in claimed file " + poison.claimedName());
+            assertThat(LogLines.messagesForFile(output, poison.fileId()))
+                    .anySatisfy(message -> assertThat(message).startsWith("Could not take in claimed file"));
         } finally {
             customer.chmod("processing", poison.claimedName(), 0644);
         }
@@ -83,14 +90,17 @@ class SftpIntakeIntegrationTest {
     void alertsAboutFilesStillWithoutReplyAfterTheThreshold(CapturedOutput output) {
         UUID fileId = UUID.randomUUID();
         intake.receive(fileId, Channel.SFTP, "sftp:sepa", "overdue.xml", ReceivedContent.of(bytes(VALID_PAIN_001)));
+        double unansweredBefore = unansweredGauge();
         jdbc.sql("update payment_file set received_at = now() - interval '1 hour' where id = ?").param(fileId).update();
 
         assertThat(unansweredFiles.check()).contains(fileId);
         assertThat(output).contains("without a reply").contains(fileId.toString());
+        assertThat(unansweredGauge()).isEqualTo(unansweredBefore + 1);
 
         paymentFiles.deliverStatusReport(fileId, bytes("<Document/>"));
 
         assertThat(unansweredFiles.check()).doesNotContain(fileId);
+        assertThat(unansweredGauge()).isEqualTo(unansweredBefore);
         assertThat(jdbc.sql("select replied_at is not null from payment_file where id = ?").param(fileId)
                 .query(Boolean.class).single()).isTrue();
     }
@@ -182,7 +192,7 @@ class SftpIntakeIntegrationTest {
     }
 
     @Test
-    void storesUploadedFileWithHashAndPublishesEvent() throws Exception {
+    void storesUploadedFileWithHashAndPublishesEvent(CapturedOutput output) throws Exception {
         String fileName = "intake-" + UUID.randomUUID() + ".xml";
         byte[] content = bytes(VALID_PAIN_001);
 
@@ -204,6 +214,8 @@ class SftpIntakeIntegrationTest {
                 .single())
                 .isEqualTo("RECEIVED|" + expectedHash + "|SFTP|sftp:sepa");
         assertThat(paymentFiles.content(received.fileId())).hasValueSatisfying(stored -> assertThat(stored).isEqualTo(content));
+        assertThat(LogLines.messagesForFile(output, received.fileId()))
+                .contains("Received payment file " + fileName + " (" + content.length + " bytes) from sftp:sepa");
     }
 
     @Test
@@ -251,6 +263,10 @@ class SftpIntakeIntegrationTest {
 
         await().during(Duration.ofSeconds(2)).atMost(Duration.ofSeconds(3)).untilAsserted(() ->
                 assertThat(sshLogins()).as("no new SSH login across several polls").isEqualTo(loginsBefore));
+    }
+
+    private double unansweredGauge() {
+        return meters.get("sepa.intake.files.unanswered").gauge().value();
     }
 
     private long sshLogins() {

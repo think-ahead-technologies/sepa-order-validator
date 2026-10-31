@@ -2,6 +2,7 @@
 // ABOUTME: Safe to run more than once per file: only the first delivery of the event records and publishes an outcome.
 package dev.thinkahead.sepa.validation;
 
+import dev.thinkahead.sepa.LogContext;
 import dev.thinkahead.sepa.intake.PaymentFileReceived;
 import dev.thinkahead.sepa.intake.PaymentFiles;
 import org.slf4j.Logger;
@@ -33,6 +34,7 @@ class PaymentFileValidationListener {
 
     @ApplicationModuleListener
     void on(PaymentFileReceived received) {
+        LogContext.setFile(received.fileId());
         if (!paymentFiles.isAwaitingValidation(received.fileId())) {
             return;
         }
@@ -51,6 +53,19 @@ class PaymentFileValidationListener {
         }
         events.publishEvent(new PaymentFileValidated(received.fileId(), result.originalMessageId(),
                 result.originalMessageNameId(), result.accepted(), result.violations()));
+        logOutcome(result);
+    }
+
+    /**
+     * Logs reason codes only: violation messages can quote values from the file.
+     */
+    private static void logOutcome(ValidationResult result) {
+        if (result.accepted()) {
+            LOG.info("Validated payment file: accepted");
+        } else {
+            LOG.info("Validated payment file: rejected with reason codes {}",
+                    result.violations().stream().map(Violation::reasonCode).distinct().toList());
+        }
     }
 
     /**

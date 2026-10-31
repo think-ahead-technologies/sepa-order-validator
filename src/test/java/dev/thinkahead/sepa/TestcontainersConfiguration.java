@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.apache.sshd.common.keyprovider.KeyIdentityProvider;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
@@ -34,7 +35,7 @@ public class TestcontainersConfiguration {
             "sepa.sftp.host", "sepa.sftp.port", "sepa.sftp.username", "sepa.sftp.password",
             "sepa.sftp.known-hosts", "sepa.sftp.poll-interval",
             "sepa.leader-election.lock-time-to-live", "sepa.leader-election.heartbeat", "sepa.intake.max-file-size",
-            "sepa.intake.reply-check-interval");
+            "sepa.intake.reply-check-interval", "server.port");
 
     private static final String[] HOST_KEYS = {
             "/etc/ssh/ssh_host_ecdsa_key.pub",
@@ -91,6 +92,7 @@ public class TestcontainersConfiguration {
         properties.put("sepa.leader-election.heartbeat", "PT0.5S");
         properties.put("sepa.intake.max-file-size", "1MB");
         properties.put("sepa.intake.reply-check-interval", "PT1H");
+        properties.put("server.port", 0);
         return properties;
     }
 
@@ -104,6 +106,8 @@ public class TestcontainersConfiguration {
         sessions.setUser(SFTP_USER);
         sessions.setPassword(SFTP_PASSWORD);
         sessions.setKnownHostsResource(new FileSystemResource(knownHostsFile(sftp)));
+        sessions.setSshClientConfigurer(client ->
+                client.setKeyIdentityProvider(KeyIdentityProvider.EMPTY_KEYS_PROVIDER));
         return new SftpTestClient(sessions);
     }
 

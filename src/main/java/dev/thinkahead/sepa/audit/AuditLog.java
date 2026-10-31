@@ -2,6 +2,7 @@
 // ABOUTME: Events are stored as JSON so the audit trail stays readable as event types evolve.
 package dev.thinkahead.sepa.audit;
 
+import dev.thinkahead.sepa.LogContext;
 import dev.thinkahead.sepa.intake.PaymentFileReceived;
 import dev.thinkahead.sepa.reporting.StatusReportDelivered;
 import dev.thinkahead.sepa.validation.PaymentFileValidated;
@@ -38,6 +39,7 @@ class AuditLog {
     }
 
     private void append(UUID fileId, Object event) {
+        LogContext.setFile(fileId);
         jdbc.sql("""
                         insert into audit_event (id, file_id, event_type, payload)
                         values (:id, :fileId, :eventType, cast(:payload as jsonb))""")

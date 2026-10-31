@@ -2,14 +2,19 @@
 // ABOUTME: Always sends the stored bytes, so a repeated delivery after a failed commit re-sends the identical report.
 package dev.thinkahead.sepa.reporting;
 
+import dev.thinkahead.sepa.LogContext;
 import dev.thinkahead.sepa.intake.PaymentFiles;
 import dev.thinkahead.sepa.reporting.StatusReportRepository.StoredStatusReport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 @Component
 class StatusReportDeliveryListener {
+
+    private static final Logger LOG = LoggerFactory.getLogger(StatusReportDeliveryListener.class);
 
     private final StatusReportRepository repository;
     private final PaymentFiles paymentFiles;
@@ -24,9 +29,11 @@ class StatusReportDeliveryListener {
 
     @ApplicationModuleListener
     void on(StatusReportCreated created) {
+        LogContext.setFile(created.fileId());
         StoredStatusReport report = repository.findByFile(created.fileId());
         paymentFiles.deliverStatusReport(created.fileId(), report.content());
         repository.markDelivered(created.fileId());
         events.publishEvent(new StatusReportDelivered(created.fileId(), report.messageId(), report.groupStatus()));
+        LOG.info("Delivered status report {} with group status {}", report.messageId(), report.groupStatus());
     }
 }

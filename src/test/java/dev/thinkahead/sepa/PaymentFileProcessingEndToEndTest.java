@@ -19,14 +19,19 @@ import javax.xml.validation.SchemaFactory;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
 @SpringBootTest
+@ExtendWith(OutputCaptureExtension.class)
 @Import({TestcontainersConfiguration.class, TestSupportConfiguration.class})
 class PaymentFileProcessingEndToEndTest {
 
@@ -57,7 +62,7 @@ class PaymentFileProcessingEndToEndTest {
     }
 
     @Test
-    void invalidFileIsRejectedAsAWholeWithEveryReason() throws Exception {
+    void invalidFileIsRejectedAsAWholeWithEveryReason(CapturedOutput output) throws Exception {
         Delivery delivery = submit(validPain001(uniqueMessageId())
                 .replace("NL91ABNA0417164300", "NL91ABNA0417164301")
                 .replace("Ccy=\"EUR\">50.50", "Ccy=\"USD\">50.50"));
@@ -66,6 +71,22 @@ class PaymentFileProcessingEndToEndTest {
         assertThat(reasonCodes(delivery.report())).containsExactlyInAnyOrder("AC03", "AM03");
         assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
         assertAuditTrailComplete(delivery.fileName());
+        UUID fileId = fileId(delivery.fileName());
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(LogLines.messagesForFile(output, fileId))
+                .anySatisfy(message -> assertThat(message).startsWith("Received payment file " + delivery.fileName()))
+                .anySatisfy(message -> assertThat(message).startsWith("Validated payment file: rejected"))
+                .anySatisfy(message -> assertThat(message).startsWith("Delivered status report")));
+        assertThat(output).doesNotContain("NL91ABNA0417164301");
+    }
+
+    @Test
+    void ibansAreMaskedInTheLogOutput(CapturedOutput output) {
+        LoggerFactory.getLogger(PaymentFileProcessingEndToEndTest.class)
+                .info("Creditor account DE89370400440532013000");
+
+        assertThat(LogLines.of(output)).anySatisfy(line ->
+                assertThat(line.path("message").asString()).isEqualTo("Creditor account DE89**************3000"));
+        assertThat(output).doesNotContain("DE89370400440532013000");
     }
 
     @Test
@@ -193,6 +214,11 @@ class PaymentFileProcessingEndToEndTest {
         byte[] report = customer.download("outbound", reportName);
         assertPain002SchemaValid(report);
         return new Delivery(fileName, report);
+    }
+
+    private UUID fileId(String fileName) {
+        return jdbc.sql("select id from payment_file where file_name = ?").param(fileName)
+                .query(UUID.class).single();
     }
 
     private String fileStatus(String fileName) {

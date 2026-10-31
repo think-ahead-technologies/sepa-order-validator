@@ -2,6 +2,7 @@
 // ABOUTME: Report message ids are "STS" plus a UUID without dashes, exactly fitting ISO Max35Text.
 package dev.thinkahead.sepa.reporting;
 
+import dev.thinkahead.sepa.LogContext;
 import dev.thinkahead.sepa.validation.PaymentFileValidated;
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -28,6 +29,7 @@ class StatusReportListener {
 
     @ApplicationModuleListener
     void on(PaymentFileValidated validated) {
+        LogContext.setFile(validated.fileId());
         if (repository.existsForFile(validated.fileId())) {
             return;
         }

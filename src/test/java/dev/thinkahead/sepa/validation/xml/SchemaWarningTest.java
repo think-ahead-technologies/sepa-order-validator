@@ -1,5 +1,5 @@
 // ABOUTME: Unit tests for how schema validation treats validator warnings versus errors.
-// ABOUTME: Warnings are logged but never become violations, so a warning alone cannot reject a file.
+// ABOUTME: Warnings are logged by position only and never become violations, so they cannot reject a file.
 package dev.thinkahead.sepa.validation.xml;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,11 +20,12 @@ class SchemaWarningTest {
             new SchemaValidator.CollectingErrorHandler(errors, 10);
 
     @Test
-    void aWarningIsLoggedButNotCollectedAsAnError(CapturedOutput output) throws Exception {
-        handler.warning(new SAXParseException("probe warning", null, null, 12, 7));
+    void aWarningIsLoggedWithoutItsMessageAndNotCollectedAsAnError(CapturedOutput output) throws Exception {
+        handler.warning(new SAXParseException("value 'DE89370400440532013000' of element 'IBAN'", null, null, 12, 7));
 
         assertThat(errors).isEmpty();
-        assertThat(output).contains("Schema validation warning at line 12, column 7: probe warning");
+        assertThat(output).contains("Schema validation warning at line 12, column 7")
+                .doesNotContain("DE89370400440532013000");
     }
 
     @Test

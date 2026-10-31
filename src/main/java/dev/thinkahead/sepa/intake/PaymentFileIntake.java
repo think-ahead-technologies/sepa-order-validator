@@ -3,12 +3,16 @@
 package dev.thinkahead.sepa.intake;
 
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 class PaymentFileIntake {
+
+    private static final Logger LOG = LoggerFactory.getLogger(PaymentFileIntake.class);
 
     private final PaymentFileRepository repository;
     private final ApplicationEventPublisher events;
@@ -29,6 +33,7 @@ class PaymentFileIntake {
             return false;
         }
         events.publishEvent(new PaymentFileReceived(fileId, channel, submitter, fileName, content.sha256()));
+        LOG.info("Received payment file {} ({} bytes) from {}", fileName, content.size(), submitter);
         return true;
     }
 }

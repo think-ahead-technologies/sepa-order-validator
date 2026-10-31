@@ -222,7 +222,7 @@ PostgreSQL with Flyway migrations ([ADR-0008](../adr/0008-postgresql-with-flyway
 
 - Hardened XML parsing: no DTDs, no external entities, entity expansion limits ([ADR-0004](../adr/0004-streaming-xml-with-hardened-parsing.md))
 - Authentication of channel adapters (mTLS / SSH keys), OAuth2 for management APIs
-- IBANs and names masked in logs
+- IBANs and names masked in logs: no payment content is logged, IBANs are masked as a safety net ([ADR-0018](../adr/0018-structured-logging-and-operational-endpoints.md))
 - Retention per German regulatory requirements (GwG, HGB/AO) balanced against GDPR; exact periods to be confirmed with Compliance
 - Full traceability from received file to emitted `pain.002`
 

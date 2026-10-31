@@ -20,3 +20,5 @@ Decisions for the SEPA Payment Order Validator. Format: [Michael Nygard's ADR te
 | [0014](0014-supply-chain-sbom-signing-verification.md) | Supply chain: SBOM, signing and verification | Accepted |
 | [0015](0015-leader-election-with-postgresql-locks.md) | Leader election with PostgreSQL locks | Accepted |
 | [0016](0016-duplicate-detection-by-message-id.md) | Duplicate detection by message id per submitter | Accepted |
+| [0018](0018-structured-logging-and-operational-endpoints.md) | Structured logging, file correlation and operational endpoints | Accepted |
+| [0017](0017-file-processing-driven-by-persisted-state-with-a-postgresql-work-queue.md) | File processing driven by persisted state with a PostgreSQL work queue | Proposed |

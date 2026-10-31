@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import dev.thinkahead.sepa.CapturedEvents;
+import dev.thinkahead.sepa.LogLines;
 import dev.thinkahead.sepa.SftpTestClient;
 import dev.thinkahead.sepa.TestSupportConfiguration;
 import dev.thinkahead.sepa.TestcontainersConfiguration;
@@ -21,6 +22,9 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
@@ -31,6 +35,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @ApplicationModuleTest(mode = BootstrapMode.DIRECT_DEPENDENCIES)
 @Import({TestcontainersConfiguration.class, TestSupportConfiguration.class})
+@ExtendWith(OutputCaptureExtension.class)
 class StatusReportIntegrationTest {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(20);
@@ -71,7 +76,7 @@ class StatusReportIntegrationTest {
     }
 
     @Test
-    void storesAndDeliversRejectionReportWithReasons() throws Exception {
+    void storesAndDeliversRejectionReportWithReasons(CapturedOutput output) throws Exception {
         UUID fileId = receive("report-rjct-" + UUID.randomUUID() + ".xml");
 
         StatusReportDelivered delivered = validated(new PaymentFileValidated(
@@ -82,6 +87,8 @@ class StatusReportIntegrationTest {
         byte[] stored = storedReport(fileId);
         assertSchemaValid(stored);
         assertThat(text(parse(stored), "OrgnlGrpInfAndSts/StsRsnInf[1]/Rsn/Cd")).isEqualTo("AC03");
+        assertThat(LogLines.messagesForFile(output, fileId))
+                .contains("Delivered status report " + delivered.reportMessageId() + " with group status RJCT");
     }
 
     @Test

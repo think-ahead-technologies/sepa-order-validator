@@ -31,4 +31,5 @@ Design: `docs/design/payment-order-validator.md`. Decisions: `docs/adr/` (read t
 - Test first. Every feature has unit, integration (`*IntegrationTest`) and end-to-end (`*EndToEndTest`) tests. No mocks; use real PostgreSQL and SFTP containers and real-world payment data.
 - Every source file starts with two `// ABOUTME:` comment lines.
 - Violations carry ISO 20022 external status reason codes (e.g. `AC03`, `AM03`, `FF01`).
+- Logs are ECS JSON. Never log values from a payment file (names, IBANs, amounts, violation or parser messages); log ids, reason codes and positions. Module event listeners call `LogContext.setFile(fileId)` first (ADR-0018).
 - Conventional commits, imperative mood. Never use `--no-verify`.

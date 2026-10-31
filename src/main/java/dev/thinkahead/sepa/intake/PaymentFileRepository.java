@@ -78,6 +78,15 @@ class PaymentFileRepository {
                 .list();
     }
 
+    long countUnansweredSince(Duration age) {
+        return jdbc.sql("""
+                        select count(*) from payment_file
+                        where replied_at is null and received_at < now() - make_interval(secs => ?)""")
+                .param(age.toSeconds())
+                .query(Long.class)
+                .single();
+    }
+
     FileStatus status(UUID id) {
         return jdbc.sql("select status from payment_file where id = ?").param(id)
                 .query((rs, rowNum) -> FileStatus.valueOf(rs.getString("status")))

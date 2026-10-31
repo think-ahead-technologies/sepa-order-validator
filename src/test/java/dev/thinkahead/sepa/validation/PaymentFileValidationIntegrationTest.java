@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import dev.thinkahead.sepa.CapturedEvents;
+import dev.thinkahead.sepa.LogLines;
 import dev.thinkahead.sepa.SftpTestClient;
 import dev.thinkahead.sepa.TestSupportConfiguration;
 import dev.thinkahead.sepa.TestcontainersConfiguration;
@@ -22,6 +23,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
@@ -32,6 +36,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @ApplicationModuleTest(mode = BootstrapMode.DIRECT_DEPENDENCIES)
 @Import({TestcontainersConfiguration.class, TestSupportConfiguration.class})
+@ExtendWith(OutputCaptureExtension.class)
 class PaymentFileValidationIntegrationTest {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(20);
@@ -99,13 +104,16 @@ class PaymentFileValidationIntegrationTest {
     }
 
     @Test
-    void rejectsInvalidFileAndMarksItRejected() {
+    void rejectsInvalidFileAndMarksItRejected(CapturedOutput output) {
         PaymentFileValidated validated = uploadAndAwaitValidation(
                 validPain001(uniqueMessageId()).replace("NL91ABNA0417164300", "NL91ABNA0417164301"));
 
         assertThat(validated.accepted()).isFalse();
         assertThat(validated.violations()).extracting(Violation::reasonCode).containsExactly("AC03");
         assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
+        assertThat(LogLines.messagesForFile(output, validated.fileId()))
+                .contains("Validated payment file: rejected with reason codes [AC03]");
+        assertThat(output).doesNotContain("NL91ABNA0417164301");
     }
 
     @Test

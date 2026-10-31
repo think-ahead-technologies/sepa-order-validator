@@ -2,6 +2,7 @@
 // ABOUTME: Each file is handled in isolation: a failing file is logged and retried without blocking the others.
 package dev.thinkahead.sepa.intake;
 
+import dev.thinkahead.sepa.LogContext;
 import dev.thinkahead.sepa.intake.SftpChannel.RemoteFile;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,10 +56,12 @@ class SftpInboundPoller implements SchedulingConfigurer {
                 LOG.warn("Ignoring {} in the SFTP processing directory: not a claimed file name", file.name());
                 continue;
             }
-            try {
-                receiveAndArchive(claimed.get(), file.size());
-            } catch (RuntimeException e) {
-                LOG.error("Could not take in claimed file {}, retrying on the next poll", file.name(), e);
+            try (var ignored = LogContext.scopedToFile(claimed.get().fileId())) {
+                try {
+                    receiveAndArchive(claimed.get(), file.size());
+                } catch (RuntimeException e) {
+                    LOG.error("Could not take in claimed file {}, retrying on the next poll", file.name(), e);
+                }
             }
         }
     }

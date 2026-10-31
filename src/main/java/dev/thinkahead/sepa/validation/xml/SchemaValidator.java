@@ -77,8 +77,8 @@ public class SchemaValidator {
 
         @Override
         public void warning(SAXParseException e) {
-            LOG.info("Schema validation warning at line {}, column {}: {}",
-                    e.getLineNumber(), e.getColumnNumber(), e.getMessage());
+            // Position only: parser messages can quote values from the payment file (ADR-0018).
+            LOG.info("Schema validation warning at line {}, column {}", e.getLineNumber(), e.getColumnNumber());
         }
 
         @Override

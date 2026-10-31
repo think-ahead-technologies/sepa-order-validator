@@ -9,6 +9,9 @@ spring-modulith-bom = { module = "org.springframework.modulith:spring-modulith-b
 spring-boot-starter-jdbc = { module = "org.springframework.boot:spring-boot-starter-jdbc" }
 spring-boot-starter-flyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
 spring-boot-starter-jackson = { module = "org.springframework.boot:spring-boot-starter-jackson" }
+spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
 spring-integration-sftp = { module = "org.springframework.integration:spring-integration-sftp" }
 spring-integration-jdbc = { module = "org.springframework.integration:spring-integration-jdbc" }
 spring-modulith-starter-core = { module = "org.springframework.modulith:spring-modulith-starter-core" }

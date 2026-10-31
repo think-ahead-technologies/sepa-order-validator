@@ -47,6 +47,14 @@ class DeliveryRecoveryEndToEndTest {
             await().atMost(TIMEOUT).untilAsserted(() ->
                     assertThat(output).contains("Cannot write SFTP outbound file " + reportPrefix));
             assertThat(isReplied(fileName)).as("no reply while the channel is down").isFalse();
+            UUID fileId = jdbc.sql("select id from payment_file where file_name = ?").param(fileName)
+                    .query(UUID.class).single();
+            assertThat(LogLines.forFile(output, fileId)).as("delivery failure logged with the file id")
+                    .anySatisfy(line -> {
+                        assertThat(line.path("log").path("level").asString()).isEqualTo("ERROR");
+                        assertThat(line.path("error").path("message").asString())
+                                .startsWith("Cannot write SFTP outbound file " + reportPrefix);
+                    });
         } finally {
             customer.chmod(".", "outbound", 0755);
         }

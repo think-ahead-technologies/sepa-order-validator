@@ -15,3 +15,6 @@ sepa:
     processed-directory: processed
     outbound-directory: outbound
     poll-interval: PT5S
+  leader-election:
+    lock-time-to-live: PT10S
+    heartbeat: PT1S

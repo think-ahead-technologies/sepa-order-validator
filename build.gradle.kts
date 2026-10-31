@@ -27,6 +27,7 @@ dependencies {
     implementation(libs.spring.boot.starter.flyway)
     implementation(libs.spring.boot.starter.jackson)
     implementation(libs.spring.integration.sftp)
+    implementation(libs.spring.integration.jdbc)
     implementation(libs.spring.modulith.starter.core)
     implementation(libs.spring.modulith.starter.jdbc)
     implementation(libs.flyway.postgresql)

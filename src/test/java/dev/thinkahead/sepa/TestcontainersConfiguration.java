@@ -6,10 +6,15 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistrar;
+import org.springframework.util.function.SingletonSupplier;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
@@ -22,6 +27,11 @@ public class TestcontainersConfiguration {
     static final String SFTP_PASSWORD = "sepa-test-password";
     static final int SFTP_PORT = 22;
 
+    private static final List<String> APPLICATION_PROPERTY_NAMES = List.of(
+            "sepa.sftp.host", "sepa.sftp.port", "sepa.sftp.username", "sepa.sftp.password",
+            "sepa.sftp.known-hosts", "sepa.sftp.poll-interval",
+            "sepa.leader-election.lock-time-to-live", "sepa.leader-election.heartbeat");
+
     private static final String[] HOST_KEYS = {
             "/etc/ssh/ssh_host_ecdsa_key.pub",
             "/etc/ssh/ssh_host_rsa_key.pub"
@@ -30,11 +40,29 @@ public class TestcontainersConfiguration {
     @Bean
     @ServiceConnection
     PostgreSQLContainer postgres() {
-        return new PostgreSQLContainer("postgres:17.6-alpine");
+        return newPostgresContainer();
     }
 
     @Bean
     GenericContainer<?> sftp() {
+        return newSftpContainer();
+    }
+
+    @Bean
+    DynamicPropertyRegistrar applicationPropertyRegistrar(GenericContainer<?> sftp) {
+        return registry -> {
+            Supplier<Map<String, Object>> properties = SingletonSupplier.of(() -> applicationProperties(sftp));
+            for (String name : APPLICATION_PROPERTY_NAMES) {
+                registry.add(name, () -> properties.get().get(name));
+            }
+        };
+    }
+
+    public static PostgreSQLContainer newPostgresContainer() {
+        return new PostgreSQLContainer("postgres:17.6-alpine");
+    }
+
+    public static GenericContainer<?> newSftpContainer() {
         var image = new ImageFromDockerfile("payment-order-validator-test-sftp", false)
                 .withFileFromClasspath("Dockerfile", "sftp/Dockerfile")
                 .withBuildArg("SFTP_USER", SFTP_USER)
@@ -44,16 +72,20 @@ public class TestcontainersConfiguration {
                 .waitingFor(Wait.forLogMessage(".*Server listening on 0\\.0\\.0\\.0 port 22.*", 1));
     }
 
-    @Bean
-    DynamicPropertyRegistrar sftpProperties(GenericContainer<?> sftp) {
-        return registry -> {
-            registry.add("sepa.sftp.host", sftp::getHost);
-            registry.add("sepa.sftp.port", () -> sftp.getMappedPort(SFTP_PORT));
-            registry.add("sepa.sftp.username", () -> SFTP_USER);
-            registry.add("sepa.sftp.password", () -> SFTP_PASSWORD);
-            registry.add("sepa.sftp.known-hosts", () -> knownHostsFile(sftp).toUri().toString());
-            registry.add("sepa.sftp.poll-interval", () -> "PT0.5S");
-        };
+    /**
+     * Application properties connecting to the given started SFTP container, with fast polling and leader election.
+     */
+    public static Map<String, Object> applicationProperties(GenericContainer<?> sftp) {
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("sepa.sftp.host", sftp.getHost());
+        properties.put("sepa.sftp.port", sftp.getMappedPort(SFTP_PORT));
+        properties.put("sepa.sftp.username", SFTP_USER);
+        properties.put("sepa.sftp.password", SFTP_PASSWORD);
+        properties.put("sepa.sftp.known-hosts", knownHostsFile(sftp).toUri().toString());
+        properties.put("sepa.sftp.poll-interval", "PT0.5S");
+        properties.put("sepa.leader-election.lock-time-to-live", "PT3S");
+        properties.put("sepa.leader-election.heartbeat", "PT0.5S");
+        return properties;
     }
 
     private static Path knownHostsFile(GenericContainer<?> sftp) {

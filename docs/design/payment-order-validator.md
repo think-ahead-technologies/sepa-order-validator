@@ -71,7 +71,7 @@ A **modular monolith** built with Spring Boot and Spring Modulith ([ADR-0002](..
 
 | Module | Responsibility |
 |---|---|
-| `intake` | Receive files from EBICS and SFTP, store the raw file, compute SHA-256, reject duplicate files, start processing |
+| `intake` | Receive files from EBICS and SFTP (polled by the elected leader instance only, [ADR-0015](../adr/0015-leader-election-with-postgresql-locks.md)), store the raw file, compute SHA-256, reject duplicate files, start processing |
 | `validation` | Format detection, XSD validation, streaming parse, rule evaluation |
 | `mandates` | SDD mandate store, mandate history, mandate lifecycle rules, management API |
 | `screening` | Sanctions, VoP and fraud checks, each behind its own port |
@@ -217,6 +217,7 @@ PostgreSQL with Flyway migrations ([ADR-0008](../adr/0008-postgresql-with-flyway
 | Violations | `pain.002` generation, audit |
 | Mandates + collection history | SDD rules |
 | Audit events | Traceability, regulatory evidence |
+| Leader lock (`INT_LOCK`) | Leader election across instances |
 
 ## 10. Security and compliance
 

@@ -1,4 +1,4 @@
-// ABOUTME: Unit tests for the DK character set rule (DFÜ-Abkommen Anlage 3 v3.7, 2.1 and 2.3.1; EPC C2PSP IG 1.4).
+// ABOUTME: Unit tests for the DK character set rule (DFÜ-Abkommen Anlage 3 v3.9, 2.1 and 2.3.1; EPC C2PSP IG 1.4).
 // ABOUTME: Text allows basic Latin plus umlauts, ß, &, *, $ and %; identifiers only basic Latin and no stray slashes.
 package dev.thinkahead.sepa.validation.rules;
 

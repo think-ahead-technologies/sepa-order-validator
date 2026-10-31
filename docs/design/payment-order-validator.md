@@ -26,7 +26,7 @@ The Payment Order Validator is the system that does this. It sits between the cu
 | Area | Detail |
 |---|---|
 | Schemes | SEPA Credit Transfer (SCT), SEPA Instant Credit Transfer (SCT Inst), SEPA Direct Debit Core and B2B (SDD) |
-| Message formats | All DK-supported versions: `pain.001.001.03`, `pain.001.001.09`, `pain.001.003.03`, `pain.008.001.02`, `pain.008.001.08`, `pain.008.003.02`, plus DK container files |
+| Message formats | The current DK versions `pain.001.001.09` and `pain.008.001.08` ([ADR-0019](../adr/0019-accept-only-current-dk-message-versions.md)), plus DK container files ([ADR-0020](../adr/0020-dk-xml-container-split-into-messages-at-intake.md)) |
 | Market rules | German DK specification (DFÜ-Abkommen, Anlage 3) on top of EPC rulebooks |
 | Processing | Batch files, asynchronous, stateful |
 | Channels | EBICS (via bank server), SFTP |
@@ -158,7 +158,7 @@ public record Violation(
 | BIC format (8 or 11) — enforced by the XSD; debtor agent identified by `BICFI` or `Othr/Id`, creditor agent only as `BICFI` (EPC C2PSP IG 2.54, 2.114) | FF01 / RC01 |
 | Currency is `EUR` | AM03 |
 | Amount ≥ 0.01, ≤ 999,999,999.99, ≤ 2 decimals (EPC C2PSP IG 2.95) | AM01 / AM02 / AM12 |
-| Character set (DFÜ-Abkommen Anlage 3 v3.7, 2.1): text uses EPC basic Latin plus `ÄÖÜäöüß&*$%`; identifiers (`MsgId`, `PmtInfId`, `InstrId`, `EndToEndId`) only basic Latin and no leading, trailing or double `/` (2.3.1, EPC C2PSP IG 1.4). Other characters reject the file, the bank does not convert them | CH16 |
+| Character set (DFÜ-Abkommen Anlage 3 v3.9, 2.1): text uses EPC basic Latin plus `ÄÖÜäöüß&*$%`; identifiers (`MsgId`, `PmtInfId`, `InstrId`, `EndToEndId`) only basic Latin and no leading, trailing or double `/` (2.3.1, EPC C2PSP IG 1.4). Other characters reject the file, the bank does not convert them | CH16 |
 | Field lengths: party names 70 (initiating party, debtor, creditor, ultimate parties); remittance 140 and End-to-End ID 35 via the XSD | FF01 |
 | One structured **or** one unstructured remittance, not both; structured ≤ 140 characters including tags (EPC C2PSP IG 2.164–2.166) | FF01 |
 | Creditor reference has type and reference, coded type is `SCOR`. ISO 11649 check digits are not validated: EPC C2PSP IG 2.175 does not require it and lets the PSP continue on failure | FF01 |
@@ -170,8 +170,8 @@ public record Violation(
 
 | Rule | Reason code |
 |---|---|
-| SCT: requested execution date is a TARGET business day (closed on weekends, 1 January, Good Friday, Easter Monday, 1 May, 25 and 26 December) and not before today in Europe/Berlin. SCT Inst: the date is the earliest start of execution, any day, past dates mean immediately (DK Anlage 3 v3.7, 2.2.4.1) | DT01 |
-| SCT Inst is marked by local instrument `INST`; no other local instrument, SCT carries none (DK Anlage 3 v3.7, 2.2.4.1) | AG02 |
+| SCT: requested execution date is a TARGET business day (closed on weekends, 1 January, Good Friday, Easter Monday, 1 May, 25 and 26 December) and not before today in Europe/Berlin. SCT Inst: the date is the earliest start of execution, any day, past dates mean immediately (DK Anlage 3 v3.9, 2.2.4.1) | DT01 |
+| SCT Inst is marked by local instrument `INST`; no other local instrument, SCT carries none (DK Anlage 3 v3.9, 2.2.4.1) | AG02 |
 | A file holds either SCT or SCT Inst, never both (separate DK order types CCT and CIP) | AG02 |
 | Payment type information on payment information or transaction level, not both | FF01 |
 | SCT Inst amount: no scheme maximum since the SCT Inst Rulebook 2025; customer limits pending Q15 | AM02 |
@@ -255,7 +255,7 @@ Test-first development; unit, integration and end-to-end tests for every feature
 1. **Walking skeleton:** SFTP intake → namespace detection → XSD validation (`pain.001.001.09`) → 3–4 SCT rules → whole-file `RJCT`/`ACCP` → `pain.002` → audit record.
 2. Complete SCT rule catalogue, group checks, duplicate detection.
 3. SCT Inst specifics.
-4. Remaining `pain.001` versions and DK container files.
+4. DK container files ([ADR-0020](../adr/0020-dk-xml-container-split-into-messages-at-intake.md)); older `pain.001` versions are not supported ([ADR-0019](../adr/0019-accept-only-current-dk-message-versions.md)).
 5. SDD: `pain.008` versions, creditor identifier, mandate store and lifecycle rules.
 6. EBICS bank server integration.
 7. Screening: sanctions, fraud, review module.
@@ -270,7 +270,7 @@ Test-first development; unit, integration and end-to-end tests for every feature
 | Q3 | VoP: which provider / routing service, and how does the result reach the customer before EBICS signature? Bulk opt-out handling? | ADR-0010, intake flow |
 | Q4 | SDD: creditor side only (`pain.008`), or also debtor side (incoming `pacs.003` vs. B2B mandates)? | ADR-0011, scope |
 | Q5 | Review: four-eyes principle required? UI needed? | review module |
-| Q6 | Sunset dates for legacy DK versions (`.001.03`, `.003.03`, `.003.02`) — still accepted by DK? | ADR-0005 |
+| Q6 | `.003.03` / `.003.02` ended 11/2022; `.001.03` / `.008.001.02` are temporarily usable by bilateral agreement, end date pending (DK format lifecycle 09/2026). Decided not to support them — do any of our customers still send them? | ADR-0019 |
 | Q7 | Structured / hybrid address requirement from 22 November 2026 is confirmed by EPC C2PSP IG 2025. Confirm the reason codes RR02 / RR03 and applying it by requested execution date with Compliance | Rule catalogue |
 | Q9 | Retention periods for raw files and audit data | Persistence, compliance |
 | Q10 | OpenShift version and admission mechanism for signature verification; Red Hat Trusted Artifact Signer / Trusted Profile Analyzer available? | ADR-0014 |

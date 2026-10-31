@@ -1,4 +1,4 @@
-// ABOUTME: Unit tests for the SEPA Instant rules on payment type information (DK Anlage 3 v3.7, 2.2.4.1).
+// ABOUTME: Unit tests for the SEPA Instant rules on payment type information (DK Anlage 3 v3.9, 2.2.4.1).
 // ABOUTME: Local instrument only INST (AG02), no mixing of SCT and SCT Inst (AG02), PmtTpInf on one level only (FF01).
 package dev.thinkahead.sepa.validation.rules;
 

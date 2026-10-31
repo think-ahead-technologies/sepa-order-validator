@@ -1,5 +1,5 @@
 // ABOUTME: Rule: one file holds either SEPA credit transfers or SEPA Instant credit transfers, never both.
-// ABOUTME: Stateful per file (DK Anlage 3 v3.7, 2.1: separate order types CCT and CIP); reports AG02.
+// ABOUTME: Stateful per file (DK Anlage 3 v3.9, 2.1: separate order types CCT and CIP); reports AG02.
 package dev.thinkahead.sepa.validation.rules;
 
 import dev.thinkahead.sepa.validation.Violation;

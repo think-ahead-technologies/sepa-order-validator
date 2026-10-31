@@ -15,6 +15,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class PaymentFileValidatorTest {
 
@@ -240,6 +242,22 @@ class PaymentFileValidatorTest {
         assertThat(result.accepted()).isFalse();
         assertThat(result.violations()).isNotEmpty().allSatisfy(v -> assertThat(v.reasonCode()).isEqualTo("FF01"));
         assertThat(result.originalMessageNameId()).isEqualTo("pain.001.001.09");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"pain.001.001.03", "pain.001.003.03"})
+    void rejectsPredecessorVersionsAsUnsupportedFormatWithFf01(String version) {
+        // ADR-0019: only pain.001.001.09 is accepted for credit transfers.
+        var xml = VALID_PAIN_001.replace("pain.001.001.09", version);
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.accepted()).isFalse();
+        assertThat(result.originalMessageNameId()).isNull();
+        assertThat(result.violations()).singleElement().satisfies(v -> {
+            assertThat(v.reasonCode()).isEqualTo("FF01");
+            assertThat(v.message()).contains("Unsupported");
+        });
     }
 
     @Test

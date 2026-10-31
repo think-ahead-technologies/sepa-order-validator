@@ -1,4 +1,4 @@
-// ABOUTME: Rule: text uses the DK character set (DFÜ-Abkommen Anlage 3 v3.7, 2.1), identifiers basic Latin (2.3.1).
+// ABOUTME: Rule: text uses the DK character set (DFÜ-Abkommen Anlage 3 v3.9, 2.1), identifiers basic Latin (2.3.1).
 // ABOUTME: Identifiers must not start or end with '/' or contain '//' (EPC C2PSP IG 1.4); reports CH16.
 package dev.thinkahead.sepa.validation.rules;
 

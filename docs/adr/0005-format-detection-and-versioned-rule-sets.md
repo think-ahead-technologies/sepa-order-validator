@@ -4,7 +4,7 @@ Date: 2026-10-31
 
 ## Status
 
-Accepted
+Accepted; the list of accepted formats in the context is superseded by [ADR-0019](0019-accept-only-current-dk-message-versions.md)
 
 ## Context
 

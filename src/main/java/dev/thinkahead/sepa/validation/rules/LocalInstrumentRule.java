@@ -1,5 +1,5 @@
 // ABOUTME: Rule: the only local instrument is the code INST for SEPA Instant; SEPA credit transfers carry none.
-// ABOUTME: DK Anlage 3 v3.7, 2.2.4.1 (Prtry is not used); reports AG02 (InvalidBankOperationCode).
+// ABOUTME: DK Anlage 3 v3.9, 2.2.4.1 (Prtry is not used); reports AG02 (InvalidBankOperationCode).
 package dev.thinkahead.sepa.validation.rules;
 
 import dev.thinkahead.sepa.validation.Violation;

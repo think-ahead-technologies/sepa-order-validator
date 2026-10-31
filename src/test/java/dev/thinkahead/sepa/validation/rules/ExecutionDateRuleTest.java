@@ -27,7 +27,7 @@ class ExecutionDateRuleTest {
 
     @Test
     void acceptsAnyDateForSepaInstantAsEarliestStartOfExecution() {
-        // DK Anlage 3 v3.7, 2.2.4.1: a date not in the future means "immediately"; SCT Inst runs 24/7/365.
+        // DK Anlage 3 v3.9, 2.2.4.1: a date not in the future means "immediately"; SCT Inst runs 24/7/365.
         assertThat(rule.validate(paymentInformation(LocalDate.of(2026, 10, 1), CreditTransferScheme.SCT_INST)))
                 .isEmpty();
         assertThat(rule.validate(paymentInformation(LocalDate.of(2026, 11, 7), CreditTransferScheme.SCT_INST)))

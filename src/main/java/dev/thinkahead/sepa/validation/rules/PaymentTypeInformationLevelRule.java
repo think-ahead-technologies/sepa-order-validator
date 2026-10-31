@@ -1,5 +1,5 @@
 // ABOUTME: Rule: payment type information is given either per payment information block or per transaction, not both.
-// ABOUTME: Stateful per file (DK Anlage 3 v3.7, 2.2.4.1); reports FF01 at the transaction-level PmtTpInf.
+// ABOUTME: Stateful per file (DK Anlage 3 v3.9, 2.2.4.1); reports FF01 at the transaction-level PmtTpInf.
 package dev.thinkahead.sepa.validation.rules;
 
 import dev.thinkahead.sepa.validation.Violation;

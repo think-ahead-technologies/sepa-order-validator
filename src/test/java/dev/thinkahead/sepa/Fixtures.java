@@ -73,6 +73,17 @@ public final class Fixtures {
                 .replaceFirst("<RmtInf>(\\s*)<Strd>", "<RmtInf>$1<Ustrd>Facture 0815</Ustrd>$1<Strd>");
     }
 
+    /**
+     * The valid sample executed on 23 November 2026, the first business day on which SEPA allows only structured and
+     * hybrid addresses, so the unstructured creditor address of the second transaction is rejected (RR03); the first
+     * transaction lacks its creditor name (RR03).
+     */
+    public static String withCreditorNameAndAddressViolations(String messageId) {
+        return validPain001(messageId)
+                .replace("<Dt>2026-11-02</Dt>", "<Dt>2026-11-23</Dt>")
+                .replace("<Nm>Lieferant AG</Nm>", "");
+    }
+
     public static byte[] bytes(String xml) {
         return xml.getBytes(StandardCharsets.UTF_8);
     }

@@ -38,7 +38,8 @@ class SepaCreditTransferRulesTest {
     private static void invalidTransactions(SepaCreditTransferRules rules, int count) {
         for (int i = 1; i <= count; i++) {
             rules.transaction(new CreditTransferTransaction("PmtInf[1]/CdtTrfTxInf[" + i + "]", "E2E-" + i,
-                    new BigDecimal("1.00"), "EUR", "NL91ABNA0417164301", null, RemittanceInformation.NONE));
+                    new BigDecimal("1.00"), "EUR", "NL91ABNA0417164301", null, RemittanceInformation.NONE,
+                    "Lieferant AG"));
         }
     }
 }

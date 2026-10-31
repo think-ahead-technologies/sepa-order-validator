@@ -15,7 +15,8 @@ class TransactionRulesTest {
 
     private static CreditTransferTransaction transaction(String currency, String creditorIban) {
         return new CreditTransferTransaction("PmtInf[1]/CdtTrfTxInf[2]", "E2E-002",
-                new BigDecimal("50.50"), currency, creditorIban, null, RemittanceInformation.NONE);
+                new BigDecimal("50.50"), currency, creditorIban, null, RemittanceInformation.NONE,
+                "Lieferant AG");
     }
 
     @Test

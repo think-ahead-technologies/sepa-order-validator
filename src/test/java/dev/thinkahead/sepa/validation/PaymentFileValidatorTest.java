@@ -5,6 +5,7 @@ package dev.thinkahead.sepa.validation;
 import static dev.thinkahead.sepa.Fixtures.SAMPLE_MESSAGE_ID;
 import static dev.thinkahead.sepa.Fixtures.VALID_PAIN_001;
 import static dev.thinkahead.sepa.Fixtures.bytes;
+import static dev.thinkahead.sepa.Fixtures.withCreditorNameAndAddressViolations;
 import static dev.thinkahead.sepa.Fixtures.withSepaFieldRuleViolations;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
@@ -74,6 +75,19 @@ class PaymentFileValidatorTest {
                         tuple("AM12", "PmtInf[1]/CdtTrfTxInf[2]/Amt/InstdAmt"),
                         tuple("FF01", "PmtInf[1]/CdtTrfTxInf[2]/Cdtr/Nm"),
                         tuple("FF01", "PmtInf[1]/CdtTrfTxInf[2]/RmtInf"));
+    }
+
+    @Test
+    void rejectsMissingCreditorNameAndUnstructuredAddressAfterTheCutoverWithRr03() {
+        ValidationResult result = validator.validate(
+                bytes(withCreditorNameAndAddressViolations(SAMPLE_MESSAGE_ID)), NO_DEADLINE);
+
+        assertThat(result.accepted()).isFalse();
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactlyInAnyOrder(
+                        tuple("RR03", "PmtInf[1]/CdtTrfTxInf[1]/Cdtr/Nm"),
+                        tuple("RR03", "PmtInf[1]/CdtTrfTxInf[2]/Cdtr/PstlAdr"));
     }
 
     @Test

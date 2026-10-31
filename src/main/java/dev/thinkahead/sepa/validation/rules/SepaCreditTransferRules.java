@@ -7,6 +7,7 @@ import dev.thinkahead.sepa.validation.pain001.CreditTransferTransaction;
 import dev.thinkahead.sepa.validation.pain001.Pain001Handler;
 import dev.thinkahead.sepa.validation.pain001.PartyName;
 import dev.thinkahead.sepa.validation.pain001.PaymentInformation;
+import dev.thinkahead.sepa.validation.pain001.PostalAddress;
 import dev.thinkahead.sepa.validation.pain001.Totals;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,10 +16,11 @@ public final class SepaCreditTransferRules implements Pain001Handler {
 
     private static final List<ValidationRule<CreditTransferTransaction>> TRANSACTION_RULES =
             List.of(new CreditorIbanRule(), new EuroCurrencyRule(), new AmountRule(), new CreditorAgentRule(),
-                    new RemittanceInformationRule(), new CreditorReferenceRule());
+                    new RemittanceInformationRule(), new CreditorReferenceRule(), new CreditorNameRule());
     private static final List<ValidationRule<Totals>> TOTALS_RULES =
             List.of(new NumberOfTransactionsRule(), new ControlSumRule());
     private static final List<ValidationRule<PartyName>> PARTY_NAME_RULES = List.of(new PartyNameLengthRule());
+    private static final List<ValidationRule<PostalAddress>> POSTAL_ADDRESS_RULES = List.of(new PostalAddressRule());
 
     private final List<ValidationRule<PaymentInformation>> paymentInformationRules =
             List.of(new DebtorIbanRule(), new DebtorAgentRule(), new UniquePaymentInformationIdRule());
@@ -51,6 +53,11 @@ public final class SepaCreditTransferRules implements Pain001Handler {
     @Override
     public void partyName(PartyName partyName) {
         apply(PARTY_NAME_RULES, partyName);
+    }
+
+    @Override
+    public void postalAddress(PostalAddress postalAddress) {
+        apply(POSTAL_ADDRESS_RULES, postalAddress);
     }
 
     public List<Violation> violations() {

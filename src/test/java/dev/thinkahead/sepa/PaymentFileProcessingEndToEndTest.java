@@ -118,6 +118,16 @@ class PaymentFileProcessingEndToEndTest {
     }
 
     @Test
+    void unstructuredAddressAfterTheCutoverAndMissingCreditorNameAreRejectedWithRr03() throws Exception {
+        Delivery delivery = submit(Fixtures.withCreditorNameAndAddressViolations(uniqueMessageId()));
+
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(reasonCodes(delivery.report())).containsExactly("RR03", "RR03");
+        assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
+        assertAuditTrailComplete(delivery.fileName());
+    }
+
+    @Test
     void schemaInvalidFileIsRejectedWithFf01() throws Exception {
         Delivery delivery = submit(validPain001(uniqueMessageId())
                 .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>XYZ</PmtMtd>"));

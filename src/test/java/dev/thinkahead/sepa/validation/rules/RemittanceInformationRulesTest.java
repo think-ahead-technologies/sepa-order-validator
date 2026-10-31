@@ -21,7 +21,7 @@ class RemittanceInformationRulesTest {
 
     private static CreditTransferTransaction transaction(RemittanceInformation remittanceInformation) {
         return new CreditTransferTransaction(TX, "E2E-001", new BigDecimal("100.00"), "EUR", "NL91ABNA0417164300",
-                null, remittanceInformation);
+                null, remittanceInformation, "Lieferant AG");
     }
 
     private static RemittanceInformation structured(CreditorReference creditorReference) {

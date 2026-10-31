@@ -25,6 +25,13 @@
       </ReqdExctnDt>
       <Dbtr>
         <Nm>Muster GmbH</Nm>
+        <PstlAdr>
+          <StrtNm>Hauptstraße</StrtNm>
+          <BldgNb>1</BldgNb>
+          <PstCd>60311</PstCd>
+          <TwnNm>Frankfurt am Main</TwnNm>
+          <Ctry>DE</Ctry>
+        </PstlAdr>
       </Dbtr>
       <DbtrAcct>
         <Id>
@@ -51,6 +58,11 @@
         </CdtrAgt>
         <Cdtr>
           <Nm>Lieferant AG</Nm>
+          <PstlAdr>
+            <TwnNm>Amsterdam</TwnNm>
+            <Ctry>NL</Ctry>
+            <AdrLine>Gustav Mahlerlaan 10</AdrLine>
+          </PstlAdr>
         </Cdtr>
         <CdtrAcct>
           <Id>
@@ -70,6 +82,11 @@
         </Amt>
         <Cdtr>
           <Nm>Fournisseur SA</Nm>
+          <PstlAdr>
+            <Ctry>FR</Ctry>
+            <AdrLine>12 Rue de la Paix</AdrLine>
+            <AdrLine>75002 Paris</AdrLine>
+          </PstlAdr>
         </Cdtr>
         <CdtrAcct>
           <Id>

@@ -19,7 +19,7 @@ class AmountRuleTest {
     private static CreditTransferTransaction transaction(String amount) {
         return new CreditTransferTransaction("PmtInf[1]/CdtTrfTxInf[3]", "E2E-003",
                 amount == null ? null : new BigDecimal(amount), "EUR", "NL91ABNA0417164300", null,
-                RemittanceInformation.NONE);
+                RemittanceInformation.NONE, "Lieferant AG");
     }
 
     @ParameterizedTest

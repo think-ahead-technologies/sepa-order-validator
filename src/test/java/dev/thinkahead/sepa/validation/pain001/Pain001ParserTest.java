@@ -1,5 +1,5 @@
 // ABOUTME: Unit tests for the streaming pain.001.001.09 parser.
-// ABOUTME: Verifies the emitted group header, payment information, transactions, party names and computed totals.
+// ABOUTME: Verifies the emitted group header, payment information, transactions, parties and computed totals.
 package dev.thinkahead.sepa.validation.pain001;
 
 import static dev.thinkahead.sepa.Fixtures.VALID_PAIN_001;
@@ -7,6 +7,7 @@ import static dev.thinkahead.sepa.Fixtures.bytes;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -32,12 +33,59 @@ class Pain001ParserTest {
                 new CreditTransferTransaction("PmtInf[1]/CdtTrfTxInf[1]", "E2E-001",
                         new BigDecimal("100.00"), "EUR", "NL91ABNA0417164300",
                         new Agent("ABNANL2A", null, false),
-                        new RemittanceInformation(1, 0, 0, null)),
+                        new RemittanceInformation(1, 0, 0, null), "Lieferant AG"),
                 new CreditTransferTransaction("PmtInf[1]/CdtTrfTxInf[2]", "E2E-002",
                         new BigDecimal("50.50"), "EUR", "FR1420041010050500013M02606",
                         null,
                         new RemittanceInformation(0, 1, 113,
-                                new CreditorReference(true, "SCOR", "RF18539007547034"))));
+                                new CreditorReference(true, "SCOR", "RF18539007547034")), "Fournisseur SA"));
+    }
+
+    @Test
+    void emitsTransactionWithoutCreditorName() {
+        var xml = VALID_PAIN_001.replace("<Nm>Lieferant AG</Nm>", "");
+
+        new Pain001Parser().parse(bytes(xml), handler);
+
+        assertThat(handler.transactions.getFirst().creditorName()).isNull();
+    }
+
+    @Test
+    void emitsDebtorAndCreditorAddressesWithTheRequestedExecutionDate() {
+        new Pain001Parser().parse(bytes(VALID_PAIN_001), handler);
+
+        LocalDate executionDate = LocalDate.of(2026, 11, 2);
+        assertThat(handler.postalAddresses).containsExactly(
+                new PostalAddress("PmtInf[1]/Dbtr/PstlAdr", Party.DEBTOR, executionDate, 0, true, true, true),
+                new PostalAddress("PmtInf[1]/CdtTrfTxInf[1]/Cdtr/PstlAdr", Party.CREDITOR, executionDate,
+                        1, true, true, true),
+                new PostalAddress("PmtInf[1]/CdtTrfTxInf[2]/Cdtr/PstlAdr", Party.CREDITOR, executionDate,
+                        2, false, true, false));
+    }
+
+    @Test
+    void takesTheRequestedExecutionDateFromADateTime() {
+        var xml = VALID_PAIN_001.replace("<Dt>2026-11-02</Dt>", "<DtTm>2026-11-23T08:00:00+01:00</DtTm>");
+
+        new Pain001Parser().parse(bytes(xml), handler);
+
+        assertThat(handler.postalAddresses)
+                .allSatisfy(address -> assertThat(address.requestedExecutionDate())
+                        .isEqualTo(LocalDate.of(2026, 11, 23)));
+    }
+
+    @Test
+    void ignoresAddressesOfUltimatePartiesAndAgents() {
+        var xml = VALID_PAIN_001.replace("<ChrgBr>SLEV</ChrgBr>",
+                "<UltmtDbtr><Nm>Muster Holding</Nm><PstlAdr><AdrLine>Postfach 1</AdrLine></PstlAdr></UltmtDbtr>"
+                        + "<ChrgBr>SLEV</ChrgBr>");
+
+        new Pain001Parser().parse(bytes(xml), handler);
+
+        assertThat(handler.postalAddresses).extracting(PostalAddress::path).containsExactly(
+                "PmtInf[1]/Dbtr/PstlAdr",
+                "PmtInf[1]/CdtTrfTxInf[1]/Cdtr/PstlAdr",
+                "PmtInf[1]/CdtTrfTxInf[2]/Cdtr/PstlAdr");
     }
 
     @Test
@@ -160,6 +208,7 @@ class Pain001ParserTest {
         final List<CreditTransferTransaction> transactions = new ArrayList<>();
         final List<Totals> totals = new ArrayList<>();
         final List<PartyName> partyNames = new ArrayList<>();
+        final List<PostalAddress> postalAddresses = new ArrayList<>();
 
         @Override
         public void paymentInformation(PaymentInformation pmtInf) {
@@ -179,6 +228,11 @@ class Pain001ParserTest {
         @Override
         public void partyName(PartyName partyName) {
             partyNames.add(partyName);
+        }
+
+        @Override
+        public void postalAddress(PostalAddress postalAddress) {
+            postalAddresses.add(postalAddress);
         }
     }
 }

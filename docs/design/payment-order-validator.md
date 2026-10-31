@@ -162,7 +162,8 @@ public record Violation(
 | Field lengths: party names 70 (initiating party, debtor, creditor, ultimate parties); remittance 140 and End-to-End ID 35 via the XSD | FF01 |
 | One structured **or** one unstructured remittance, not both; structured ≤ 140 characters including tags (EPC C2PSP IG 2.164–2.166) | FF01 |
 | Creditor reference has type and reference, coded type is `SCOR`. ISO 11649 check digits are not validated: EPC C2PSP IG 2.175 does not require it and lets the PSP continue on failure | FF01 |
-| Postal address structured or hybrid (rulebook-version dependent) | RR (tbd) |
+| Creditor name present (EPC C2PSP IG 2.117) | RR03 |
+| Debtor and creditor postal address: at most 2 `AdrLine`; structured or hybrid (`TwnNm` and `Ctry`) for a requested execution date on or after 22 November 2026, before that also unstructured (only `AdrLine` and `Ctry`) — EPC C2PSP IG 1.7, 2.23, 2.118; codes pending Q7 | RR02 (debtor) / RR03 (creditor) |
 | End-to-End ID unique within configurable window (not yet implemented) | DU04 |
 
 **SCT / SCT Inst**
@@ -267,7 +268,7 @@ Test-first development; unit, integration and end-to-end tests for every feature
 | Q4 | SDD: creditor side only (`pain.008`), or also debtor side (incoming `pacs.003` vs. B2B mandates)? | ADR-0011, scope |
 | Q5 | Review: four-eyes principle required? UI needed? | review module |
 | Q6 | Sunset dates for legacy DK versions (`.001.03`, `.003.03`, `.003.02`) — still accepted by DK? | ADR-0005 |
-| Q7 | Confirm November 2026 structured / hybrid address requirement and the applicable reason code | Rule catalogue |
+| Q7 | Structured / hybrid address requirement from 22 November 2026 is confirmed by EPC C2PSP IG 2025. Confirm the reason codes RR02 / RR03 and applying it by requested execution date with Compliance | Rule catalogue |
 | Q9 | Retention periods for raw files and audit data | Persistence, compliance |
 | Q10 | OpenShift version and admission mechanism for signature verification; Red Hat Trusted Artifact Signer / Trusted Profile Analyzer available? | ADR-0014 |
 | Q11 | Which CI system builds and signs (OpenShift Pipelines/Tekton, GitLab CI, Jenkins)? | ADR-0014 |

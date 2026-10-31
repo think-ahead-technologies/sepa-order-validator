@@ -199,6 +199,17 @@ class PaymentFileValidationIntegrationTest {
     }
 
     @Test
+    void rejectsMissingCreditorNameAndUnstructuredAddressAfterTheCutoverWithoutLoggingThem(CapturedOutput output) {
+        PaymentFileValidated validated = uploadAndAwaitValidation(
+                dev.thinkahead.sepa.Fixtures.withCreditorNameAndAddressViolations(uniqueMessageId()));
+
+        assertThat(validated.accepted()).isFalse();
+        assertThat(validated.violations()).extracting(Violation::reasonCode).containsExactly("RR03", "RR03");
+        assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
+        assertThat(output).doesNotContain("Rue de la Paix");
+    }
+
+    @Test
     void acceptsCreditorsInCountriesThatJoinedSepaIn2025() {
         PaymentFileValidated validated = uploadAndAwaitValidation(validPain001(uniqueMessageId())
                 .replace("NL91ABNA0417164300", "AL47212110090000000235698741")

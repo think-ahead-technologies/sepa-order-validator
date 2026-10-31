@@ -22,7 +22,7 @@ class AgentRulesTest {
 
     private static CreditTransferTransaction transaction(Agent creditorAgent) {
         return new CreditTransferTransaction("PmtInf[1]/CdtTrfTxInf[2]", "E2E-002", new BigDecimal("50.50"), "EUR",
-                "NL91ABNA0417164300", creditorAgent, RemittanceInformation.NONE);
+                "NL91ABNA0417164300", creditorAgent, RemittanceInformation.NONE, "Lieferant AG");
     }
 
     @Test

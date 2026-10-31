@@ -11,4 +11,6 @@ public interface Pain001Handler {
     void totals(Totals totals);
 
     void partyName(PartyName partyName);
+
+    void postalAddress(PostalAddress postalAddress);
 }

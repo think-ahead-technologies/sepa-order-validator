@@ -1,11 +1,12 @@
 // ABOUTME: Streaming StAX parser for schema-valid pain.001.001.09 credit transfer initiation messages.
-// ABOUTME: Emits payment information, transactions, party names and totals to a handler; returns the group header.
+// ABOUTME: Emits payment information, transactions, party names, addresses and totals; returns the group header.
 package dev.thinkahead.sepa.validation.pain001;
 
 import dev.thinkahead.sepa.validation.xml.SecureXml;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import javax.xml.stream.XMLStreamConstants;
@@ -22,6 +23,8 @@ public class Pain001Parser {
     private static final String CREDITOR_AGENT = TX + "/CdtrAgt";
     private static final String STRD = TX + "/RmtInf/Strd";
     private static final String CDTR_REF_INF = STRD + "/CdtrRefInf";
+    private static final String DEBTOR_ADDRESS = PMT_INF + "/Dbtr/PstlAdr";
+    private static final String CREDITOR_ADDRESS = TX + "/Cdtr/PstlAdr";
 
     public GroupHeader parse(byte[] content, Pain001Handler handler) {
         return parse(new ByteArrayInputStream(content), handler);
@@ -58,6 +61,7 @@ public class Pain001Parser {
         private String paymentInformationId;
         private String paymentNumberOfTransactions;
         private BigDecimal paymentControlSum;
+        private LocalDate requestedExecutionDate;
         private String debtorIban;
         private AgentBuilder debtorAgent;
         private long paymentCount;
@@ -70,6 +74,8 @@ public class Pain001Parser {
         private String currency;
         private String creditorIban;
         private AgentBuilder creditorAgent;
+        private String creditorName;
+        private AddressBuilder address;
         private int unstructuredCount;
         private int structuredCount;
         private int structuredLength;
@@ -109,6 +115,9 @@ public class Pain001Parser {
             if (path.startsWith(STRD + "/")) {
                 structuredLength += startTagLength();
             }
+            if (address != null && (path.startsWith(DEBTOR_ADDRESS + "/") || path.startsWith(CREDITOR_ADDRESS + "/"))) {
+                address.element(reader.getLocalName());
+            }
             if (debtorAgent != null && path.startsWith(DEBTOR_AGENT + "/")) {
                 debtorAgent.element(path.substring(DEBTOR_AGENT.length() + 1));
             }
@@ -124,6 +133,7 @@ public class Pain001Parser {
                     paymentControlSum = null;
                     debtorIban = null;
                     debtorAgent = null;
+                    requestedExecutionDate = null;
                     paymentCount = 0;
                     paymentSum = BigDecimal.ZERO;
                     transactionIndex = 0;
@@ -136,6 +146,7 @@ public class Pain001Parser {
                     currency = null;
                     creditorIban = null;
                     creditorAgent = null;
+                    creditorName = null;
                     unstructuredCount = 0;
                     structuredCount = 0;
                     longestStructuredLength = 0;
@@ -147,6 +158,7 @@ public class Pain001Parser {
                 case TX + "/Amt/InstdAmt" -> currency = reader.getAttributeValue(null, "Ccy");
                 case DEBTOR_AGENT -> debtorAgent = new AgentBuilder();
                 case CREDITOR_AGENT -> creditorAgent = new AgentBuilder();
+                case DEBTOR_ADDRESS, CREDITOR_ADDRESS -> address = new AddressBuilder();
                 case STRD -> {
                     structuredCount++;
                     structuredLength = 0;
@@ -170,6 +182,12 @@ public class Pain001Parser {
                 case PMT_INF + "/PmtInfId" -> paymentInformationId = value;
                 case PMT_INF + "/NbOfTxs" -> paymentNumberOfTransactions = value;
                 case PMT_INF + "/CtrlSum" -> paymentControlSum = new BigDecimal(value);
+                case PMT_INF + "/ReqdExctnDt/Dt" -> requestedExecutionDate = LocalDate.parse(value);
+                case PMT_INF + "/ReqdExctnDt/DtTm" -> requestedExecutionDate = LocalDate.parse(value.substring(0, 10));
+                case DEBTOR_ADDRESS -> handler.postalAddress(
+                        address.build(paymentInformationPath + "/Dbtr/PstlAdr", Party.DEBTOR, requestedExecutionDate));
+                case CREDITOR_ADDRESS -> handler.postalAddress(
+                        address.build(transactionPath + "/Cdtr/PstlAdr", Party.CREDITOR, requestedExecutionDate));
                 case PMT_INF + "/Dbtr/Nm" -> handler.partyName(new PartyName(paymentInformationPath + "/Dbtr/Nm", value));
                 case PMT_INF + "/UltmtDbtr/Nm" ->
                         handler.partyName(new PartyName(paymentInformationPath + "/UltmtDbtr/Nm", value));
@@ -180,7 +198,10 @@ public class Pain001Parser {
                 case TX + "/Amt/InstdAmt" -> amount = new BigDecimal(value);
                 case TX + "/UltmtDbtr/Nm" -> handler.partyName(new PartyName(transactionPath + "/UltmtDbtr/Nm", value));
                 case CREDITOR_AGENT + "/FinInstnId/BICFI" -> creditorAgent.bic = value;
-                case TX + "/Cdtr/Nm" -> handler.partyName(new PartyName(transactionPath + "/Cdtr/Nm", value));
+                case TX + "/Cdtr/Nm" -> {
+                    creditorName = value;
+                    handler.partyName(new PartyName(transactionPath + "/Cdtr/Nm", value));
+                }
                 case TX + "/CdtrAcct/Id/IBAN" -> creditorIban = value;
                 case TX + "/UltmtCdtr/Nm" -> handler.partyName(new PartyName(transactionPath + "/UltmtCdtr/Nm", value));
                 case TX + "/RmtInf/Ustrd" -> unstructuredCount++;
@@ -215,7 +236,8 @@ public class Pain001Parser {
             handler.transaction(new CreditTransferTransaction(transactionPath, endToEndId, amount, currency,
                     creditorIban, creditorAgent == null ? null : creditorAgent.build(),
                     new RemittanceInformation(unstructuredCount, structuredCount, longestStructuredLength,
-                            reference)));
+                            reference),
+                    creditorName));
             paymentCount++;
             groupCount++;
             if (amount != null) {
@@ -229,6 +251,34 @@ public class Pain001Parser {
                     debtorAgent == null ? null : debtorAgent.build()));
             handler.totals(new Totals(paymentInformationPath, paymentNumberOfTransactions, paymentControlSum,
                     paymentCount, paymentSum));
+        }
+    }
+
+    /**
+     * Collects the shape of one debtor or creditor postal address while it is streamed.
+     */
+    private static final class AddressBuilder {
+
+        private int addressLineCount;
+        private boolean townName;
+        private boolean country;
+        private boolean otherElements;
+
+        void element(String localName) {
+            switch (localName) {
+                case "AdrLine" -> addressLineCount++;
+                case "Ctry" -> country = true;
+                case "TwnNm" -> {
+                    townName = true;
+                    otherElements = true;
+                }
+                default -> otherElements = true;
+            }
+        }
+
+        PostalAddress build(String path, Party party, LocalDate requestedExecutionDate) {
+            return new PostalAddress(path, party, requestedExecutionDate, addressLineCount, townName, country,
+                    otherElements);
         }
     }
 

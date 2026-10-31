@@ -210,6 +210,18 @@ class PaymentFileValidationIntegrationTest {
     }
 
     @Test
+    void rejectsCharactersOutsideTheDkCharacterSetWithoutLoggingThem(CapturedOutput output) {
+        PaymentFileValidated validated = uploadAndAwaitValidation(
+                dev.thinkahead.sepa.Fixtures.withCharacterSetViolations(uniqueMessageId()));
+
+        assertThat(validated.accepted()).isFalse();
+        assertThat(validated.violations()).extracting(Violation::reasonCode).containsExactly("CH16", "CH16");
+        assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
+        assertThat(output).doesNotContain(dev.thinkahead.sepa.Fixtures.FRENCH_CREDITOR_NAME)
+                .doesNotContain("E2E-Müller-001");
+    }
+
+    @Test
     void rejectsAnExecutionDateInThePastWithDt01() {
         PaymentFileValidated validated = uploadAndAwaitValidation(
                 validPain001(uniqueMessageId(), java.time.LocalDate.of(2026, 10, 1)));

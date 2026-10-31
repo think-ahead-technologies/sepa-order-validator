@@ -128,6 +128,16 @@ class PaymentFileProcessingEndToEndTest {
     }
 
     @Test
+    void charactersOutsideTheDkCharacterSetAreRejectedWithCh16() throws Exception {
+        Delivery delivery = submit(Fixtures.withCharacterSetViolations(uniqueMessageId()));
+
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(reasonCodes(delivery.report())).containsExactly("CH16", "CH16");
+        assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
+        assertAuditTrailComplete(delivery.fileName());
+    }
+
+    @Test
     void executionOnAWeekendIsRejectedWithDt01() throws Exception {
         java.time.LocalDate saturday = Fixtures.futureExecutionDate()
                 .with(java.time.temporal.TemporalAdjusters.next(java.time.DayOfWeek.SATURDAY));

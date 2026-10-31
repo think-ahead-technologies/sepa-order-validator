@@ -175,6 +175,34 @@ class Pain001ParserTest {
     }
 
     @Test
+    void emitsTheTextOfEveryLeafElementWithLocation() {
+        new Pain001Parser().parse(bytes(VALID_PAIN_001), handler);
+
+        assertThat(handler.elementTexts).contains(
+                new ElementText("GrpHdr/MsgId", "MSG-2026-10-31-001"),
+                new ElementText("GrpHdr/InitgPty/Nm", "Muster GmbH"),
+                new ElementText("PmtInf[1]/PmtInfId", "PMT-001"),
+                new ElementText("PmtInf[1]/Dbtr/PstlAdr/StrtNm", "Hauptstraße"),
+                new ElementText("PmtInf[1]/CdtTrfTxInf[1]/PmtId/EndToEndId", "E2E-001"),
+                new ElementText("PmtInf[1]/CdtTrfTxInf[2]/Cdtr/Nm", "Fournisseur SA"),
+                new ElementText("PmtInf[1]/CdtTrfTxInf[2]/RmtInf/Strd/CdtrRefInf/Ref", "RF18539007547034"));
+        assertThat(handler.elementTexts)
+                .as("elements that only contain other elements carry no text")
+                .noneSatisfy(text -> assertThat(text.path()).endsWith("/Cdtr"))
+                .allSatisfy(text -> assertThat(text.value()).isNotBlank());
+    }
+
+    @Test
+    void emitsElementTextWithEntitiesResolved() {
+        var xml = VALID_PAIN_001.replace("<Nm>Lieferant AG</Nm>", "<Nm>Lieferant &amp; S&#246;hne</Nm>");
+
+        new Pain001Parser().parse(bytes(xml), handler);
+
+        assertThat(handler.elementTexts)
+                .contains(new ElementText("PmtInf[1]/CdtTrfTxInf[1]/Cdtr/Nm", "Lieferant & Söhne"));
+    }
+
+    @Test
     void emitsPaymentInformation() {
         new Pain001Parser().parse(bytes(VALID_PAIN_001), handler);
 
@@ -211,6 +239,7 @@ class Pain001ParserTest {
         final List<Totals> totals = new ArrayList<>();
         final List<PartyName> partyNames = new ArrayList<>();
         final List<PostalAddress> postalAddresses = new ArrayList<>();
+        final List<ElementText> elementTexts = new ArrayList<>();
 
         @Override
         public void paymentInformation(PaymentInformation pmtInf) {
@@ -235,6 +264,11 @@ class Pain001ParserTest {
         @Override
         public void postalAddress(PostalAddress postalAddress) {
             postalAddresses.add(postalAddress);
+        }
+
+        @Override
+        public void elementText(ElementText elementText) {
+            elementTexts.add(elementText);
         }
     }
 }

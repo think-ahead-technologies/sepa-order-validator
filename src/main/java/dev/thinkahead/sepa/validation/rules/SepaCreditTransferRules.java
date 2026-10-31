@@ -4,6 +4,7 @@ package dev.thinkahead.sepa.validation.rules;
 
 import dev.thinkahead.sepa.validation.Violation;
 import dev.thinkahead.sepa.validation.pain001.CreditTransferTransaction;
+import dev.thinkahead.sepa.validation.pain001.ElementText;
 import dev.thinkahead.sepa.validation.pain001.Pain001Handler;
 import dev.thinkahead.sepa.validation.pain001.PartyName;
 import dev.thinkahead.sepa.validation.pain001.PaymentInformation;
@@ -22,6 +23,7 @@ public final class SepaCreditTransferRules implements Pain001Handler {
             List.of(new NumberOfTransactionsRule(), new ControlSumRule());
     private static final List<ValidationRule<PartyName>> PARTY_NAME_RULES = List.of(new PartyNameLengthRule());
     private static final List<ValidationRule<PostalAddress>> POSTAL_ADDRESS_RULES = List.of(new PostalAddressRule());
+    private static final List<ValidationRule<ElementText>> ELEMENT_TEXT_RULES = List.of(new CharacterSetRule());
 
     private final List<ValidationRule<PaymentInformation>> paymentInformationRules;
     private final List<Violation> violations = new ArrayList<>();
@@ -61,6 +63,11 @@ public final class SepaCreditTransferRules implements Pain001Handler {
     @Override
     public void postalAddress(PostalAddress postalAddress) {
         apply(POSTAL_ADDRESS_RULES, postalAddress);
+    }
+
+    @Override
+    public void elementText(ElementText elementText) {
+        apply(ELEMENT_TEXT_RULES, elementText);
     }
 
     public List<Violation> violations() {

@@ -158,7 +158,7 @@ public record Violation(
 | BIC format (8 or 11) — enforced by the XSD; debtor agent identified by `BICFI` or `Othr/Id`, creditor agent only as `BICFI` (EPC C2PSP IG 2.54, 2.114) | FF01 / RC01 |
 | Currency is `EUR` | AM03 |
 | Amount ≥ 0.01, ≤ 999,999,999.99, ≤ 2 decimals (EPC C2PSP IG 2.95) | AM01 / AM02 / AM12 |
-| Character set: DK extended Latin set; conversion for interbank use | CH16 / FF01 |
+| Character set (DFÜ-Abkommen Anlage 3 v3.7, 2.1): text uses EPC basic Latin plus `ÄÖÜäöüß&*$%`; identifiers (`MsgId`, `PmtInfId`, `InstrId`, `EndToEndId`) only basic Latin and no leading, trailing or double `/` (2.3.1, EPC C2PSP IG 1.4). Other characters reject the file, the bank does not convert them | CH16 |
 | Field lengths: party names 70 (initiating party, debtor, creditor, ultimate parties); remittance 140 and End-to-End ID 35 via the XSD | FF01 |
 | One structured **or** one unstructured remittance, not both; structured ≤ 140 characters including tags (EPC C2PSP IG 2.164–2.166) | FF01 |
 | Creditor reference has type and reference, coded type is `SCOR`. ISO 11649 check digits are not validated: EPC C2PSP IG 2.175 does not require it and lets the PSP continue on failure | FF01 |
@@ -274,3 +274,4 @@ Test-first development; unit, integration and end-to-end tests for every feature
 | Q11 | Which CI system builds and signs (OpenShift Pipelines/Tekton, GitLab CI, Jenkins)? | ADR-0014 |
 | Q12 | How long must a `MsgId` stay unique per submitter (forever, or e.g. 90 days)? Does DK prescribe a window? | ADR-0016 |
 | Q13 | Maximum accepted file size (default 100 MB) and overdue-reply threshold (default 10 min): confirm with business and operations, size pods accordingly | ADR-0004, ADR-0007 |
+| Q14 | Characters outside the DK set (e.g. `é`, `ł`) are rejected with CH16. Should they be accepted and converted per EPC217-08 instead, and if so by this system or by downstream payment processing? | Rule catalogue, ADR on order modification |

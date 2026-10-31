@@ -13,4 +13,6 @@ public interface Pain001Handler {
     void partyName(PartyName partyName);
 
     void postalAddress(PostalAddress postalAddress);
+
+    void elementText(ElementText elementText);
 }

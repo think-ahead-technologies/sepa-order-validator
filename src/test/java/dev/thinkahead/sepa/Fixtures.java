@@ -114,6 +114,18 @@ public final class Fixtures {
                 .replace("<Nm>Lieferant AG</Nm>", "");
     }
 
+    public static final String FRENCH_CREDITOR_NAME = "Société Générale";
+
+    /**
+     * The valid sample with characters outside the DK character set: an umlaut in the first transaction's EndToEndId
+     * (identifiers allow only basic Latin) and an accented creditor name in the second transaction, both CH16.
+     */
+    public static String withCharacterSetViolations(String messageId) {
+        return validPain001(messageId)
+                .replace("<EndToEndId>E2E-001</EndToEndId>", "<EndToEndId>E2E-Müller-001</EndToEndId>")
+                .replace("<Nm>Fournisseur SA</Nm>", "<Nm>" + FRENCH_CREDITOR_NAME + "</Nm>");
+    }
+
     public static byte[] bytes(String xml) {
         return xml.getBytes(StandardCharsets.UTF_8);
     }

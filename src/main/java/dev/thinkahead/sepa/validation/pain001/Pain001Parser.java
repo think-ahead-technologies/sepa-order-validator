@@ -1,5 +1,5 @@
 // ABOUTME: Streaming StAX parser for schema-valid pain.001.001.09 credit transfer initiation messages.
-// ABOUTME: Emits payment information, transactions, party names, addresses and totals; returns the group header.
+// ABOUTME: Emits payment information, transactions, parties, element texts and totals; returns the group header.
 package dev.thinkahead.sepa.validation.pain001;
 
 import dev.thinkahead.sepa.validation.xml.SecureXml;
@@ -171,6 +171,9 @@ public class Pain001Parser {
         }
 
         private void endElement(String path, String value) {
+            if (!value.isEmpty()) {
+                handler.elementText(new ElementText(locate(path), value));
+            }
             if (path.startsWith(STRD + "/")) {
                 structuredLength += value.length() + reader.getLocalName().length() + "</>".length();
             }
@@ -215,6 +218,22 @@ public class Pain001Parser {
                 default -> {
                 }
             }
+        }
+
+        /**
+         * The element's location with the indices of its payment information block and transaction.
+         */
+        private String locate(String path) {
+            if (path.startsWith(TX + "/")) {
+                return transactionPath + path.substring(TX.length());
+            }
+            if (path.startsWith(PMT_INF + "/")) {
+                return paymentInformationPath + path.substring(PMT_INF.length());
+            }
+            if (path.startsWith(ROOT + "/")) {
+                return path.substring(ROOT.length() + 1);
+            }
+            return path;
         }
 
         /**

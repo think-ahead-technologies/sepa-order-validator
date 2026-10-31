@@ -29,6 +29,19 @@ class PaymentFileValidatorTest {
     }
 
     @Test
+    void rejectsCharactersOutsideTheDkCharacterSetWithCh16() {
+        ValidationResult result = validator.validate(
+                bytes(dev.thinkahead.sepa.Fixtures.withCharacterSetViolations(SAMPLE_MESSAGE_ID)), NO_DEADLINE);
+
+        assertThat(result.accepted()).isFalse();
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactlyInAnyOrder(
+                        tuple("CH16", "PmtInf[1]/CdtTrfTxInf[1]/PmtId/EndToEndId"),
+                        tuple("CH16", "PmtInf[1]/CdtTrfTxInf[2]/Cdtr/Nm"));
+    }
+
+    @Test
     void rejectsAnExecutionDateInThePastWithDt01() {
         var xml = VALID_PAIN_001.replace("<Dt>2026-11-02</Dt>", "<Dt>2026-10-29</Dt>");
 

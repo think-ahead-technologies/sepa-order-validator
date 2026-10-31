@@ -13,7 +13,12 @@ spring:
       enabled: true
   modulith:
     events:
-      republish-outstanding-events-on-restart: true
+      # A listener run interrupted by a crash stays PROCESSING; once stale it is marked FAILED and resubmitted by
+      # FailedEventResubmission. Republishing on restart is off: it would also rerun work in progress on other
+      # live instances during every rolling deploy. Stale must exceed the longest listener run.
+      republish-outstanding-events-on-restart: false
+      staleness:
+        processing: PT5M
 
 sepa:
   sftp:

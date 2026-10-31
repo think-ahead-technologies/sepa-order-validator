@@ -30,7 +30,7 @@ RECEIVED → VALIDATING → REJECTED
 - Module events are delivered at least once (Spring Modulith event publication registry). Every listener is idempotent:
   - validation records an outcome only while the file is `RECEIVED` and otherwise does nothing;
   - reporting creates exactly one report per file (unique `file_id`) in its own transaction, and delivery re-sends the stored bytes, so a repeated delivery never produces a second report or message id.
-- Failed event deliveries are resubmitted on a schedule (`sepa.events.resubmit-after`, default 5 min) and on restart, so a transient failure heals without intervention.
+- Failed event deliveries are resubmitted on a schedule (`sepa.events.resubmit-after`, default 5 min), so a transient failure heals without intervention. A listener run interrupted by a crash stays `PROCESSING` until it is stale (`spring.modulith.events.staleness.processing`, 5 min), is then marked failed and resubmitted the same way. Outstanding events are not republished on restart, because that would rerun work still in progress on other instances.
 - A validation that fails unexpectedly is deterministic and would fail on every retry; the customer receives a technical rejection (`FF01` with the file id as reference) and an ERROR is logged.
 - The leader alerts (ERROR) about every file without a status report to the customer after `sepa.intake.reply-overdue-after` (default 10 min), whatever the cause.
 

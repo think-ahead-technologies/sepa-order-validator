@@ -19,14 +19,27 @@ class WorkItemRepository {
         this.jdbc = jdbc;
     }
 
+    /**
+     * Schedules the step with the priority of the file's other items, or NORMAL for its first item.
+     */
     void insertIfAbsent(UUID fileId, Step step) {
-        jdbc.sql("insert into work_item (file_id, step) values (?, ?) on conflict do nothing")
-                .params(fileId, step.name())
+        jdbc.sql("""
+                        insert into work_item (file_id, step, priority)
+                        values (?, ?, coalesce((select max(priority) from work_item where file_id = ?), 0))
+                        on conflict do nothing""")
+                .params(fileId, step.name(), fileId)
+                .update();
+    }
+
+    void insertIfAbsent(UUID fileId, Step step, Priority priority) {
+        jdbc.sql("insert into work_item (file_id, step, priority) values (?, ?, ?) on conflict do nothing")
+                .params(fileId, step.name(), priority.value())
                 .update();
     }
 
     /**
-     * Leases the longest-due item of the step to the caller; items leased by others are skipped, not waited for.
+     * Leases the longest-due item of the step with the highest priority to the caller; items leased by others are
+     * skipped, not waited for.
      * Lease times use the database clock, so clock skew between instances does not matter.
      */
     Optional<ClaimedItem> claim(Step step, Duration lease) {
@@ -39,7 +52,7 @@ class WorkItemRepository {
                             select file_id, step from work_item
                             where step = :step and state = 'PENDING' and next_attempt_at <= now()
                               and (locked_until is null or locked_until < now())
-                            order by next_attempt_at
+                            order by priority desc, next_attempt_at
                             for update skip locked
                             limit 1)
                         returning w.file_id, w.lease_token, w.attempts""")

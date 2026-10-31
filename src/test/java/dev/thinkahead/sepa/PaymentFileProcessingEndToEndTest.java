@@ -150,6 +150,18 @@ class PaymentFileProcessingEndToEndTest {
     }
 
     @Test
+    void sepaInstantInboxAcceptsSepaInstantAndRejectsSepaCreditTransfersWithAg02() throws Exception {
+        Delivery instant = submit("inbound-instant",
+                Fixtures.validInstantPain001(uniqueMessageId(), Fixtures.futureExecutionDate()));
+        Delivery creditTransfer = submit("inbound-instant", validPain001(uniqueMessageId()));
+
+        assertThat(xpath(instant.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
+        assertThat(xpath(creditTransfer.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(reasonCodes(creditTransfer.report())).containsExactly("AG02");
+        assertAuditTrailComplete(instant.fileName());
+    }
+
+    @Test
     void executionOnAWeekendIsRejectedWithDt01() throws Exception {
         java.time.LocalDate saturday = Fixtures.futureExecutionDate()
                 .with(java.time.temporal.TemporalAdjusters.next(java.time.DayOfWeek.SATURDAY));
@@ -191,6 +203,26 @@ class PaymentFileProcessingEndToEndTest {
         await().during(Duration.ofSeconds(2)).atMost(TIMEOUT).untilAsserted(() ->
                 assertThat(customer.list("outbound")).filteredOn(name -> name.startsWith(baseName + "-"))
                         .as("no status report for the container itself").hasSize(2));
+    }
+
+    @Test
+    void aContainerWhoseHashMatchesIsSplitAndEachMessageAccepted() throws Exception {
+        String fileName = "e2e-hashed-container-" + UUID.randomUUID() + ".xml";
+        String baseName = fileName.replace(".xml", "");
+        customer.upload("inbound", fileName, bytes(Fixtures.CONTAINER_WITH_HASH));
+
+        List<String> reports = await().atMost(TIMEOUT).until(
+                () -> customer.list("outbound").stream().filter(name -> name.startsWith(baseName + "-msg")).sorted()
+                        .toList(),
+                names -> names.size() == 2);
+
+        for (int i = 0; i < 2; i++) {
+            byte[] report = customer.download("outbound", reports.get(i));
+            assertPain002SchemaValid(report);
+            assertThat(xpath(report, GROUP + "/*[local-name()='OrgnlMsgId']")).isEqualTo("MSG-CONTAINER-HASH-" + (i + 1));
+            assertThat(xpath(report, GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
+        }
+        assertThat(fileStatus(fileName)).isEqualTo("SPLIT");
     }
 
     @Test
@@ -300,9 +332,13 @@ class PaymentFileProcessingEndToEndTest {
     }
 
     private Delivery submit(String xml) {
+        return submit("inbound", xml);
+    }
+
+    private Delivery submit(String inbox, String xml) {
         String fileName = "e2e-" + UUID.randomUUID() + ".xml";
         String reportPrefix = fileName.replace(".xml", "") + "-";
-        customer.upload("inbound", fileName, bytes(xml));
+        customer.upload(inbox, fileName, bytes(xml));
 
         String reportName = await().atMost(TIMEOUT).until(
                 () -> customer.list("outbound").stream().filter(name -> name.startsWith(reportPrefix))

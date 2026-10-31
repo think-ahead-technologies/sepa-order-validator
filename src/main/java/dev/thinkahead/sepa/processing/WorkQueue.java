@@ -15,9 +15,17 @@ public class WorkQueue {
     }
 
     /**
-     * Makes the step due for the file now; a step already scheduled for the file is left unchanged.
+     * Makes the step due for the file now, with the priority of the file's earlier steps; a step already scheduled for
+     * the file is left unchanged.
      */
     public void enqueue(UUID fileId, Step step) {
         workItems.insertIfAbsent(fileId, step);
+    }
+
+    /**
+     * Makes the file's first step due now with the given priority, which its later steps keep.
+     */
+    public void enqueue(UUID fileId, Step step, Priority priority) {
+        workItems.insertIfAbsent(fileId, step, priority);
     }
 }

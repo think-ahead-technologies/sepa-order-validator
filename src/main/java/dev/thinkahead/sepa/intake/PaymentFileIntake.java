@@ -3,6 +3,7 @@
 package dev.thinkahead.sepa.intake;
 
 import dev.thinkahead.sepa.audit.AuditTrail;
+import dev.thinkahead.sepa.processing.Priority;
 import dev.thinkahead.sepa.processing.Step;
 import dev.thinkahead.sepa.processing.WorkQueue;
 import java.nio.charset.StandardCharsets;
@@ -39,17 +40,27 @@ class PaymentFileIntake {
      */
     @Transactional
     boolean receive(UUID fileId, Channel channel, String submitter, String fileName, ReceivedContent content) {
-        if (!repository.insertIfAbsent(fileId, channel, submitter, fileName, content)) {
+        return receive(fileId, channel, submitter, fileName, content, false);
+    }
+
+    /**
+     * As {@link #receive(UUID, Channel, String, String, ReceivedContent)}; a file from the SEPA Instant inbox is
+     * marked as such and processed with priority.
+     */
+    @Transactional
+    boolean receive(UUID fileId, Channel channel, String submitter, String fileName, ReceivedContent content,
+            boolean instantOrder) {
+        if (!repository.insertIfAbsent(fileId, channel, submitter, fileName, content, instantOrder)) {
             return false;
         }
-        announce(fileId, channel, submitter, fileName, content);
+        announce(fileId, channel, submitter, fileName, content, instantOrder);
         return true;
     }
 
     /**
      * Stores the message at the given position (from 1) of a container as a payment file of its own, on the
-     * container's channel and submitter, named after the container. Its id follows from the container and position,
-     * so storing the same message again finds the existing file.
+     * container's channel, submitter and inbox, named after the container. Its id follows from the container and
+     * position, so storing the same message again finds the existing file.
      *
      * @return the id of the message's payment file
      */
@@ -61,15 +72,17 @@ class PaymentFileIntake {
         String submitter = repository.submitter(containerFileId);
         String fileName = container.fileName().replaceFirst("(?i)\\.xml$", "") + "-msg" + index + ".xml";
         ReceivedContent content = ReceivedContent.of(message);
-        if (repository.insertIfAbsent(fileId, container.channel(), submitter, fileName, content, containerFileId,
-                index)) {
-            announce(fileId, container.channel(), submitter, fileName, content);
+        boolean instantOrder = repository.submission(containerFileId).instantOrder();
+        if (repository.insertIfAbsent(fileId, container.channel(), submitter, fileName, content, instantOrder,
+                containerFileId, index)) {
+            announce(fileId, container.channel(), submitter, fileName, content, instantOrder);
         }
         return fileId;
     }
 
-    private void announce(UUID fileId, Channel channel, String submitter, String fileName, ReceivedContent content) {
-        workQueue.enqueue(fileId, Step.VALIDATE);
+    private void announce(UUID fileId, Channel channel, String submitter, String fileName, ReceivedContent content,
+            boolean instantOrder) {
+        workQueue.enqueue(fileId, Step.VALIDATE, instantOrder ? Priority.HIGH : Priority.NORMAL);
         var received = new PaymentFileReceived(fileId, channel, submitter, fileName, content.sha256());
         auditTrail.record(fileId, received);
         events.publishEvent(received);

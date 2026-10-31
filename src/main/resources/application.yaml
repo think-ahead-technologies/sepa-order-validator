@@ -22,6 +22,8 @@ sepa:
   sftp:
     port: 22
     inbound-directory: inbound
+    # SEPA Instant inbox, processed with priority; blank disables it until the directory exists on the SFTP server
+    instant-inbound-directory:
     processing-directory: processing
     processed-directory: processed
     outbound-directory: outbound

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.09" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:a a.xsd">
+  <B z="1"   a="t&#9;ab &quot;q&quot; &amp; &lt;"   xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.09">Lieferant &amp; Söhne &lt;x&gt; &#13; "q" 's</B>
+  <C/>
+  <D xmlns:p="urn:p" p:y="2" x="1"><?pi  some data?><![CDATA[a<b]]></D>
+</Document>

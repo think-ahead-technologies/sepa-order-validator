@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<conxml xmlns="urn:conxml:xsd:container.nnn.001.GBIC5" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:conxml:xsd:container.nnn.001.GBIC5 container.nnn.001.GBIC5.xsd">
+  <ContainerId>
+    <SenderId>MUSTERGMBH</SenderId>
+    <IdType>SFTP</IdType>
+    <TimeStamp>115500000</TimeStamp>
+  </ContainerId>
+  <CreDtTm>2026-10-31T11:55:00.000Z</CreDtTm>
+  <MsgPain001>
+    <HashValue>EC12F3500C2EE1CA21877AFA5299E151405CE0419D235253C08017F311D3E521</HashValue>
+    <HashAlgorithm>SHA256</HashAlgorithm>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.09">
+  <CstmrCdtTrfInitn>
+    <GrpHdr>
+      <MsgId>MSG-CONTAINER-HASH-1</MsgId>
+      <CreDtTm>2026-10-31T10:00:00</CreDtTm>
+      <NbOfTxs>2</NbOfTxs>
+      <CtrlSum>150.50</CtrlSum>
+      <InitgPty>
+        <Nm>Muster GmbH</Nm>
+      </InitgPty>
+    </GrpHdr>
+    <PmtInf>
+      <PmtInfId>PMT-001</PmtInfId>
+      <PmtMtd>TRF</PmtMtd>
+      <NbOfTxs>2</NbOfTxs>
+      <CtrlSum>150.50</CtrlSum>
+      <PmtTpInf>
+        <SvcLvl>
+          <Cd>SEPA</Cd>
+        </SvcLvl>
+      </PmtTpInf>
+      <ReqdExctnDt>
+        <Dt>2099-06-01</Dt>
+      </ReqdExctnDt>
+      <Dbtr>
+        <Nm>Muster GmbH</Nm>
+        <PstlAdr>
+          <StrtNm>Hauptstraße</StrtNm>
+          <BldgNb>1</BldgNb>
+          <PstCd>60311</PstCd>
+          <TwnNm>Frankfurt am Main</TwnNm>
+          <Ctry>DE</Ctry>
+        </PstlAdr>
+      </Dbtr>
+      <DbtrAcct>
+        <Id>
+          <IBAN>DE89370400440532013000</IBAN>
+        </Id>
+      </DbtrAcct>
+      <DbtrAgt>
+        <FinInstnId>
+          <BICFI>COBADEFFXXX</BICFI>
+        </FinInstnId>
+      </DbtrAgt>
+      <ChrgBr>SLEV</ChrgBr>
+      <CdtTrfTxInf>
+        <PmtId>
+          <EndToEndId>E2E-001</EndToEndId>
+        </PmtId>
+        <Amt>
+          <InstdAmt Ccy="EUR">100.00</InstdAmt>
+        </Amt>
+        <CdtrAgt>
+          <FinInstnId>
+            <BICFI>ABNANL2A</BICFI>
+          </FinInstnId>
+        </CdtrAgt>
+        <Cdtr>
+          <Nm>Lieferant AG</Nm>
+          <PstlAdr>
+            <TwnNm>Amsterdam</TwnNm>
+            <Ctry>NL</Ctry>
+            <AdrLine>Gustav Mahlerlaan 10</AdrLine>
+          </PstlAdr>
+        </Cdtr>
+        <CdtrAcct>
+          <Id>
+            <IBAN>NL91ABNA0417164300</IBAN>
+          </Id>
+        </CdtrAcct>
+        <RmtInf>
+          <Ustrd>Rechnung 4711</Ustrd>
+        </RmtInf>
+      </CdtTrfTxInf>
+      <CdtTrfTxInf>
+        <PmtId>
+          <EndToEndId>E2E-002</EndToEndId>
+        </PmtId>
+        <Amt>
+          <InstdAmt Ccy="EUR">50.50</InstdAmt>
+        </Amt>
+        <Cdtr>
+          <Nm>Fournisseur SA</Nm>
+          <PstlAdr>
+            <TwnNm>Paris</TwnNm>
+            <Ctry>FR</Ctry>
+            <AdrLine>12 Rue de la Paix</AdrLine>
+          </PstlAdr>
+        </Cdtr>
+        <CdtrAcct>
+          <Id>
+            <IBAN>FR1420041010050500013M02606</IBAN>
+          </Id>
+        </CdtrAcct>
+        <RmtInf>
+          <Strd>
+            <CdtrRefInf>
+              <Tp>
+                <CdOrPrtry>
+                  <Cd>SCOR</Cd>
+                </CdOrPrtry>
+                <Issr>ISO</Issr>
+              </Tp>
+              <Ref>RF18539007547034</Ref>
+            </CdtrRefInf>
+          </Strd>
+        </RmtInf>
+      </CdtTrfTxInf>
+    </PmtInf>
+  </CstmrCdtTrfInitn>
+</Document>
+  </MsgPain001>
+  <MsgPain001>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.09">
+  <CstmrCdtTrfInitn>
+    <GrpHdr>
+      <MsgId>MSG-CONTAINER-HASH-2</MsgId>
+      <CreDtTm>2026-10-31T10:00:00</CreDtTm>
+      <NbOfTxs>2</NbOfTxs>
+      <CtrlSum>150.50</CtrlSum>
+      <InitgPty>
+        <Nm>Muster GmbH</Nm>
+      </InitgPty>
+    </GrpHdr>
+    <PmtInf>
+      <PmtInfId>PMT-001</PmtInfId>
+      <PmtMtd>TRF</PmtMtd>
+      <NbOfTxs>2</NbOfTxs>
+      <CtrlSum>150.50</CtrlSum>
+      <PmtTpInf>
+        <SvcLvl>
+          <Cd>SEPA</Cd>
+        </SvcLvl>
+      </PmtTpInf>
+      <ReqdExctnDt>
+        <Dt>2099-06-01</Dt>
+      </ReqdExctnDt>
+      <Dbtr>
+        <Nm>Muster GmbH</Nm>
+        <PstlAdr>
+          <StrtNm>Hauptstraße</StrtNm>
+          <BldgNb>1</BldgNb>
+          <PstCd>60311</PstCd>
+          <TwnNm>Frankfurt am Main</TwnNm>
+          <Ctry>DE</Ctry>
+        </PstlAdr>
+      </Dbtr>
+      <DbtrAcct>
+        <Id>
+          <IBAN>DE89370400440532013000</IBAN>
+        </Id>
+      </DbtrAcct>
+      <DbtrAgt>
+        <FinInstnId>
+          <BICFI>COBADEFFXXX</BICFI>
+        </FinInstnId>
+      </DbtrAgt>
+      <ChrgBr>SLEV</ChrgBr>
+      <CdtTrfTxInf>
+        <PmtId>
+          <EndToEndId>E2E-001</EndToEndId>
+        </PmtId>
+        <Amt>
+          <InstdAmt Ccy="EUR">100.00</InstdAmt>
+        </Amt>
+        <CdtrAgt>
+          <FinInstnId>
+            <BICFI>ABNANL2A</BICFI>
+          </FinInstnId>
+        </CdtrAgt>
+        <Cdtr>
+          <Nm>Lieferant AG</Nm>
+          <PstlAdr>
+            <TwnNm>Amsterdam</TwnNm>
+            <Ctry>NL</Ctry>
+            <AdrLine>Gustav Mahlerlaan 10</AdrLine>
+          </PstlAdr>
+        </Cdtr>
+        <CdtrAcct>
+          <Id>
+            <IBAN>NL91ABNA0417164300</IBAN>
+          </Id>
+        </CdtrAcct>
+        <RmtInf>
+          <Ustrd>Rechnung 4711</Ustrd>
+        </RmtInf>
+      </CdtTrfTxInf>
+      <CdtTrfTxInf>
+        <PmtId>
+          <EndToEndId>E2E-002</EndToEndId>
+        </PmtId>
+        <Amt>
+          <InstdAmt Ccy="EUR">50.50</InstdAmt>
+        </Amt>
+        <Cdtr>
+          <Nm>Fournisseur SA</Nm>
+          <PstlAdr>
+            <TwnNm>Paris</TwnNm>
+            <Ctry>FR</Ctry>
+            <AdrLine>12 Rue de la Paix</AdrLine>
+          </PstlAdr>
+        </Cdtr>
+        <CdtrAcct>
+          <Id>
+            <IBAN>FR1420041010050500013M02606</IBAN>
+          </Id>
+        </CdtrAcct>
+        <RmtInf>
+          <Strd>
+            <CdtrRefInf>
+              <Tp>
+                <CdOrPrtry>
+                  <Cd>SCOR</Cd>
+                </CdOrPrtry>
+                <Issr>ISO</Issr>
+              </Tp>
+              <Ref>RF18539007547034</Ref>
+            </CdtrRefInf>
+          </Strd>
+        </RmtInf>
+      </CdtTrfTxInf>
+    </PmtInf>
+  </CstmrCdtTrfInitn>
+</Document>
+  </MsgPain001>
+</conxml>

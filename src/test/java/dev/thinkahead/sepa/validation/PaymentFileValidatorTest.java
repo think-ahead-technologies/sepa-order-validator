@@ -63,6 +63,29 @@ class PaymentFileValidatorTest {
     }
 
     @Test
+    void rejectsSepaInstantFromAContainerWithAg02() {
+        String xml = dev.thinkahead.sepa.Fixtures.validInstantPain001(SAMPLE_MESSAGE_ID,
+                java.time.LocalDate.of(2026, 11, 2));
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE,
+                new dev.thinkahead.sepa.intake.Submission(false, true));
+
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(tuple("AG02", "PmtInf[1]"));
+    }
+
+    @Test
+    void rejectsSepaCreditTransfersFromTheSepaInstantInboxWithAg02() {
+        ValidationResult result = validator.validate(bytes(VALID_PAIN_001), NO_DEADLINE,
+                new dev.thinkahead.sepa.intake.Submission(true, false));
+
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(tuple("AG02", "PmtInf[1]"));
+    }
+
+    @Test
     void acceptsSepaInstantWithAnExecutionDateInThePastOnASunday() {
         String xml = dev.thinkahead.sepa.Fixtures.validInstantPain001(SAMPLE_MESSAGE_ID,
                 java.time.LocalDate.of(2026, 10, 25));

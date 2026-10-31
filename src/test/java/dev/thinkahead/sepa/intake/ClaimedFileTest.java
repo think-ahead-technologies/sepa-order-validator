@@ -32,6 +32,20 @@ class ClaimedFileTest {
     }
 
     @Test
+    void marksAFileFromTheSepaInstantInboxInItsClaimedName() {
+        var claimed = new ClaimedFile(FILE_ID, "payroll.xml", true);
+
+        assertThat(claimed.claimedName()).isEqualTo("0f8fad5b-d9cb-469f-a165-70867728950e.instant-payroll.xml");
+        assertThat(ClaimedFile.parse(claimed.claimedName())).contains(claimed);
+    }
+
+    @Test
+    void readsClaimedNamesWithoutLaneAsTheRegularInbox() {
+        assertThat(ClaimedFile.parse("0f8fad5b-d9cb-469f-a165-70867728950e-payroll.xml"))
+                .hasValueSatisfying(claimed -> assertThat(claimed.instant()).isFalse());
+    }
+
+    @Test
     void rejectsNamesWithoutAFileIdPrefix() {
         assertThat(ClaimedFile.parse("payroll.xml")).isEmpty();
         assertThat(ClaimedFile.parse("not-a-uuid-at-all-not-a-uuid-at-all-x.xml")).isEmpty();

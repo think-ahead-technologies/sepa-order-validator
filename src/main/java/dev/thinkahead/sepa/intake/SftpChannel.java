@@ -16,6 +16,7 @@ import org.apache.sshd.sftp.client.SftpClient;
 import org.springframework.integration.file.remote.session.Session;
 import org.springframework.integration.file.remote.session.SessionFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 @Component
 class SftpChannel {
@@ -39,7 +40,21 @@ class SftpChannel {
      * Customer files waiting in inbound. Only *.xml files count, so customers can upload under a temporary name.
      */
     List<RemoteFile> listInbound() {
-        return list(properties.inboundDirectory()).stream()
+        return xmlFiles(properties.inboundDirectory());
+    }
+
+    /**
+     * Customer files waiting in the SEPA Instant inbox; empty if that inbox is not configured.
+     */
+    List<RemoteFile> listInstantInbound() {
+        if (!StringUtils.hasText(properties.instantInboundDirectory())) {
+            return List.of();
+        }
+        return xmlFiles(properties.instantInboundDirectory());
+    }
+
+    private List<RemoteFile> xmlFiles(String directory) {
+        return list(directory).stream()
                 .filter(file -> file.name().toLowerCase(Locale.ROOT).endsWith(".xml"))
                 .toList();
     }
@@ -50,8 +65,21 @@ class SftpChannel {
      * @return false if the file is no longer in inbound because another instance claimed it first
      */
     boolean claim(String fileName, String claimedName) {
+        return claimFrom(properties.inboundDirectory(), fileName, claimedName);
+    }
+
+    /**
+     * Atomically moves a file from the SEPA Instant inbox to the processing directory under its claimed name.
+     *
+     * @return false if the file is no longer in the inbox because another instance claimed it first
+     */
+    boolean claimInstant(String fileName, String claimedName) {
+        return claimFrom(properties.instantInboundDirectory(), fileName, claimedName);
+    }
+
+    private boolean claimFrom(String inbox, String fileName, String claimedName) {
         try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
-            return renameIfPresent(session, properties.inboundDirectory() + "/" + fileName,
+            return renameIfPresent(session, inbox + "/" + fileName,
                     properties.processingDirectory() + "/" + claimedName);
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot claim SFTP inbound file " + fileName, e);

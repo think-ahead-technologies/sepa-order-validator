@@ -4,6 +4,7 @@ package dev.thinkahead.sepa.validation;
 
 import dev.thinkahead.sepa.audit.AuditTrail;
 import dev.thinkahead.sepa.intake.PaymentFiles;
+import dev.thinkahead.sepa.intake.Submission;
 import dev.thinkahead.sepa.processing.Completion;
 import dev.thinkahead.sepa.processing.ProcessingStep;
 import dev.thinkahead.sepa.processing.Step;
@@ -68,7 +69,8 @@ class PaymentFileValidation implements ProcessingStep {
                 case ContainerReading.Split split -> () -> recordSplit(fileId, split.messages());
             };
         }
-        ValidationResult result = validateOrRejectTechnically(fileId, content.get(), deadline);
+        ValidationResult result = validateOrRejectTechnically(fileId, content.get(), deadline,
+                paymentFiles.submission(fileId));
         return () -> record(fileId, result);
     }
 
@@ -84,9 +86,10 @@ class PaymentFileValidation implements ProcessingStep {
      * Validation is a pure function of the file content, so an unexpected exception would recur on every retry.
      * The customer gets a technical rejection instead of no reply, and operations get an ERROR to investigate.
      */
-    private ValidationResult validateOrRejectTechnically(UUID fileId, byte[] content, Instant deadline) {
+    private ValidationResult validateOrRejectTechnically(UUID fileId, byte[] content, Instant deadline,
+            Submission submission) {
         try {
-            return validator.validate(content, deadline);
+            return validator.validate(content, deadline, submission);
         } catch (RuntimeException e) {
             LOG.error("Validation of payment file {} failed unexpectedly; rejecting it technically", fileId, e);
             return ValidationResult.technicalError(fileId);

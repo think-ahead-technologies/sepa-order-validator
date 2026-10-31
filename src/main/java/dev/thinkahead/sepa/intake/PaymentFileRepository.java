@@ -23,8 +23,9 @@ class PaymentFileRepository {
     /**
      * @return false if a file with this id already exists; the existing record is left untouched
      */
-    boolean insertIfAbsent(UUID id, Channel channel, String submitter, String fileName, ReceivedContent content) {
-        return insertIfAbsent(id, channel, submitter, fileName, content, null, null);
+    boolean insertIfAbsent(UUID id, Channel channel, String submitter, String fileName, ReceivedContent content,
+            boolean instantOrder) {
+        return insertIfAbsent(id, channel, submitter, fileName, content, instantOrder, null, null);
     }
 
     /**
@@ -33,13 +34,13 @@ class PaymentFileRepository {
      * @return false if a file with this id already exists; the existing record is left untouched
      */
     boolean insertIfAbsent(UUID id, Channel channel, String submitter, String fileName, ReceivedContent content,
-            UUID containerFileId, Integer containerIndex) {
+            boolean instantOrder, UUID containerFileId, Integer containerIndex) {
         return jdbc.sql("""
                         insert into payment_file
                             (id, channel, submitter, file_name, size_bytes, sha256, content, status,
-                             container_file_id, container_index)
+                             instant_order, container_file_id, container_index)
                         values (:id, :channel, :submitter, :fileName, :size, :sha256, :content, :status,
-                                :containerFileId, :containerIndex)
+                                :instantOrder, :containerFileId, :containerIndex)
                         on conflict (id) do nothing""")
                 .param("id", id)
                 .param("channel", channel.name())
@@ -49,6 +50,7 @@ class PaymentFileRepository {
                 .param("sha256", content.sha256())
                 .param("content", new SqlParameterValue(Types.BINARY, content.content()))
                 .param("status", FileStatus.RECEIVED.name())
+                .param("instantOrder", instantOrder)
                 .param("containerFileId", new SqlParameterValue(Types.OTHER, containerFileId))
                 .param("containerIndex", new SqlParameterValue(Types.INTEGER, containerIndex))
                 .update() == 1;
@@ -65,6 +67,15 @@ class PaymentFileRepository {
             throw new IllegalStateException("Payment file " + id + " not found");
         }
         return Optional.ofNullable(rows.getFirst());
+    }
+
+    Submission submission(UUID id) {
+        return jdbc.sql("""
+                        select instant_order, container_file_id is not null as from_container
+                        from payment_file where id = ?""")
+                .param(id)
+                .query((rs, rowNum) -> new Submission(rs.getBoolean("instant_order"), rs.getBoolean("from_container")))
+                .single();
     }
 
     String submitter(UUID id) {

@@ -41,7 +41,7 @@ public class TestcontainersConfiguration {
 
     private static final List<String> APPLICATION_PROPERTY_NAMES = List.of(
             "sepa.sftp.host", "sepa.sftp.port", "sepa.sftp.username", "sepa.sftp.password",
-            "sepa.sftp.known-hosts", "sepa.sftp.poll-interval",
+            "sepa.sftp.known-hosts", "sepa.sftp.poll-interval", "sepa.sftp.instant-inbound-directory",
             "sepa.leader-election.lock-time-to-live", "sepa.leader-election.heartbeat", "sepa.intake.max-file-size",
             "sepa.intake.reply-check-interval", "server.port", "server.address", "sepa.processing.deliver.poll-interval",
             "sepa.processing.deliver.initial-backoff", "sepa.processing.deliver.max-backoff",
@@ -102,6 +102,7 @@ public class TestcontainersConfiguration {
         properties.put("sepa.sftp.password", SFTP_PASSWORD);
         properties.put("sepa.sftp.known-hosts", knownHostsFile(sftp).toUri().toString());
         properties.put("sepa.sftp.poll-interval", "PT0.5S");
+        properties.put("sepa.sftp.instant-inbound-directory", "inbound-instant");
         properties.put("sepa.leader-election.lock-time-to-live", "PT3S");
         properties.put("sepa.leader-election.heartbeat", "PT0.5S");
         properties.put("sepa.intake.max-file-size", "1MB");

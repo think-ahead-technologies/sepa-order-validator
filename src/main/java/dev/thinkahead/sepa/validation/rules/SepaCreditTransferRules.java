@@ -2,6 +2,7 @@
 // ABOUTME: One instance per file; it collects every violation from every rule.
 package dev.thinkahead.sepa.validation.rules;
 
+import dev.thinkahead.sepa.intake.Submission;
 import dev.thinkahead.sepa.validation.Violation;
 import dev.thinkahead.sepa.validation.pain001.CreditTransferTransaction;
 import dev.thinkahead.sepa.validation.pain001.ElementText;
@@ -38,9 +39,17 @@ public final class SepaCreditTransferRules implements Pain001Handler {
      * @param today the bank's calendar date, against which requested execution dates are checked
      */
     public SepaCreditTransferRules(int maxReportedViolations, LocalDate today) {
+        this(maxReportedViolations, today, Submission.REGULAR);
+    }
+
+    /**
+     * @param submission how the file was submitted, checked against its content
+     */
+    public SepaCreditTransferRules(int maxReportedViolations, LocalDate today, Submission submission) {
         this.maxReportedViolations = maxReportedViolations;
         this.paymentInformationRules = List.of(new DebtorIbanRule(), new DebtorAgentRule(),
-                new UniquePaymentInformationIdRule(), new ExecutionDateRule(today), new SingleSchemeRule());
+                new UniquePaymentInformationIdRule(), new ExecutionDateRule(today), new SingleSchemeRule(),
+                new SubmissionRule(submission));
     }
 
     @Override

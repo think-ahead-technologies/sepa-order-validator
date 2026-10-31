@@ -17,6 +17,14 @@ public final class Fixtures {
     public static final String SAMPLE_MESSAGE_ID = "MSG-2026-10-31-001";
     public static final LocalDate SAMPLE_EXECUTION_DATE = LocalDate.of(2026, 11, 2);
 
+    /**
+     * A DK XML container with two copies of the sample (MsgIds MSG-CONTAINER-HASH-1 and -2, executed 2099-06-01). The
+     * first carries the SHA-256 over its C14N form in the container's context, computed with libxml2 (xmllint --c14n);
+     * the second has no hash. Use it once per test run, so its MsgIds are not rejected as duplicates.
+     */
+    public static final String CONTAINER_WITH_HASH = load("/fixtures/container-with-hash.xml");
+    public static final String CONTAINER_HASH = "EC12F3500C2EE1CA21877AFA5299E151405CE0419D235253C08017F311D3E521";
+
     private Fixtures() {
     }
 

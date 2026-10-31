@@ -30,14 +30,15 @@ Option 1. It follows the DK definition of independent messages: a bad message do
 The split runs in the container's `VALIDATE` step, not in intake: splitting parses XML, all parsers come from `validation.xml.SecureXml` (ADR-0004), and `validation` already depends on `intake`, so intake cannot call into `validation` without a module cycle.
 
 - Intake stores the container like any file. Its `VALIDATE` step recognises the container namespace, checks the envelope and splits it.
-- The envelope is checked against the DK container schema `container.nnn.001.GBIC5.xsd`, unchanged. Its imports of the pain schemas are served as stubs that skip the embedded documents, so each message is schema-validated once, on its own. Containers of other message types than `MsgPain001`, messages with namespace prefixes and encodings other than UTF-8 reject the container.
-- Each embedded `Document` is written out as a standalone UTF-8 document from its parsed events, with namespace declarations it inherits from the container. The container stays stored exactly as received, so the audit trail keeps the original bytes.
+- The envelope is checked against the DK container schema `container.nnn.001.GBIC5.xsd`, unchanged. Its imports of the pain schemas are served as stubs that skip the embedded documents, so each message is schema-validated once, on its own. Containers of other message types than `MsgPain001`, messages with namespace prefixes, encodings other than UTF-8 and messages that do not match their hash reject the container.
+- Each embedded `Document` is written out as a standalone UTF-8 document in its canonical form, with the namespace declarations it inherits from the container. The container stays stored exactly as received, so the audit trail keeps the original bytes.
 - Through the intake facade, each message becomes a payment file of its own, linked to the container and its position, with its own `VALIDATE` work item, in the same transaction. The container ends in status `SPLIT`, gets no status report and is excluded from the overdue-reply alert.
 - Validation, duplicate detection, reporting and the work queue stay one-message-per-file.
 
 ## Consequences (of option 1)
 
-- The optional SHA-256 hash per message is not checked yet. It is computed over the C14N 1.0 form of the document in the context of the container, and the DK example carries a placeholder value, so there is no real test vector; checking it is a follow-up.
+- Each message is written out in Canonical XML 1.0 (without comments) in the context of the container, streamed, which is exactly the form its optional SHA-256 hash is computed over (Anlage 3 V3.9, 9.1.1). A hash that does not match rejects the container as a whole (`FF01`). The canonical form is checked against libxml2 (`xmllint --c14n`).
+- SEPA Instant credit transfers in a container are rejected per message with `AG02` (ADR-0021).
 - The customer receives n `pain.002` files for one container (plus one for a container-level fault); the file names show the container they came from.
 - Duplicate detection works per embedded `MsgId`, so one container may hold messages that are accepted and others rejected as duplicates.
 - Open: whether the status reports should be returned in a container (DK `CRC`) or a zip (`CRZ`) instead of single files — depends on Q1 and the delivery channel.

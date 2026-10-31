@@ -2,6 +2,7 @@
 // ABOUTME: Rules run only on schema-valid files; DK containers are read and split instead. A deadline bounds both.
 package dev.thinkahead.sepa.validation;
 
+import dev.thinkahead.sepa.intake.Submission;
 import dev.thinkahead.sepa.validation.container.ContainerReader;
 import dev.thinkahead.sepa.validation.container.ContainerReading;
 import dev.thinkahead.sepa.validation.pain001.GroupHeader;
@@ -47,8 +48,15 @@ class PaymentFileValidator {
      * @param deadline once passed, validation stops and the file is rejected with FF01 (time limit)
      */
     ValidationResult validate(byte[] content, Instant deadline) {
+        return validate(content, deadline, Submission.REGULAR);
+    }
+
+    /**
+     * @param submission how the file was submitted; its content must match it
+     */
+    ValidationResult validate(byte[] content, Instant deadline, Submission submission) {
         try {
-            return validateBefore(content, deadline);
+            return validateBefore(content, deadline, submission);
         } catch (ValidationDeadlineExceeded e) {
             return ValidationResult.timedOut();
         }
@@ -70,7 +78,7 @@ class PaymentFileValidator {
         }
     }
 
-    private ValidationResult validateBefore(byte[] content, Instant deadline) {
+    private ValidationResult validateBefore(byte[] content, Instant deadline, Submission submission) {
         Optional<MessageFormat> detected = formatDetector.detect(content);
         if (detected.isEmpty()) {
             return new ValidationResult(null, null, List.of(new Violation(INVALID_FILE_FORMAT, "Document",
@@ -87,7 +95,8 @@ class PaymentFileValidator {
                     .toList());
         }
 
-        var rules = new SepaCreditTransferRules(MAX_REPORTED_VIOLATIONS, LocalDate.now(clock.withZone(BANK_ZONE)));
+        var rules = new SepaCreditTransferRules(MAX_REPORTED_VIOLATIONS, LocalDate.now(clock.withZone(BANK_ZONE)),
+                submission);
         GroupHeader header = beforeDeadline(deadline, () -> parser.parse(read(content, deadline), rules));
         return new ValidationResult(header.messageId(), format.messageNameId(), rules.violations());
     }

@@ -1,0 +1,5 @@
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.09" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:a a.xsd">
+  <B a="t&#x9;ab &quot;q&quot; &amp; &lt;" z="1">Lieferant &amp; Söhne &lt;x&gt; &#xD; "q" 's</B>
+  <C></C>
+  <D xmlns:p="urn:p" x="1" p:y="2"><?pi some data?>a&lt;b</D>
+</Document>

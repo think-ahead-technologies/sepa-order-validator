@@ -71,7 +71,7 @@ A **modular monolith** built with Spring Boot and Spring Modulith ([ADR-0002](..
 
 | Module | Responsibility |
 |---|---|
-| `intake` | Receive files from EBICS and SFTP (polled by the elected leader instance only, [ADR-0015](../adr/0015-leader-election-with-postgresql-locks.md)), claim each file by atomic rename to `processing/<file id>-<name>`, store it idempotently with its authenticated submitter and SHA-256, archive it, start processing ([ADR-0007](../adr/0007-asynchronous-processing-with-file-lifecycle.md)) |
+| `intake` | Receive files from EBICS and SFTP (polled by the elected leader instance only, [ADR-0015](../adr/0015-leader-election-with-postgresql-locks.md)), claim each file by atomic rename to `processing/<file id>-<name>` (files from the SEPA Instant inbox are marked and processed with priority, [ADR-0021](../adr/0021-sepa-instant-inbox-with-priority-processing.md)), store it idempotently with its authenticated submitter and SHA-256, archive it, start processing ([ADR-0007](../adr/0007-asynchronous-processing-with-file-lifecycle.md)) |
 | `validation` | Format detection, XSD validation, streaming parse, rule evaluation |
 | `mandates` | SDD mandate store, mandate history, mandate lifecycle rules, management API |
 | `screening` | Sanctions, VoP and fraud checks, each behind its own port |
@@ -174,6 +174,7 @@ public record Violation(
 | SCT: requested execution date is a TARGET business day (closed on weekends, 1 January, Good Friday, Easter Monday, 1 May, 25 and 26 December) and not before today in Europe/Berlin. SCT Inst: the date is the earliest start of execution, any day, past dates mean immediately (DK Anlage 3 v3.9, 2.2.4.1) | DT01 |
 | SCT Inst is marked by local instrument `INST`; no other local instrument, SCT carries none (DK Anlage 3 v3.9, 2.2.4.1) | AG02 |
 | A file holds either SCT or SCT Inst, never both (separate DK order types CCT and CIP) | AG02 |
+| The SEPA Instant inbox takes only SCT Inst; SCT Inst is never submitted in a container ([ADR-0021](../adr/0021-sepa-instant-inbox-with-priority-processing.md)) | AG02 |
 | Payment type information on payment information or transaction level, not both | FF01 |
 | SCT Inst amount: no scheme maximum since the SCT Inst Rulebook 2025; customer limits pending Q15 | AM02 |
 

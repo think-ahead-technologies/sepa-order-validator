@@ -1,5 +1,5 @@
 // ABOUTME: Reads DK XML containers (DFÜ-Abkommen Anlage 3 V3.9, 9.1): checks the envelope and splits out the messages.
-// ABOUTME: Only credit transfer containers in UTF-8 without namespace prefixes on the messages are accepted; else FF01.
+// ABOUTME: Messages come out in C14N form, checked against their optional SHA-256 hash; faults are FF01.
 package dev.thinkahead.sepa.validation.container;
 
 import dev.thinkahead.sepa.validation.Violation;
@@ -10,18 +10,17 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import javax.xml.namespace.QName;
-import javax.xml.stream.XMLEventFactory;
 import javax.xml.stream.XMLEventReader;
-import javax.xml.stream.XMLEventWriter;
-import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
@@ -40,14 +39,13 @@ public class ContainerReader {
     private static final String MESSAGE_PREFIX = "Msg";
     private static final String CREDIT_TRANSFER_MESSAGE = "MsgPain001";
     private static final String DOCUMENT = "Document";
+    private static final String HASH_VALUE = "HashValue";
     private static final String INVALID_FILE_FORMAT = "FF01";
     private static final int MESSAGE_DEPTH = 2;
     private static final int DOCUMENT_DEPTH = 3;
 
     private final Schema schema;
     private final SchemaValidator schemaValidator;
-    private final XMLOutputFactory outputFactory = XMLOutputFactory.newDefaultFactory();
-    private final XMLEventFactory eventFactory = XMLEventFactory.newDefaultFactory();
 
     /**
      * @param maxErrors container schema validation stops once this many errors are collected
@@ -107,7 +105,7 @@ public class ContainerReader {
         try {
             return split(content.get());
         } catch (XMLStreamException e) {
-            return fault("Container is not readable");
+            return fault("Container", "Container is not readable");
         }
     }
 
@@ -115,33 +113,50 @@ public class ContainerReader {
         XMLEventReader events = SecureXml.inputFactory().createXMLEventReader(content);
         try {
             List<byte[]> messages = new ArrayList<>();
-            Map<String, String> inheritedNamespaces = new HashMap<>();
+            Map<String, String> containerNamespaces = new HashMap<>();
+            Map<String, String> messageNamespaces = new HashMap<>();
+            String hashValue = null;
             int depth = 0;
             while (events.hasNext()) {
                 XMLEvent event = events.nextEvent();
                 if (event.isStartDocument() && !isUtf8((StartDocument) event)) {
-                    return fault("Container must be encoded in UTF-8");
+                    return fault("Container", "Container must be encoded in UTF-8");
                 }
-                if (event.isStartElement()) {
-                    depth++;
-                    StartElement element = event.asStartElement();
-                    String name = element.getName().getLocalPart();
-                    boolean messageElement = depth == MESSAGE_DEPTH && name.startsWith(MESSAGE_PREFIX);
-                    if (messageElement && !name.equals(CREDIT_TRANSFER_MESSAGE)) {
-                        return fault("Only credit transfer containers (" + CREDIT_TRANSFER_MESSAGE + ") are supported");
-                    }
-                    if (depth == DOCUMENT_DEPTH && name.equals(DOCUMENT)) {
-                        byte[] message = copyMessage(element, events, inheritedNamespaces);
-                        if (message == null) {
-                            return fault("Embedded messages must not use a namespace prefix");
-                        }
-                        messages.add(message);
-                        depth--;
-                    } else if (depth < DOCUMENT_DEPTH) {
-                        inherit(element, inheritedNamespaces);
-                    }
-                } else if (event.isEndElement()) {
+                if (event.isEndElement()) {
                     depth--;
+                    continue;
+                }
+                if (!event.isStartElement()) {
+                    continue;
+                }
+                depth++;
+                StartElement element = event.asStartElement();
+                String name = element.getName().getLocalPart();
+                if (depth == 1) {
+                    inherit(element, containerNamespaces);
+                } else if (depth == MESSAGE_DEPTH && name.startsWith(MESSAGE_PREFIX)) {
+                    if (!name.equals(CREDIT_TRANSFER_MESSAGE)) {
+                        return fault("Container",
+                                "Only credit transfer containers (" + CREDIT_TRANSFER_MESSAGE + ") are supported");
+                    }
+                    messageNamespaces = new HashMap<>(containerNamespaces);
+                    inherit(element, messageNamespaces);
+                    hashValue = null;
+                } else if (depth == DOCUMENT_DEPTH && name.equals(HASH_VALUE)) {
+                    hashValue = events.getElementText().strip();
+                    depth--;
+                } else if (depth == DOCUMENT_DEPTH && name.equals(DOCUMENT)) {
+                    String path = CREDIT_TRANSFER_MESSAGE + "[" + (messages.size() + 1) + "]";
+                    byte[] message = canonicalMessage(element, events, messageNamespaces);
+                    depth--;
+                    if (message == null) {
+                        return fault(path + "/Document", "Embedded messages must not use a namespace prefix");
+                    }
+                    if (hashValue != null && !hashValue.equalsIgnoreCase(sha256(message))) {
+                        return fault(path + "/HashValue",
+                                "Hash value does not match the content of the message (SHA-256 over its C14N form)");
+                    }
+                    messages.add(message);
                 }
             }
             return new ContainerReading.Split(messages);
@@ -151,16 +166,17 @@ public class ContainerReader {
     }
 
     /**
-     * Writes the message from its Document start element up to the matching end element as a standalone document.
+     * Writes the message from its Document start element up to the matching end element in Canonical XML 1.0, in the
+     * context of the container: the form its hash value is computed over (Anlage 3 V3.9, 9.1.1). The result is a
+     * standalone UTF-8 document.
      *
      * @return the message, or null if an element of the message uses a namespace prefix
      */
-    private byte[] copyMessage(StartElement document, XMLEventReader events, Map<String, String> inheritedNamespaces)
-            throws XMLStreamException {
+    private static byte[] canonicalMessage(StartElement document, XMLEventReader events,
+            Map<String, String> inheritedNamespaces) throws XMLStreamException {
         var out = new ByteArrayOutputStream();
-        XMLEventWriter writer = outputFactory.createXMLEventWriter(out, StandardCharsets.UTF_8.name());
-        writer.add(eventFactory.createStartDocument(StandardCharsets.UTF_8.name(), "1.0"));
-        writer.add(withInheritedNamespaces(document, inheritedNamespaces));
+        var canonical = new CanonicalXml(out);
+        canonical.root(document, inheritedNamespaces);
         String messageNamespace = document.getName().getNamespaceURI();
         boolean prefixed = !document.getName().getPrefix().isEmpty();
         int depth = 1;
@@ -173,37 +189,28 @@ public class ContainerReader {
             } else if (event.isEndElement()) {
                 depth--;
             }
-            writer.add(event);
+            canonical.add(event);
         }
-        writer.add(eventFactory.createEndDocument());
-        writer.close();
         return prefixed ? null : out.toByteArray();
     }
 
     /**
-     * The Document start element plus the prefixed namespace declarations of the container that it does not redeclare,
-     * so prefixes used inside the message (e.g. xsi) stay bound once it stands alone.
+     * Adds the element's prefixed namespace declarations; the message declares its own default namespace.
      */
-    private StartElement withInheritedNamespaces(StartElement document, Map<String, String> inheritedNamespaces) {
-        Map<String, String> namespaces = new HashMap<>(inheritedNamespaces);
-        for (Iterator<Namespace> own = document.getNamespaces(); own.hasNext(); ) {
-            Namespace namespace = own.next();
-            namespaces.put(namespace.getPrefix(), namespace.getNamespaceURI());
-        }
-        List<Namespace> declarations = namespaces.entrySet().stream()
-                .map(entry -> entry.getKey().isEmpty()
-                        ? eventFactory.createNamespace(entry.getValue())
-                        : eventFactory.createNamespace(entry.getKey(), entry.getValue()))
-                .toList();
-        return eventFactory.createStartElement(document.getName(), document.getAttributes(), declarations.iterator());
-    }
-
-    private static void inherit(StartElement element, Map<String, String> inheritedNamespaces) {
+    private static void inherit(StartElement element, Map<String, String> namespaces) {
         for (Iterator<Namespace> declared = element.getNamespaces(); declared.hasNext(); ) {
             Namespace namespace = declared.next();
             if (!namespace.isDefaultNamespaceDeclaration()) {
-                inheritedNamespaces.put(namespace.getPrefix(), namespace.getNamespaceURI());
+                namespaces.put(namespace.getPrefix(), namespace.getNamespaceURI());
             }
+        }
+    }
+
+    private static String sha256(byte[] content) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
         }
     }
 
@@ -211,7 +218,7 @@ public class ContainerReader {
         return !start.encodingSet() || start.getCharacterEncodingScheme().equalsIgnoreCase("UTF-8");
     }
 
-    private static ContainerReading fault(String message) {
-        return new ContainerReading.Fault(List.of(new Violation(INVALID_FILE_FORMAT, "Container", message)));
+    private static ContainerReading fault(String path, String message) {
+        return new ContainerReading.Fault(List.of(new Violation(INVALID_FILE_FORMAT, path, message)));
     }
 }

@@ -54,6 +54,38 @@ class WorkItemRepositoryIntegrationTest {
     }
 
     @Test
+    void aPriorityItemIsClaimedBeforeOlderRegularItems() {
+        UUID older = UUID.randomUUID();
+        UUID urgent = UUID.randomUUID();
+        workQueue.enqueue(older, Step.VALIDATE);
+        jdbc.sql("update work_item set next_attempt_at = now() - interval '1 minute' where file_id = ?").param(older)
+                .update();
+        workQueue.enqueue(urgent, Step.VALIDATE, Priority.HIGH);
+
+        assertThat(workItems.claim(Step.VALIDATE, LEASE)).hasValueSatisfying(
+                item -> assertThat(item.fileId()).isEqualTo(urgent));
+        assertThat(workItems.claim(Step.VALIDATE, LEASE)).hasValueSatisfying(
+                item -> assertThat(item.fileId()).isEqualTo(older));
+    }
+
+    @Test
+    void laterStepsOfAFileKeepItsPriority() {
+        UUID fileId = UUID.randomUUID();
+        UUID regular = UUID.randomUUID();
+        workQueue.enqueue(fileId, Step.VALIDATE, Priority.HIGH);
+        workQueue.enqueue(regular, Step.VALIDATE);
+
+        workQueue.enqueue(fileId, Step.REPORT);
+        workQueue.enqueue(regular, Step.REPORT);
+
+        assertThat(jdbc.sql("select file_id, priority from work_item where step = 'REPORT'").query().listOfRows())
+                .extracting(row -> row.get("file_id"), row -> row.get("priority"))
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple(fileId, Priority.HIGH.value()),
+                        org.assertj.core.groups.Tuple.tuple(regular, Priority.NORMAL.value()));
+    }
+
+    @Test
     void aClaimedItemIsLeasedToOneWorkerAndCountsTheAttempt() {
         UUID fileId = UUID.randomUUID();
         workQueue.enqueue(fileId, Step.DELIVER);

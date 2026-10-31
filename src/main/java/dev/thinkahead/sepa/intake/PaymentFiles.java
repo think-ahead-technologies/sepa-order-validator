@@ -34,6 +34,13 @@ public class PaymentFiles {
     }
 
     /**
+     * How the file was submitted: through which inbox, and whether as a message of a container.
+     */
+    public Submission submission(UUID fileId) {
+        return repository.submission(fileId);
+    }
+
+    /**
      * True while the file has been received but no validation outcome is recorded yet.
      */
     public boolean isAwaitingValidation(UUID fileId) {

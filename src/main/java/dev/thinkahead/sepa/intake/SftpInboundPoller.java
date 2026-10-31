@@ -23,6 +23,7 @@ class SftpInboundPoller implements SchedulingConfigurer {
     private final IntakeProperties properties;
     private final SftpProperties sftpProperties;
     private final FinishedUploads finishedUploads = new FinishedUploads();
+    private final FinishedUploads finishedInstantUploads = new FinishedUploads();
 
     SftpInboundPoller(SftpChannel sftp, PaymentFileIntake intake, IntakeLeadership leadership,
             IntakeProperties properties, SftpProperties sftpProperties) {
@@ -41,7 +42,15 @@ class SftpInboundPoller implements SchedulingConfigurer {
     void poll() {
         if (!leadership.isLeader()) {
             finishedUploads.forget();
+            finishedInstantUploads.forget();
             return;
+        }
+        for (String fileName : finishedInstantUploads.finished(sftp.listInstantInbound())) {
+            try {
+                sftp.claimInstant(fileName, new ClaimedFile(UUID.randomUUID(), fileName, true).claimedName());
+            } catch (RuntimeException e) {
+                LOG.error("Could not claim SEPA Instant inbound file {}, retrying on the next poll", fileName, e);
+            }
         }
         for (String fileName : finishedUploads.finished(sftp.listInbound())) {
             try {
@@ -70,7 +79,8 @@ class SftpInboundPoller implements SchedulingConfigurer {
         ReceivedContent content = size > properties.maxFileSize().toBytes()
                 ? sftp.hashProcessing(claimed.claimedName())
                 : sftp.readProcessing(claimed.claimedName());
-        intake.receive(claimed.fileId(), Channel.SFTP, sftp.submitter(), claimed.originalName(), content);
+        intake.receive(claimed.fileId(), Channel.SFTP, sftp.submitter(), claimed.originalName(), content,
+                claimed.instant());
         sftp.archive(claimed.claimedName());
     }
 }

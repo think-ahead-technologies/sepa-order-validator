@@ -253,6 +253,39 @@ class PaymentFileValidationIntegrationTest {
     }
 
     @Test
+    void rejectsSepaInstantFromAContainerWithAg02AndKeepsTheOtherMessages() {
+        UUID containerId = uploadAndAwaitReceipt(dev.thinkahead.sepa.Fixtures.container(
+                validPain001(uniqueMessageId()),
+                dev.thinkahead.sepa.Fixtures.validInstantPain001(uniqueMessageId(),
+                        dev.thinkahead.sepa.Fixtures.futureExecutionDate())));
+
+        List<java.util.Map<String, Object>> messages = await().atMost(TIMEOUT).until(
+                () -> jdbc.sql("""
+                                select id, status from payment_file
+                                where container_file_id = ? order by container_index""")
+                        .param(containerId).query().listOfRows(),
+                rows -> rows.size() == 2 && rows.stream().noneMatch(row -> row.get("status").equals("RECEIVED")));
+
+        assertThat(messages).extracting(row -> row.get("status")).containsExactly("ACCEPTED", "REJECTED");
+        assertThat(validationOutcomes.find((UUID) messages.get(1).get("id")).violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("AG02", "PmtInf[1]"));
+    }
+
+    @Test
+    void rejectsAContainerWhoseMessageDoesNotMatchItsHashAsAWhole() {
+        PaymentFileValidated validated = uploadAndAwaitValidation(dev.thinkahead.sepa.Fixtures.CONTAINER_WITH_HASH
+                .replaceFirst("<Nm>Lieferant AG</Nm>", "<Nm>Lieferant GmbH</Nm>"));
+
+        assertThat(validated.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("FF01", "MsgPain001[1]/HashValue"));
+        assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
+        assertThat(jdbc.sql("select count(*) from payment_file where container_file_id = ?")
+                .param(validated.fileId()).query(Integer.class).single()).isZero();
+    }
+
+    @Test
     void rejectsABrokenContainerAsAWholeWithFf01() {
         PaymentFileValidated validated = uploadAndAwaitValidation(
                 dev.thinkahead.sepa.Fixtures.container(validPain001(uniqueMessageId()))

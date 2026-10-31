@@ -111,6 +111,34 @@ class SftpIntakeIntegrationTest {
     }
 
     @Test
+    void takesFilesFromTheSepaInstantInboxWithPriority() {
+        String fileName = "instant-" + UUID.randomUUID() + ".xml";
+
+        customer.upload("inbound-instant", fileName, bytes(VALID_PAIN_001));
+
+        UUID fileId = await().atMost(TIMEOUT).until(() -> jdbc.sql("select id from payment_file where file_name = ?")
+                .param(fileName).query(UUID.class).optional().orElse(null), id -> id != null);
+        assertThat(paymentFiles.submission(fileId)).isEqualTo(new Submission(true, false));
+        assertThat(jdbc.sql("select priority from work_item where file_id = ? and step = 'VALIDATE'").param(fileId)
+                .query(Integer.class).single()).isEqualTo(dev.thinkahead.sepa.processing.Priority.HIGH.value());
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("processed"))
+                .anySatisfy(name -> assertThat(name).endsWith(".instant-" + fileName)));
+        assertThat(customer.list("inbound-instant")).doesNotContain(fileName);
+    }
+
+    @Test
+    void messagesOfAContainerKeepHowTheContainerWasSubmitted() {
+        UUID containerId = UUID.randomUUID();
+        intake.receive(containerId, Channel.SFTP, "sftp:sepa", "orders.xml", ReceivedContent.of(bytes(VALID_PAIN_001)),
+                true);
+
+        UUID message = paymentFiles.receiveFromContainer(containerId, 1, bytes(VALID_PAIN_001));
+
+        assertThat(paymentFiles.submission(message)).isEqualTo(new Submission(true, true));
+        assertThat(paymentFiles.submission(containerId)).isEqualTo(new Submission(true, false));
+    }
+
+    @Test
     void doesNotAlertAboutAContainerThatWasSplitIntoMessages() {
         UUID containerId = UUID.randomUUID();
         intake.receive(containerId, Channel.SFTP, "sftp:sepa", "split.xml", ReceivedContent.of(bytes(VALID_PAIN_001)));

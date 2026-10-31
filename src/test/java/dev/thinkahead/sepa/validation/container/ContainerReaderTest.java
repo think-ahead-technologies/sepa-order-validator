@@ -2,6 +2,8 @@
 // ABOUTME: Embedded messages come out as standalone pain.001 documents; container-level faults are FF01.
 package dev.thinkahead.sepa.validation.container;
 
+import static dev.thinkahead.sepa.Fixtures.CONTAINER_HASH;
+import static dev.thinkahead.sepa.Fixtures.CONTAINER_WITH_HASH;
 import static dev.thinkahead.sepa.Fixtures.VALID_PAIN_001;
 import static dev.thinkahead.sepa.Fixtures.bytes;
 import static dev.thinkahead.sepa.Fixtures.container;
@@ -23,7 +25,10 @@ import dev.thinkahead.sepa.validation.xml.MessageFormat;
 import dev.thinkahead.sepa.validation.xml.SchemaValidator;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -61,10 +66,37 @@ class ContainerReaderTest {
         assertThat(messages).allSatisfy(message -> {
             assertThat(new FormatDetector().detect(message)).contains(MessageFormat.PAIN_001_001_09);
             assertThat(new SchemaValidator(10).validate(MessageFormat.PAIN_001_001_09, message)).isEmpty();
-            assertThat(new String(message, StandardCharsets.UTF_8))
-                    .startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+            assertThat(new String(message, StandardCharsets.UTF_8)).startsWith("<Document ");
         });
         assertThat(messages).extracting(ContainerReaderTest::messageId).containsExactly("MSG-A", "MSG-B");
+    }
+
+    @Test
+    void writesEachMessageInTheCanonicalFormItsContainerHashIsComputedOver() {
+        List<byte[]> messages = messagesOf(read(CONTAINER_WITH_HASH));
+
+        assertThat(messages).hasSize(2);
+        assertThat(HexFormat.of().withUpperCase().formatHex(sha256(messages.getFirst()))).isEqualTo(CONTAINER_HASH);
+    }
+
+    @Test
+    void acceptsAHashValueInLowerCase() {
+        String lowerCase = CONTAINER_WITH_HASH.replace(CONTAINER_HASH, CONTAINER_HASH.toLowerCase());
+
+        assertThat(messagesOf(read(lowerCase))).hasSize(2);
+    }
+
+    @Test
+    void rejectsAContainerWhoseMessageDoesNotMatchItsHashWithFf01() {
+        String tampered = CONTAINER_WITH_HASH.replaceFirst("<Nm>Lieferant AG</Nm>", "<Nm>Lieferant GmbH</Nm>");
+
+        assertThat(faultsOf(read(tampered)))
+                .singleElement()
+                .satisfies(violation -> {
+                    assertThat(violation.reasonCode()).isEqualTo("FF01");
+                    assertThat(violation.path()).isEqualTo("MsgPain001[1]/HashValue");
+                    assertThat(violation.message()).contains("does not match");
+                });
     }
 
     @Test
@@ -149,6 +181,14 @@ class ContainerReaderTest {
                     assertThat(violation.reasonCode()).isEqualTo("FF01");
                     assertThat(violation.message()).contains("UTF-8");
                 });
+    }
+
+    private static byte[] sha256(byte[] content) {
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(content);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static String messageId(byte[] message) {

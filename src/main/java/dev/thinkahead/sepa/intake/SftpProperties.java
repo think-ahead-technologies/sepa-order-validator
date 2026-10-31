@@ -8,6 +8,8 @@ import org.springframework.core.io.Resource;
 import org.springframework.util.StringUtils;
 
 /**
+ * @param instantInboundDirectory SEPA Instant inbox (like DK order type CIP) whose files are processed first; none if
+ *                                blank
  * @param password             password of the SFTP account; exactly one of password and privateKey is set
  * @param privateKey           private key in OpenSSH or PEM format for public key authentication
  * @param privateKeyPassphrase passphrase of the private key, if it is encrypted
@@ -25,6 +27,7 @@ record SftpProperties(
         String privateKeyPassphrase,
         Resource knownHosts,
         String inboundDirectory,
+        String instantInboundDirectory,
         String processingDirectory,
         String processedDirectory,
         String outboundDirectory,

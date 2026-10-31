@@ -10,10 +10,12 @@ import org.springframework.stereotype.Service;
 public class PaymentFiles {
 
     private final PaymentFileRepository repository;
+    private final PaymentFileIntake intake;
     private final SftpChannel sftp;
 
-    PaymentFiles(PaymentFileRepository repository, SftpChannel sftp) {
+    PaymentFiles(PaymentFileRepository repository, PaymentFileIntake intake, SftpChannel sftp) {
         this.repository = repository;
+        this.intake = intake;
         this.sftp = sftp;
     }
 
@@ -46,6 +48,25 @@ public class PaymentFiles {
     public boolean recordValidationOutcome(UUID fileId, boolean accepted) {
         return repository.updateStatus(fileId, FileStatus.RECEIVED,
                 accepted ? FileStatus.ACCEPTED : FileStatus.REJECTED);
+    }
+
+    /**
+     * Receives the message at the given position (from 1) of a container as a payment file of its own, scheduled for
+     * validation in the caller's transaction. Receiving the same position again returns the existing file.
+     *
+     * @return the id of the message's payment file
+     */
+    public UUID receiveFromContainer(UUID containerFileId, int index, byte[] message) {
+        return intake.receiveFromContainer(containerFileId, index, message);
+    }
+
+    /**
+     * Records that the container was split into its messages; the messages are answered, not the container.
+     *
+     * @return false if an outcome was already recorded for the container
+     */
+    public boolean recordSplit(UUID containerFileId) {
+        return repository.updateStatus(containerFileId, FileStatus.RECEIVED, FileStatus.SPLIT);
     }
 
     /**

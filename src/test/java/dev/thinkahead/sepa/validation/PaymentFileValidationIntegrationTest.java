@@ -222,6 +222,50 @@ class PaymentFileValidationIntegrationTest {
     }
 
     @Test
+    void splitsAContainerIntoMessagesThatAreValidatedOnTheirOwn() {
+        String acceptedMessageId = uniqueMessageId();
+        String rejectedMessageId = uniqueMessageId();
+        UUID containerId = uploadAndAwaitReceipt(dev.thinkahead.sepa.Fixtures.container(
+                validPain001(acceptedMessageId),
+                validPain001(rejectedMessageId).replace("NL91ABNA0417164300", "NL91ABNA0417164301")));
+        String containerName = jdbc.sql("select file_name from payment_file where id = ?").param(containerId)
+                .query(String.class).single();
+
+        List<java.util.Map<String, Object>> messages = await().atMost(TIMEOUT).until(
+                () -> jdbc.sql("""
+                                select id, file_name, container_index, status from payment_file
+                                where container_file_id = ? order by container_index""")
+                        .param(containerId).query().listOfRows(),
+                rows -> rows.size() == 2 && rows.stream().noneMatch(row -> row.get("status").equals("RECEIVED")));
+
+        assertThat(statusOf(containerId)).isEqualTo("SPLIT");
+        String baseName = containerName.replace(".xml", "");
+        assertThat(messages).extracting(row -> row.get("file_name"), row -> row.get("status")).containsExactly(
+                org.assertj.core.groups.Tuple.tuple(baseName + "-msg1.xml", "ACCEPTED"),
+                org.assertj.core.groups.Tuple.tuple(baseName + "-msg2.xml", "REJECTED"));
+        PaymentFileValidated rejected = validationOutcomes.find((UUID) messages.get(1).get("id"));
+        assertThat(rejected.originalMessageId()).isEqualTo(rejectedMessageId);
+        assertThat(rejected.violations()).extracting(Violation::reasonCode).containsExactly("AC03");
+        assertThat(jdbc.sql("select count(*) from work_item where file_id = ? and step = 'REPORT'")
+                .param(containerId).query(Integer.class).single()).as("no report for the container").isZero();
+        assertThat(jdbc.sql("select event_type from audit_event where file_id = ?").param(containerId)
+                .query(String.class).list()).containsExactlyInAnyOrder("PaymentFileReceived", "PaymentFileSplit");
+    }
+
+    @Test
+    void rejectsABrokenContainerAsAWholeWithFf01() {
+        PaymentFileValidated validated = uploadAndAwaitValidation(
+                dev.thinkahead.sepa.Fixtures.container(validPain001(uniqueMessageId()))
+                        .replaceFirst("(?s)<ContainerId>.*?</ContainerId>", ""));
+
+        assertThat(validated.accepted()).isFalse();
+        assertThat(validated.violations()).isNotEmpty().extracting(Violation::reasonCode).containsOnly("FF01");
+        assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
+        assertThat(jdbc.sql("select count(*) from payment_file where container_file_id = ?")
+                .param(validated.fileId()).query(Integer.class).single()).isZero();
+    }
+
+    @Test
     void rejectsAFileMixingSepaInstantAndSepaCreditTransfersWithAg02() {
         PaymentFileValidated validated = uploadAndAwaitValidation(
                 dev.thinkahead.sepa.Fixtures.withMixedSchemes(uniqueMessageId()));
@@ -330,19 +374,23 @@ class PaymentFileValidationIntegrationTest {
     }
 
     private PaymentFileValidated uploadAndAwaitValidation(String xml) {
-        String fileName = "validation-" + UUID.randomUUID() + ".xml";
-        customer.upload("inbound", fileName, bytes(xml));
-
-        UUID fileId = await().atMost(TIMEOUT).until(
-                () -> events.ofType(PaymentFileReceived.class).stream()
-                        .filter(e -> e.fileName().equals(fileName)).map(PaymentFileReceived::fileId)
-                        .findFirst().orElse(null),
-                id -> id != null);
+        UUID fileId = uploadAndAwaitReceipt(xml);
 
         return await().atMost(TIMEOUT).until(
                 () -> events.ofType(PaymentFileValidated.class).stream()
                         .filter(e -> e.fileId().equals(fileId)).findFirst().orElse(null),
                 e -> e != null);
+    }
+
+    private UUID uploadAndAwaitReceipt(String xml) {
+        String fileName = "validation-" + UUID.randomUUID() + ".xml";
+        customer.upload("inbound", fileName, bytes(xml));
+
+        return await().atMost(TIMEOUT).until(
+                () -> events.ofType(PaymentFileReceived.class).stream()
+                        .filter(e -> e.fileName().equals(fileName)).map(PaymentFileReceived::fileId)
+                        .findFirst().orElse(null),
+                id -> id != null);
     }
 
     private String validateItemState(UUID fileId) {

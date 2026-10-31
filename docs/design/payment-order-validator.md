@@ -26,7 +26,7 @@ The Payment Order Validator is the system that does this. It sits between the cu
 | Area | Detail |
 |---|---|
 | Schemes | SEPA Credit Transfer (SCT), SEPA Instant Credit Transfer (SCT Inst), SEPA Direct Debit Core and B2B (SDD) |
-| Message formats | The current DK versions `pain.001.001.09` and `pain.008.001.08` ([ADR-0019](../adr/0019-accept-only-current-dk-message-versions.md)), plus DK container files ([ADR-0020](../adr/0020-dk-xml-container-split-into-messages-at-intake.md)) |
+| Message formats | The current DK versions `pain.001.001.09` and `pain.008.001.08` ([ADR-0019](../adr/0019-accept-only-current-dk-message-versions.md)), plus DK container files ([ADR-0020](../adr/0020-dk-xml-container-split-into-messages.md)) |
 | Market rules | German DK specification (DFÜ-Abkommen, Anlage 3) on top of EPC rulebooks |
 | Processing | Batch files, asynchronous, stateful |
 | Channels | EBICS (via bank server), SFTP |
@@ -112,6 +112,7 @@ RECEIVED → VALIDATING → REJECTED
                       → SCREENING → ACCEPTED
                                   → ON_HOLD → RELEASED (→ ACCEPTED)
                                             → REJECTED
+         → SPLIT (DK XML container; each message continues as a payment file of its own from RECEIVED)
 ```
 
 Every transition is persisted and written to the audit log ([ADR-0007](../adr/0007-asynchronous-processing-with-file-lifecycle.md)).
@@ -255,7 +256,7 @@ Test-first development; unit, integration and end-to-end tests for every feature
 1. **Walking skeleton:** SFTP intake → namespace detection → XSD validation (`pain.001.001.09`) → 3–4 SCT rules → whole-file `RJCT`/`ACCP` → `pain.002` → audit record.
 2. Complete SCT rule catalogue, group checks, duplicate detection.
 3. SCT Inst specifics.
-4. DK container files ([ADR-0020](../adr/0020-dk-xml-container-split-into-messages-at-intake.md)); older `pain.001` versions are not supported ([ADR-0019](../adr/0019-accept-only-current-dk-message-versions.md)).
+4. DK container files ([ADR-0020](../adr/0020-dk-xml-container-split-into-messages.md)); older `pain.001` versions are not supported ([ADR-0019](../adr/0019-accept-only-current-dk-message-versions.md)).
 5. SDD: `pain.008` versions, creditor identifier, mandate store and lifecycle rules.
 6. EBICS bank server integration.
 7. Screening: sanctions, fraud, review module.

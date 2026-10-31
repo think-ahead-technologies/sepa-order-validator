@@ -1,5 +1,5 @@
 // ABOUTME: The VALIDATE processing step: validates a received file outside any transaction, then records the outcome.
-// ABOUTME: Recording registers the MsgId (DU01), moves the status, stores and audits the outcome, schedules REPORT.
+// ABOUTME: Recording registers the MsgId (DU01) and schedules REPORT; a container's messages are received instead.
 package dev.thinkahead.sepa.validation;
 
 import dev.thinkahead.sepa.audit.AuditTrail;
@@ -8,7 +8,9 @@ import dev.thinkahead.sepa.processing.Completion;
 import dev.thinkahead.sepa.processing.ProcessingStep;
 import dev.thinkahead.sepa.processing.Step;
 import dev.thinkahead.sepa.processing.WorkQueue;
+import dev.thinkahead.sepa.validation.container.ContainerReading;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -54,9 +56,19 @@ class PaymentFileValidation implements ProcessingStep {
             return () -> {
             };
         }
-        ValidationResult result = paymentFiles.content(fileId)
-                .map(content -> validateOrRejectTechnically(fileId, content, deadline))
-                .orElseGet(ValidationResult::tooLarge);
+        Optional<byte[]> content = paymentFiles.content(fileId);
+        if (content.isEmpty()) {
+            return () -> record(fileId, ValidationResult.tooLarge());
+        }
+        Optional<ContainerReading> container = readContainerOrRejectTechnically(fileId, content.get(), deadline);
+        if (container.isPresent()) {
+            return switch (container.get()) {
+                case ContainerReading.Fault fault -> () -> record(fileId,
+                        new ValidationResult(null, null, fault.violations()));
+                case ContainerReading.Split split -> () -> recordSplit(fileId, split.messages());
+            };
+        }
+        ValidationResult result = validateOrRejectTechnically(fileId, content.get(), deadline);
         return () -> record(fileId, result);
     }
 
@@ -79,6 +91,36 @@ class PaymentFileValidation implements ProcessingStep {
             LOG.error("Validation of payment file {} failed unexpectedly; rejecting it technically", fileId, e);
             return ValidationResult.technicalError(fileId);
         }
+    }
+
+    private Optional<ContainerReading> readContainerOrRejectTechnically(UUID fileId, byte[] content,
+            Instant deadline) {
+        try {
+            return validator.readContainer(content, deadline);
+        } catch (RuntimeException e) {
+            LOG.error("Reading payment file {} as container failed unexpectedly; rejecting it technically", fileId, e);
+            return Optional.of(new ContainerReading.Fault(ValidationResult.technicalError(fileId).violations()));
+        }
+    }
+
+    /**
+     * Receives each message of the container as a payment file of its own, scheduled for validation in this
+     * transaction; the container itself ends as split and gets no status report (ADR-0020).
+     */
+    private void recordSplit(UUID fileId, List<byte[]> messages) {
+        if (!paymentFiles.isAwaitingValidation(fileId)) {
+            return;
+        }
+        for (int index = 1; index <= messages.size(); index++) {
+            paymentFiles.receiveFromContainer(fileId, index, messages.get(index - 1));
+        }
+        if (!paymentFiles.recordSplit(fileId)) {
+            throw new IllegalStateException("Validation outcome of payment file " + fileId + " changed concurrently");
+        }
+        var split = new PaymentFileSplit(fileId, messages.size());
+        auditTrail.record(fileId, split);
+        events.publishEvent(split);
+        LOG.info("Split container into {} messages", messages.size());
     }
 
     private void record(UUID fileId, ValidationResult result) {

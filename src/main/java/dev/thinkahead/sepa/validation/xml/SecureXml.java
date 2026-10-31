@@ -10,6 +10,7 @@ import javax.xml.stream.XMLInputFactory;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
+import org.w3c.dom.ls.LSResourceResolver;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
@@ -42,7 +43,15 @@ public final class SecureXml {
     }
 
     public static Schema schema(URL xsd) throws SAXException {
+        return schema(xsd, null);
+    }
+
+    /**
+     * Compiles a schema whose imports are served by the resolver, since external schema access stays blocked.
+     */
+    public static Schema schema(URL xsd, LSResourceResolver imports) throws SAXException {
         SchemaFactory factory = SchemaFactory.newDefaultInstance();
+        factory.setResourceResolver(imports);
         factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
         factory.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
         factory.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");

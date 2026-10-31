@@ -88,6 +88,42 @@ class SftpIntakeIntegrationTest {
     }
 
     @Test
+    void receivesAMessageFromAContainerOnceAsItsOwnFile() {
+        UUID containerId = UUID.randomUUID();
+        intake.receive(containerId, Channel.SFTP, "sftp:sepa", "orders.xml", ReceivedContent.of(bytes(VALID_PAIN_001)));
+
+        UUID message = paymentFiles.receiveFromContainer(containerId, 1, bytes(VALID_PAIN_001));
+        UUID again = paymentFiles.receiveFromContainer(containerId, 1, bytes(VALID_PAIN_001));
+
+        assertThat(again).isEqualTo(message);
+        assertThat(jdbc.sql("""
+                        select file_name, channel, submitter, container_file_id, container_index
+                        from payment_file where id = ?""").param(message).query().singleRow())
+                .containsEntry("file_name", "orders-msg1.xml")
+                .containsEntry("channel", "SFTP")
+                .containsEntry("submitter", "sftp:sepa")
+                .containsEntry("container_file_id", containerId)
+                .containsEntry("container_index", 1);
+        assertThat(jdbc.sql("select count(*) from work_item where file_id = ? and step = 'VALIDATE'").param(message)
+                .query(Integer.class).single()).isEqualTo(1);
+        assertThat(paymentFiles.content(message)).hasValueSatisfying(
+                content -> assertThat(content).isEqualTo(bytes(VALID_PAIN_001)));
+    }
+
+    @Test
+    void doesNotAlertAboutAContainerThatWasSplitIntoMessages() {
+        UUID containerId = UUID.randomUUID();
+        intake.receive(containerId, Channel.SFTP, "sftp:sepa", "split.xml", ReceivedContent.of(bytes(VALID_PAIN_001)));
+        jdbc.sql("update payment_file set received_at = now() - interval '1 hour' where id = ?").param(containerId)
+                .update();
+
+        assertThat(paymentFiles.recordSplit(containerId)).isTrue();
+
+        assertThat(unansweredFiles.check()).doesNotContain(containerId);
+        assertThat(paymentFiles.isAwaitingValidation(containerId)).isFalse();
+    }
+
+    @Test
     void alertsAboutFilesStillWithoutReplyAfterTheThreshold(CapturedOutput output) {
         UUID fileId = UUID.randomUUID();
         intake.receive(fileId, Channel.SFTP, "sftp:sepa", "overdue.xml", ReceivedContent.of(bytes(VALID_PAIN_001)));

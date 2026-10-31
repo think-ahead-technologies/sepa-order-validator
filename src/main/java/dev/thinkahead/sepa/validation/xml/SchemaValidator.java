@@ -39,9 +39,13 @@ public class SchemaValidator {
     }
 
     public List<SchemaError> validate(MessageFormat format, InputStream content) {
+        return validate(schemaFor(format), content);
+    }
+
+    public List<SchemaError> validate(Schema schema, InputStream content) {
         List<SchemaError> errors = new ArrayList<>();
         try {
-            Validator validator = SecureXml.validator(schemaFor(format));
+            Validator validator = SecureXml.validator(schema);
             validator.setErrorHandler(new CollectingErrorHandler(errors, maxErrors));
             validator.validate(new SAXSource(SecureXml.xmlReader(), new InputSource(content)));
         } catch (ErrorCapReached e) {

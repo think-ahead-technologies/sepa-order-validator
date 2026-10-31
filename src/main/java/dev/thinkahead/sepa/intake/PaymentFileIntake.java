@@ -1,10 +1,11 @@
-// ABOUTME: Accepts a claimed payment file: stores it, schedules its validation and publishes PaymentFileReceived.
+// ABOUTME: Accepts a claimed file or a message split from a container: stores it, schedules VALIDATE, announces it.
 // ABOUTME: Idempotent per file id, so a claim processed again after a crash is stored and announced only once.
 package dev.thinkahead.sepa.intake;
 
 import dev.thinkahead.sepa.audit.AuditTrail;
 import dev.thinkahead.sepa.processing.Step;
 import dev.thinkahead.sepa.processing.WorkQueue;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,11 +42,37 @@ class PaymentFileIntake {
         if (!repository.insertIfAbsent(fileId, channel, submitter, fileName, content)) {
             return false;
         }
+        announce(fileId, channel, submitter, fileName, content);
+        return true;
+    }
+
+    /**
+     * Stores the message at the given position (from 1) of a container as a payment file of its own, on the
+     * container's channel and submitter, named after the container. Its id follows from the container and position,
+     * so storing the same message again finds the existing file.
+     *
+     * @return the id of the message's payment file
+     */
+    @Transactional
+    UUID receiveFromContainer(UUID containerFileId, int index, byte[] message) {
+        UUID fileId = UUID.nameUUIDFromBytes(("container:" + containerFileId + ":" + index)
+                .getBytes(StandardCharsets.UTF_8));
+        StoredPaymentFile container = repository.find(containerFileId);
+        String submitter = repository.submitter(containerFileId);
+        String fileName = container.fileName().replaceFirst("(?i)\\.xml$", "") + "-msg" + index + ".xml";
+        ReceivedContent content = ReceivedContent.of(message);
+        if (repository.insertIfAbsent(fileId, container.channel(), submitter, fileName, content, containerFileId,
+                index)) {
+            announce(fileId, container.channel(), submitter, fileName, content);
+        }
+        return fileId;
+    }
+
+    private void announce(UUID fileId, Channel channel, String submitter, String fileName, ReceivedContent content) {
         workQueue.enqueue(fileId, Step.VALIDATE);
         var received = new PaymentFileReceived(fileId, channel, submitter, fileName, content.sha256());
         auditTrail.record(fileId, received);
         events.publishEvent(received);
         LOG.info("Received payment file {} ({} bytes) from {}", fileName, content.size(), submitter);
-        return true;
     }
 }

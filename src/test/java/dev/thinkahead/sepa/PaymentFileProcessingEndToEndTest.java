@@ -163,6 +163,48 @@ class PaymentFileProcessingEndToEndTest {
     }
 
     @Test
+    void eachMessageOfAContainerIsAnsweredWithItsOwnStatusReport() throws Exception {
+        String acceptedMessageId = uniqueMessageId();
+        String rejectedMessageId = uniqueMessageId();
+        String fileName = "e2e-container-" + UUID.randomUUID() + ".xml";
+        String baseName = fileName.replace(".xml", "");
+        customer.upload("inbound", fileName, bytes(Fixtures.container(validPain001(acceptedMessageId),
+                validPain001(rejectedMessageId).replace("NL91ABNA0417164300", "NL91ABNA0417164301"))));
+
+        List<String> reports = await().atMost(TIMEOUT).until(
+                () -> customer.list("outbound").stream().filter(name -> name.startsWith(baseName + "-")).sorted()
+                        .toList(),
+                names -> names.size() == 2);
+
+        assertThat(reports).allSatisfy(name -> assertThat(name).startsWith(baseName + "-msg"));
+        byte[] first = customer.download("outbound", reports.get(0));
+        byte[] second = customer.download("outbound", reports.get(1));
+        assertPain002SchemaValid(first);
+        assertPain002SchemaValid(second);
+        assertThat(reports.get(0)).startsWith(baseName + "-msg1-");
+        assertThat(xpath(first, GROUP + "/*[local-name()='OrgnlMsgId']")).isEqualTo(acceptedMessageId);
+        assertThat(xpath(first, GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
+        assertThat(xpath(second, GROUP + "/*[local-name()='OrgnlMsgId']")).isEqualTo(rejectedMessageId);
+        assertThat(xpath(second, GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(reasonCodes(second)).containsExactly("AC03");
+        assertThat(fileStatus(fileName)).isEqualTo("SPLIT");
+        await().during(Duration.ofSeconds(2)).atMost(TIMEOUT).untilAsserted(() ->
+                assertThat(customer.list("outbound")).filteredOn(name -> name.startsWith(baseName + "-"))
+                        .as("no status report for the container itself").hasSize(2));
+    }
+
+    @Test
+    void aBrokenContainerIsRejectedAsAWholeWithOneStatusReport() throws Exception {
+        Delivery delivery = submit(Fixtures.container(validPain001(uniqueMessageId()))
+                .replaceFirst("(?s)<ContainerId>.*?</ContainerId>", ""));
+
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='OrgnlMsgId']")).isEqualTo("NOTPROVIDED");
+        assertThat(reasonCodes(delivery.report())).isNotEmpty().containsOnly("FF01");
+        assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
+    }
+
+    @Test
     void schemaInvalidFileIsRejectedWithFf01() throws Exception {
         Delivery delivery = submit(validPain001(uniqueMessageId())
                 .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>XYZ</PmtMtd>"));

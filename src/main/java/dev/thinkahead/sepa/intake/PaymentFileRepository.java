@@ -24,10 +24,22 @@ class PaymentFileRepository {
      * @return false if a file with this id already exists; the existing record is left untouched
      */
     boolean insertIfAbsent(UUID id, Channel channel, String submitter, String fileName, ReceivedContent content) {
+        return insertIfAbsent(id, channel, submitter, fileName, content, null, null);
+    }
+
+    /**
+     * Stores a message split from a container, linked to the container and its position in it.
+     *
+     * @return false if a file with this id already exists; the existing record is left untouched
+     */
+    boolean insertIfAbsent(UUID id, Channel channel, String submitter, String fileName, ReceivedContent content,
+            UUID containerFileId, Integer containerIndex) {
         return jdbc.sql("""
                         insert into payment_file
-                            (id, channel, submitter, file_name, size_bytes, sha256, content, status)
-                        values (:id, :channel, :submitter, :fileName, :size, :sha256, :content, :status)
+                            (id, channel, submitter, file_name, size_bytes, sha256, content, status,
+                             container_file_id, container_index)
+                        values (:id, :channel, :submitter, :fileName, :size, :sha256, :content, :status,
+                                :containerFileId, :containerIndex)
                         on conflict (id) do nothing""")
                 .param("id", id)
                 .param("channel", channel.name())
@@ -37,6 +49,8 @@ class PaymentFileRepository {
                 .param("sha256", content.sha256())
                 .param("content", new SqlParameterValue(Types.BINARY, content.content()))
                 .param("status", FileStatus.RECEIVED.name())
+                .param("containerFileId", new SqlParameterValue(Types.OTHER, containerFileId))
+                .param("containerIndex", new SqlParameterValue(Types.INTEGER, containerIndex))
                 .update() == 1;
     }
 
@@ -74,7 +88,8 @@ class PaymentFileRepository {
     List<UUID> unansweredSince(Duration age, int limit) {
         return jdbc.sql("""
                         select id from payment_file
-                        where replied_at is null and received_at < now() - make_interval(secs => ?)
+                        where replied_at is null and status <> 'SPLIT'
+                          and received_at < now() - make_interval(secs => ?)
                         order by received_at
                         limit ?""")
                 .params(age.toSeconds(), limit)
@@ -85,7 +100,8 @@ class PaymentFileRepository {
     long countUnansweredSince(Duration age) {
         return jdbc.sql("""
                         select count(*) from payment_file
-                        where replied_at is null and received_at < now() - make_interval(secs => ?)""")
+                        where replied_at is null and status <> 'SPLIT'
+                          and received_at < now() - make_interval(secs => ?)""")
                 .param(age.toSeconds())
                 .query(Long.class)
                 .single();

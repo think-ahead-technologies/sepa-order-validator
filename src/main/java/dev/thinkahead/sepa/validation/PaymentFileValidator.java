@@ -1,7 +1,9 @@
 // ABOUTME: Validates a payment file's content: format detection, hardened XSD validation, then content rules.
-// ABOUTME: Rules run only on schema-valid files and collect all violations; a deadline bounds the whole validation.
+// ABOUTME: Rules run only on schema-valid files; DK containers are read and split instead. A deadline bounds both.
 package dev.thinkahead.sepa.validation;
 
+import dev.thinkahead.sepa.validation.container.ContainerReader;
+import dev.thinkahead.sepa.validation.container.ContainerReading;
 import dev.thinkahead.sepa.validation.pain001.GroupHeader;
 import dev.thinkahead.sepa.validation.pain001.Pain001Parser;
 import dev.thinkahead.sepa.validation.rules.SepaCreditTransferRules;
@@ -34,6 +36,7 @@ class PaymentFileValidator {
     private final FormatDetector formatDetector = new FormatDetector();
     private final SchemaValidator schemaValidator = new SchemaValidator(MAX_REPORTED_VIOLATIONS);
     private final Pain001Parser parser = new Pain001Parser();
+    private final ContainerReader containerReader = new ContainerReader(MAX_REPORTED_VIOLATIONS);
     private final Clock clock;
 
     PaymentFileValidator(Clock clock) {
@@ -48,6 +51,22 @@ class PaymentFileValidator {
             return validateBefore(content, deadline);
         } catch (ValidationDeadlineExceeded e) {
             return ValidationResult.timedOut();
+        }
+    }
+
+    /**
+     * Reads the file as a DK XML container if it is one.
+     *
+     * @return empty if the file is not a container
+     */
+    Optional<ContainerReading> readContainer(byte[] content, Instant deadline) {
+        if (!containerReader.isContainer(content)) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(beforeDeadline(deadline, () -> containerReader.read(() -> read(content, deadline))));
+        } catch (ValidationDeadlineExceeded e) {
+            return Optional.of(new ContainerReading.Fault(ValidationResult.timedOut().violations()));
         }
     }
 

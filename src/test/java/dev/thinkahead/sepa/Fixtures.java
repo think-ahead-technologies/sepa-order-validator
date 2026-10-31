@@ -154,6 +154,31 @@ public final class Fixtures {
         return xml.substring(xml.indexOf("<PmtInf>"), xml.indexOf("</PmtInf>") + "</PmtInf>".length());
     }
 
+    /**
+     * A DK XML container (DFÜ-Abkommen Anlage 3 V3.9, 9.1) holding the given pain.001 messages, laid out like the DK's
+     * own example: container namespace as default, xsi declared on the root, each message without XML declaration.
+     */
+    public static String container(String... messages) {
+        var xml = new StringBuilder("""
+                <?xml version="1.0" encoding="UTF-8"?>
+                <conxml xmlns="urn:conxml:xsd:container.nnn.001.GBIC5" \
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                xsi:schemaLocation="urn:conxml:xsd:container.nnn.001.GBIC5 container.nnn.001.GBIC5.xsd">
+                  <ContainerId>
+                    <SenderId>MUSTERGMBH</SenderId>
+                    <IdType>SFTP</IdType>
+                    <TimeStamp>115500000</TimeStamp>
+                  </ContainerId>
+                  <CreDtTm>2026-10-31T11:55:00.000Z</CreDtTm>
+                """);
+        for (String message : messages) {
+            xml.append("  <MsgPain001>\n")
+                    .append(message.replaceFirst("^<\\?xml[^>]*>\\s*", ""))
+                    .append("  </MsgPain001>\n");
+        }
+        return xml.append("</conxml>\n").toString();
+    }
+
     public static byte[] bytes(String xml) {
         return xml.getBytes(StandardCharsets.UTF_8);
     }

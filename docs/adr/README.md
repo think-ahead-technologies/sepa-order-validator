@@ -23,5 +23,5 @@ Decisions for the SEPA Payment Order Validator. Format: [Michael Nygard's ADR te
 | [0017](0017-file-processing-driven-by-persisted-state-with-a-postgresql-work-queue.md) | File processing driven by persisted state with a PostgreSQL work queue | Accepted |
 | [0018](0018-structured-logging-and-operational-endpoints.md) | Structured logging, file correlation and operational endpoints | Accepted |
 | [0019](0019-accept-only-current-dk-message-versions.md) | Accept only the current DK message versions | Accepted |
-| [0020](0020-dk-xml-container-split-into-messages-at-intake.md) | DK XML containers are split into their messages at intake | Accepted |
+| [0020](0020-dk-xml-container-split-into-messages.md) | DK XML containers are split into their messages before validation | Accepted |
 | [0017](0017-file-processing-driven-by-persisted-state-with-a-postgresql-work-queue.md) | File processing driven by persisted state with a PostgreSQL work queue | Accepted |

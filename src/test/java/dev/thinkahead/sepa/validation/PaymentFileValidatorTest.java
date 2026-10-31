@@ -10,10 +10,13 @@ import static dev.thinkahead.sepa.Fixtures.withSepaFieldRuleViolations;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 
+import dev.thinkahead.sepa.validation.container.ContainerReading;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -28,6 +31,35 @@ class PaymentFileValidatorTest {
 
     private static Clock clockAt(String instant) {
         return Clock.fixed(Instant.parse(instant), ZoneOffset.UTC);
+    }
+
+    @Test
+    void readsAContainerAsItsSplitMessages() {
+        var xml = dev.thinkahead.sepa.Fixtures.container(dev.thinkahead.sepa.Fixtures.validPain001("MSG-A"),
+                dev.thinkahead.sepa.Fixtures.validPain001("MSG-B"));
+
+        Optional<ContainerReading> reading = validator.readContainer(bytes(xml), NO_DEADLINE);
+
+        assertThat(reading).get().isInstanceOfSatisfying(ContainerReading.Split.class,
+                split -> assertThat(split.messages()).hasSize(2));
+    }
+
+    @Test
+    void readsNoContainerFromASingleMessage() {
+        assertThat(validator.readContainer(bytes(VALID_PAIN_001), NO_DEADLINE)).isEmpty();
+    }
+
+    @Test
+    void rejectsAContainerWhoseReadingRunsPastTheDeadlineWithFf01() {
+        var xml = dev.thinkahead.sepa.Fixtures.container(dev.thinkahead.sepa.Fixtures.validPain001("MSG-A"));
+
+        Optional<ContainerReading> reading = validator.readContainer(bytes(xml), Instant.now().minusSeconds(1));
+
+        assertThat(reading).get().isInstanceOfSatisfying(ContainerReading.Fault.class,
+                fault -> assertThat(fault.violations()).singleElement().satisfies(violation -> {
+                    assertThat(violation.reasonCode()).isEqualTo("FF01");
+                    assertThat(violation.message()).contains("time limit");
+                }));
     }
 
     @Test

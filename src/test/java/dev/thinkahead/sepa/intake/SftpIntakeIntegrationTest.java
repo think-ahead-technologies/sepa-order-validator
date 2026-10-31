@@ -215,13 +215,13 @@ class SftpIntakeIntegrationTest {
     }
 
     @Test
-    void ignoresFilesThatAreNotXml() throws InterruptedException {
+    void ignoresFilesThatAreNotXml() {
         String fileName = "upload-in-progress-" + UUID.randomUUID() + ".tmp";
 
         customer.upload("inbound", fileName, bytes(VALID_PAIN_001));
-        Thread.sleep(2_000);
 
-        assertThat(customer.list("inbound")).contains(fileName);
+        await().during(Duration.ofMillis(1_500)).atMost(Duration.ofSeconds(3)).untilAsserted(() ->
+                assertThat(customer.list("inbound")).as("left alone across several poll cycles").contains(fileName));
     }
 
     @Test

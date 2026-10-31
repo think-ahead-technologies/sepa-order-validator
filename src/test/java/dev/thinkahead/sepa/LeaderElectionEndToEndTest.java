@@ -89,7 +89,7 @@ class LeaderElectionEndToEndTest {
     }
 
     @Test
-    void instanceTakesOverOnceACrashedLeadersLockExpires() throws InterruptedException {
+    void instanceTakesOverOnceACrashedLeadersLockExpires() {
         Flyway.configure().dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
                 .load().migrate();
         String crashedClient = UUID.randomUUID().toString();
@@ -103,9 +103,9 @@ class LeaderElectionEndToEndTest {
         String fileName = "after-crash-" + UUID.randomUUID() + ".xml";
         customer.upload("inbound", fileName, bytes(validPain001(uniqueMessageId())));
 
-        Thread.sleep(1_500);
-        assertThat(customer.list("inbound")).as("not polled while the crashed leader's lock is valid")
-                .contains(fileName);
+        await().during(Duration.ofMillis(1_500)).atMost(Duration.ofSeconds(3)).untilAsserted(() ->
+                assertThat(customer.list("inbound")).as("not polled while the crashed leader's lock is valid")
+                        .contains(fileName));
 
         awaitStatusReportFor(fileName);
         assertThat(currentLockHolder()).isNotEqualTo(crashedClient);

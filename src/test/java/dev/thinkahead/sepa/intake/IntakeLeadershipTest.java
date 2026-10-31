@@ -32,16 +32,13 @@ class IntakeLeadershipTest {
     }
 
     @Test
-    void exactlyOneOfTwoInstancesLeads() throws InterruptedException {
+    void exactlyOneOfTwoInstancesLeads() {
         IntakeLeadership first = started();
         IntakeLeadership second = started();
 
         await().atMost(TIMEOUT).until(() -> first.isLeader() || second.isLeader());
-        for (int check = 0; check < 10; check++) {
-            assertThat(first.isLeader() && second.isLeader()).as("both instances lead").isFalse();
-            assertThat(first.isLeader() || second.isLeader()).as("no instance leads").isTrue();
-            Thread.sleep(100);
-        }
+        await().during(Duration.ofSeconds(1)).atMost(TIMEOUT).untilAsserted(() ->
+                assertThat(first.isLeader() ^ second.isLeader()).as("exactly one instance leads").isTrue());
     }
 
     @Test

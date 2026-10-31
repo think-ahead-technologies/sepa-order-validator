@@ -13,12 +13,10 @@ spring:
       enabled: true
   modulith:
     events:
-      # A listener run interrupted by a crash stays PROCESSING; once stale it is marked FAILED and resubmitted by
-      # FailedEventResubmission. Republishing on restart is off: it would also rerun work in progress on other
-      # live instances during every rolling deploy. Stale must exceed the longest listener run.
+      # Events only notify; processing runs on the work queue (ADR-0017). Nothing is republished on restart, and
+      # completed publications are not kept.
       republish-outstanding-events-on-restart: false
-      staleness:
-        processing: PT5M
+      completion-mode: delete
 
 sepa:
   sftp:
@@ -33,9 +31,6 @@ sepa:
     max-file-size: 100MB
     reply-overdue-after: PT10M
     reply-check-interval: PT1M
-  events:
-    resubmit-after: PT5M
-    resubmit-interval: PT1M
   processing:
     validate:
       workers: 2

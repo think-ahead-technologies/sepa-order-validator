@@ -4,7 +4,7 @@ Date: 2026-10-31
 
 ## Status
 
-Accepted. It supersedes the event-related parts of ADR-0007: at-least-once module events as the processing chain, scheduled resubmission and republishing on restart. `VALIDATE`, `REPORT` and `DELIVER` run on the work queue. Module events now only feed the audit trail; moving audit into the step transactions is still open.
+Accepted. It supersedes the event-related parts of ADR-0007: at-least-once module events as the processing chain, scheduled resubmission and republishing on restart. `VALIDATE`, `REPORT` and `DELIVER` run on the work queue, and audit entries are written inside the step transactions. No module event listener remains.
 
 ## Context
 
@@ -52,7 +52,7 @@ Every step follows the same pattern:
 2. **Complete** in one short transaction, fenced by the lease token:
    1. records the step's result, e.g. the validation outcome or the stored pain.002;
    2. moves `payment_file.status` with a conditional update;
-   3. writes exactly one audit entry for the transition. The key `(file_id, step)` is unique, so a repeat is impossible;
+   3. writes exactly one audit entry for the transition. Because it is part of the transaction fenced by the lease token, a step's entry is written once or not at all. There is no unique key on `(file_id, step)`: a manually re-driven step is a new transition and is audited again;
    4. marks the work item `DONE` and inserts the next step's item `PENDING`.
 
 A crash before completion leaves no database trace, and the item is claimed again after its lease expires. Validation therefore no longer holds a connection while it parses a file.
@@ -134,7 +134,7 @@ External side effects (`DELIVER`) must be safe to repeat:
   - a file in a non-terminal status always has exactly one open work item.
 - **Interim fixes before migration.** These ship independently of this ADR.
   - Shipped on 2026-10-31: resubmission of `FAILED` publications only, with at most 4 in flight per instance; staleness for `PROCESSING` (5 min); no republishing on restart.
-  - Open: idempotent `AuditLog`, outbound write via staging directory and rename, a concurrency limit on `@Async` listeners.
+  - Made obsolete by the migration, which removed every module event listener: idempotent `AuditLog`, a concurrency limit on `@Async` listeners, and the resubmission and staleness above. The outbound write via staging directory and rename shipped with `DELIVER`.
 - **Migration order.**
   1. `DELIVER`: the riskiest step today and the easiest to isolate.
   2. `VALIDATE`.

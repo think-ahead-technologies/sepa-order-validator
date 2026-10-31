@@ -2,6 +2,7 @@
 // ABOUTME: Always sends the stored bytes under the same name, so a repeated delivery re-sends the identical report.
 package dev.thinkahead.sepa.reporting;
 
+import dev.thinkahead.sepa.audit.AuditTrail;
 import dev.thinkahead.sepa.intake.PaymentFiles;
 import dev.thinkahead.sepa.processing.Completion;
 import dev.thinkahead.sepa.processing.ProcessingStep;
@@ -21,12 +22,14 @@ class StatusReportDelivery implements ProcessingStep {
 
     private final StatusReportRepository repository;
     private final PaymentFiles paymentFiles;
+    private final AuditTrail auditTrail;
     private final ApplicationEventPublisher events;
 
-    StatusReportDelivery(StatusReportRepository repository, PaymentFiles paymentFiles,
+    StatusReportDelivery(StatusReportRepository repository, PaymentFiles paymentFiles, AuditTrail auditTrail,
             ApplicationEventPublisher events) {
         this.repository = repository;
         this.paymentFiles = paymentFiles;
+        this.auditTrail = auditTrail;
         this.events = events;
     }
 
@@ -45,7 +48,9 @@ class StatusReportDelivery implements ProcessingStep {
         return () -> {
             repository.markDelivered(fileId);
             paymentFiles.markReplied(fileId);
-            events.publishEvent(new StatusReportDelivered(fileId, report.messageId(), report.groupStatus()));
+            var delivered = new StatusReportDelivered(fileId, report.messageId(), report.groupStatus());
+            auditTrail.record(fileId, delivered);
+            events.publishEvent(delivered);
             LOG.info("Delivered status report {} with group status {}", report.messageId(), report.groupStatus());
         };
     }

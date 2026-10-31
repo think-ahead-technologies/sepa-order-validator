@@ -100,6 +100,10 @@ class PaymentFileValidationIntegrationTest {
             assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
             assertThat(validateItemState(validated.fileId())).isEqualTo("DONE");
             assertThat(validateItemAttempts(validated.fileId())).isEqualTo(MAX_VALIDATE_ATTEMPTS);
+            assertThat(jdbc.sql("""
+                            select count(*) from audit_event where file_id = ? and event_type = 'PaymentFileValidated'""")
+                    .param(validated.fileId()).query(Integer.class).single())
+                    .as("failed attempts leave no audit entry").isEqualTo(1);
             assertThat(LogLines.messagesForFile(output, validated.fileId()))
                     .anySatisfy(message -> assertThat(message).startsWith("VALIDATE gave up after"));
         } finally {

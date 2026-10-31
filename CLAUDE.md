@@ -20,9 +20,9 @@ Design: `docs/design/payment-order-validator.md`. Decisions: `docs/adr/` (read t
 
 ## Architecture rules
 
-- Spring Modulith modules are the direct sub-packages of `dev.thinkahead.sepa`: `intake`, `validation`, `reporting`, `audit`. `ModularityTests` fails the build on boundary violations.
+- Spring Modulith modules are the direct sub-packages of `dev.thinkahead.sepa`: `intake`, `validation`, `reporting`, `audit`, `processing`. `ModularityTests` fails the build on boundary violations.
 - A module's base package is its public API (events, facades). Everything else is package-private or lives in a sub-package.
-- Modules talk via application events (`@ApplicationModuleListener`) and public facades. No dependency cycles.
+- Modules talk via public facades. File processing runs as work items on the `processing` work queue (ADR-0017); application events only notify. No dependency cycles.
 - Database schema changes go through Flyway migrations in `src/main/resources/db/migration` only.
 - All XML parsers and schema validators are created via `validation.xml.SecureXml` (ADR-0004).
 
@@ -31,5 +31,5 @@ Design: `docs/design/payment-order-validator.md`. Decisions: `docs/adr/` (read t
 - Test first. Every feature has unit, integration (`*IntegrationTest`) and end-to-end (`*EndToEndTest`) tests. No mocks; use real PostgreSQL and SFTP containers and real-world payment data.
 - Every source file starts with two `// ABOUTME:` comment lines.
 - Violations carry ISO 20022 external status reason codes (e.g. `AC03`, `AM03`, `FF01`).
-- Logs are ECS JSON. Never log values from a payment file (names, IBANs, amounts, violation or parser messages); log ids, reason codes and positions. Processing steps get the file id from their worker; module event listeners call `LogContext.setFile(fileId)` first (ADR-0018).
+- Logs are ECS JSON. Never log values from a payment file (names, IBANs, amounts, violation or parser messages); log ids, reason codes and positions. Processing steps get the file id from their worker (ADR-0018).
 - Conventional commits, imperative mood. Never use `--no-verify`.

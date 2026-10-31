@@ -1,38 +1,28 @@
 // ABOUTME: Integration tests for the audit module alone against a real PostgreSQL container.
-// ABOUTME: Module events are recorded as JSON audit entries; the audit table rejects updates, deletes and truncation.
+// ABOUTME: Entries are written only inside the caller's transaction, as JSON, and the table is append-only.
 package dev.thinkahead.sepa.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.awaitility.Awaitility.await;
 
 import dev.thinkahead.sepa.TestcontainersConfiguration;
-import dev.thinkahead.sepa.intake.Channel;
-import dev.thinkahead.sepa.intake.PaymentFileReceived;
-import dev.thinkahead.sepa.reporting.GroupStatus;
-import dev.thinkahead.sepa.reporting.StatusReportDelivered;
-import dev.thinkahead.sepa.validation.PaymentFileValidated;
-import dev.thinkahead.sepa.validation.Violation;
-import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.modulith.test.ApplicationModuleTest;
+import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @ApplicationModuleTest
 @Import(TestcontainersConfiguration.class)
-class AuditLogIntegrationTest {
-
-    private static final Duration TIMEOUT = Duration.ofSeconds(20);
+class AuditTrailIntegrationTest {
 
     @Autowired
-    ApplicationEventPublisher publisher;
+    AuditTrail auditTrail;
 
     @Autowired
     TransactionTemplate transaction;
@@ -40,31 +30,45 @@ class AuditLogIntegrationTest {
     @Autowired
     JdbcClient jdbc;
 
+    record FileArchived(UUID fileId, String archive) {
+    }
+
     @Test
-    void recordsEveryModuleEventForTheFile() {
+    void recordsAnEntryWithTheEventAsJsonInTheCallersTransaction() {
+        UUID fileId = UUID.randomUUID();
+
+        transaction.executeWithoutResult(status -> auditTrail.record(fileId, new FileArchived(fileId, "A-1")));
+
+        assertThat(eventTypes(fileId)).containsExactly("FileArchived");
+        assertThat(jdbc.sql("select payload ->> 'archive' from audit_event where file_id = ?").param(fileId)
+                .query(String.class).single()).isEqualTo("A-1");
+    }
+
+    @Test
+    void leavesNoEntryWhenTheCallersTransactionRollsBack() {
         UUID fileId = UUID.randomUUID();
 
         transaction.executeWithoutResult(status -> {
-            publisher.publishEvent(new PaymentFileReceived(fileId, Channel.SFTP, "sftp:audit", "audit.xml", "ab12"));
-            publisher.publishEvent(new PaymentFileValidated(fileId, "MSG-1", "pain.001.001.09", false,
-                    List.of(new Violation("AC03", "PmtInf[1]/CdtTrfTxInf[1]/CdtrAcct/Id/IBAN", "Invalid IBAN"))));
-            publisher.publishEvent(new StatusReportDelivered(fileId, "STS-1", GroupStatus.RJCT));
+            auditTrail.record(fileId, new FileArchived(fileId, "A-2"));
+            status.setRollbackOnly();
         });
 
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(eventTypes(fileId)).containsExactlyInAnyOrder(
-                "PaymentFileReceived", "PaymentFileValidated", "StatusReportDelivered"));
-        assertThat(jdbc.sql("select payload ->> 'originalMessageId' from audit_event "
-                        + "where file_id = ? and event_type = 'PaymentFileValidated'")
-                .param(fileId).query(String.class).single())
-                .isEqualTo("MSG-1");
+        assertThat(eventTypes(fileId)).isEmpty();
+    }
+
+    @Test
+    void refusesToRecordOutsideATransaction() {
+        UUID fileId = UUID.randomUUID();
+
+        assertThatThrownBy(() -> auditTrail.record(fileId, new FileArchived(fileId, "A-3")))
+                .isInstanceOf(IllegalTransactionStateException.class);
+        assertThat(eventTypes(fileId)).isEmpty();
     }
 
     @Test
     void auditTrailIsAppendOnly() {
         UUID fileId = UUID.randomUUID();
-        transaction.executeWithoutResult(status ->
-                publisher.publishEvent(new PaymentFileReceived(fileId, Channel.SFTP, "sftp:audit", "audit.xml", "ab12")));
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(eventTypes(fileId)).hasSize(1));
+        transaction.executeWithoutResult(status -> auditTrail.record(fileId, new FileArchived(fileId, "A-4")));
 
         assertThatThrownBy(() -> jdbc.sql("update audit_event set event_type = 'tampered' where file_id = ?")
                 .param(fileId).update())

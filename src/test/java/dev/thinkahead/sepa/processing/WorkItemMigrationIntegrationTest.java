@@ -1,5 +1,5 @@
-// ABOUTME: Integration tests of the Flyway migrations that move validation, reporting and delivery onto the queue.
-// ABOUTME: Pending work becomes work items and only the removed listeners' event publications are dropped.
+// ABOUTME: Integration tests of the Flyway migrations that move processing and audit off module event listeners.
+// ABOUTME: Pending work becomes work items or audit entries, and only the removed listeners' publications are dropped.
 package dev.thinkahead.sepa.processing;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -71,7 +71,7 @@ class WorkItemMigrationIntegrationTest {
         insertPublication(VALIDATION_LISTENER, "dev.thinkahead.sepa.intake.PaymentFileReceived", received, null);
         insertPublication(AUDIT_LISTENER, "dev.thinkahead.sepa.intake.PaymentFileReceived", received, null);
 
-        migrateTo("latest");
+        migrateTo("12");
 
         assertThat(jdbc.sql("select file_id from work_item where step = 'VALIDATE' and state = 'PENDING'")
                 .query(UUID.class).list()).containsExactly(received);
@@ -106,6 +106,27 @@ class WorkItemMigrationIntegrationTest {
                 .query(UUID.class).list()).containsExactly(awaitingReport);
         assertThat(jdbc.sql("select count(*) from event_publication where completion_date is null")
                 .query(Integer.class).single()).as("removed report listener's publications").isZero();
+    }
+
+    @Test
+    void writesAuditEntriesStillPendingInTheEventRegistry() {
+        migrateTo("13");
+        UUID pending = UUID.randomUUID();
+        UUID alreadyAudited = UUID.randomUUID();
+        insertPublication(AUDIT_LISTENER, "dev.thinkahead.sepa.intake.PaymentFileReceived", pending, null);
+        insertPublication(AUDIT_LISTENER, "dev.thinkahead.sepa.intake.PaymentFileReceived", alreadyAudited, null);
+        jdbc.sql("""
+                        insert into audit_event (id, file_id, event_type, payload)
+                        values (?, ?, 'PaymentFileReceived', '{}')""").params(UUID.randomUUID(), alreadyAudited).update();
+
+        migrateTo("latest");
+
+        assertThat(jdbc.sql("select file_id from audit_event where event_type = 'PaymentFileReceived'")
+                .query(UUID.class).list()).containsExactlyInAnyOrder(pending, alreadyAudited);
+        assertThat(jdbc.sql("select payload ->> 'fileId' from audit_event where file_id = ?").param(pending)
+                .query(String.class).single()).isEqualTo(pending.toString());
+        assertThat(jdbc.sql("select count(*) from event_publication where completion_date is null")
+                .query(Integer.class).single()).as("removed audit listener's publications").isZero();
     }
 
     private void insertFile(UUID fileId, String status) {

@@ -1,7 +1,8 @@
 // ABOUTME: The VALIDATE processing step: validates a received file outside any transaction, then records the outcome.
-// ABOUTME: Recording registers the MsgId (DU01), moves the status, stores the outcome and schedules REPORT at once.
+// ABOUTME: Recording registers the MsgId (DU01), moves the status, stores and audits the outcome, schedules REPORT.
 package dev.thinkahead.sepa.validation;
 
+import dev.thinkahead.sepa.audit.AuditTrail;
 import dev.thinkahead.sepa.intake.PaymentFiles;
 import dev.thinkahead.sepa.processing.Completion;
 import dev.thinkahead.sepa.processing.ProcessingStep;
@@ -27,16 +28,18 @@ class PaymentFileValidation implements ProcessingStep {
     private final AcceptedMessages acceptedMessages;
     private final ValidationOutcomeRepository outcomes;
     private final WorkQueue workQueue;
+    private final AuditTrail auditTrail;
     private final ApplicationEventPublisher events;
 
     PaymentFileValidation(PaymentFiles paymentFiles, PaymentFileValidator validator,
             AcceptedMessages acceptedMessages, ValidationOutcomeRepository outcomes, WorkQueue workQueue,
-            ApplicationEventPublisher events) {
+            AuditTrail auditTrail, ApplicationEventPublisher events) {
         this.paymentFiles = paymentFiles;
         this.validator = validator;
         this.acceptedMessages = acceptedMessages;
         this.outcomes = outcomes;
         this.workQueue = workQueue;
+        this.auditTrail = auditTrail;
         this.events = events;
     }
 
@@ -95,6 +98,7 @@ class PaymentFileValidation implements ProcessingStep {
                 outcome.originalMessageNameId(), outcome.accepted(), outcome.violations());
         outcomes.insert(validated);
         workQueue.enqueue(fileId, Step.REPORT);
+        auditTrail.record(fileId, validated);
         events.publishEvent(validated);
         logOutcome(outcome);
     }

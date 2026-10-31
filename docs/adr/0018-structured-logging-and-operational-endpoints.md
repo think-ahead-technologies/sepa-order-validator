@@ -22,8 +22,7 @@ The append-only `audit_event` table remains the regulatory record of a file's jo
 - **JSON logs.** Logs go to the console in Elastic Common Schema (ECS) JSON, using Spring Boot's built-in structured logging (`logging.structured.format.console: ecs`).
 - **File correlation.** Every log line about a payment file carries its id as the MDC field `fileId` (`LogContext`).
   - The poller scopes it per file.
-  - Module event listeners set it for the whole async task, so failures logged afterwards by Spring Modulith or the async error handler still carry it.
-  - A `TaskDecorator` clears the MDC after every task, so nothing leaks into the next one.
+  - Processing workers scope it per work item (ADR-0017).
 - **Lifecycle log lines.** INFO lines record that a file was received, validated (with reason codes) and that its status report was delivered.
 - **No payment content in logs.**
   - Code never logs values taken from a payment file: no names, IBANs, amounts or remittance text, and no violation messages or parser messages, only reason codes and positions.

@@ -1,20 +1,35 @@
 // ABOUTME: Unit tests for the end-to-end validation of a single payment file's content.
-// ABOUTME: Covers acceptance, rule violations, schema failures and unsupported formats.
+// ABOUTME: Covers acceptance, rule violations, schema failures, unsupported formats and the validation deadline.
 package dev.thinkahead.sepa.validation;
 
 import static dev.thinkahead.sepa.Fixtures.VALID_PAIN_001;
 import static dev.thinkahead.sepa.Fixtures.bytes;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
 class PaymentFileValidatorTest {
 
+    private static final Instant NO_DEADLINE = Instant.now().plus(Duration.ofHours(1));
+
     private final PaymentFileValidator validator = new PaymentFileValidator();
 
     @Test
+    void rejectsAFileWhoseValidationRunsPastTheDeadlineWithFf01() {
+        ValidationResult result = validator.validate(bytes(VALID_PAIN_001), Instant.now().minusSeconds(1));
+
+        assertThat(result.accepted()).isFalse();
+        assertThat(result.violations()).singleElement().satisfies(violation -> {
+            assertThat(violation.reasonCode()).isEqualTo("FF01");
+            assertThat(violation.message()).contains("time limit");
+        });
+    }
+
+    @Test
     void acceptsValidCreditTransferFile() {
-        ValidationResult result = validator.validate(bytes(VALID_PAIN_001));
+        ValidationResult result = validator.validate(bytes(VALID_PAIN_001), NO_DEADLINE);
 
         assertThat(result.accepted()).isTrue();
         assertThat(result.violations()).isEmpty();
@@ -30,7 +45,7 @@ class PaymentFileValidatorTest {
                 .replace("<NbOfTxs>2</NbOfTxs>\n      <CtrlSum>150.50</CtrlSum>\n      <InitgPty>",
                         "<NbOfTxs>3</NbOfTxs>\n      <CtrlSum>150.50</CtrlSum>\n      <InitgPty>");
 
-        ValidationResult result = validator.validate(bytes(xml));
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
 
         assertThat(result.accepted()).isFalse();
         assertThat(result.originalMessageId()).isEqualTo("MSG-2026-10-31-001");
@@ -44,7 +59,7 @@ class PaymentFileValidatorTest {
 
     @Test
     void rejectsRepeatedPaymentInformationIdWithinTheFile() {
-        ValidationResult result = validator.validate(bytes(withTwoPaymentInformationBlocks("PMT-001")));
+        ValidationResult result = validator.validate(bytes(withTwoPaymentInformationBlocks("PMT-001")), NO_DEADLINE);
 
         assertThat(result.accepted()).isFalse();
         assertThat(result.violations())
@@ -54,7 +69,7 @@ class PaymentFileValidatorTest {
 
     @Test
     void acceptsSeveralPaymentInformationBlocksWithDistinctIds() {
-        ValidationResult result = validator.validate(bytes(withTwoPaymentInformationBlocks("PMT-002")));
+        ValidationResult result = validator.validate(bytes(withTwoPaymentInformationBlocks("PMT-002")), NO_DEADLINE);
 
         assertThat(result.violations()).isEmpty();
     }
@@ -76,7 +91,7 @@ class PaymentFileValidatorTest {
                 .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>XYZ</PmtMtd>")
                 .replace("NL91ABNA0417164300", "NL91ABNA0417164301");
 
-        ValidationResult result = validator.validate(bytes(xml));
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
 
         assertThat(result.accepted()).isFalse();
         assertThat(result.violations()).isNotEmpty().allSatisfy(v -> assertThat(v.reasonCode()).isEqualTo("FF01"));
@@ -87,7 +102,7 @@ class PaymentFileValidatorTest {
     void rejectsUnsupportedFormatWithFf01() {
         var xml = VALID_PAIN_001.replace("pain.001.001.09", "pain.001.001.99");
 
-        ValidationResult result = validator.validate(bytes(xml));
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
 
         assertThat(result.accepted()).isFalse();
         assertThat(result.originalMessageId()).isNull();

@@ -25,6 +25,13 @@ public class PaymentFiles {
     }
 
     /**
+     * The authenticated identity that submitted the file, e.g. {@code sftp:<account>}.
+     */
+    public String submitter(UUID fileId) {
+        return repository.submitter(fileId);
+    }
+
+    /**
      * True while the file has been received but no validation outcome is recorded yet.
      */
     public boolean isAwaitingValidation(UUID fileId) {

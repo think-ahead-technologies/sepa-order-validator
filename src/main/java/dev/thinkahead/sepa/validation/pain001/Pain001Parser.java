@@ -4,6 +4,7 @@ package dev.thinkahead.sepa.validation.pain001;
 
 import dev.thinkahead.sepa.validation.xml.SecureXml;
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -19,8 +20,12 @@ public class Pain001Parser {
     private static final String TX = PMT_INF + "/CdtTrfTxInf";
 
     public GroupHeader parse(byte[] content, Pain001Handler handler) {
+        return parse(new ByteArrayInputStream(content), handler);
+    }
+
+    public GroupHeader parse(InputStream content, Pain001Handler handler) {
         try {
-            XMLStreamReader reader = SecureXml.inputFactory().createXMLStreamReader(new ByteArrayInputStream(content));
+            XMLStreamReader reader = SecureXml.inputFactory().createXMLStreamReader(content);
             try {
                 return new Parse(reader, handler).run();
             } finally {

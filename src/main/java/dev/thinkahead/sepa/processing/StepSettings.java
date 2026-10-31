@@ -1,19 +1,20 @@
-// ABOUTME: Worker settings of one processing step: pool size, lease, attempts, polling and retry backoff.
-// ABOUTME: Validated at startup; backoff doubles with every failed attempt up to its maximum.
+// ABOUTME: Worker settings of one processing step: pool size, lease, timeout, attempts, polling and retry backoff.
+// ABOUTME: Validated at startup (the timeout must end before the lease); backoff doubles per failed attempt.
 package dev.thinkahead.sepa.processing;
 
 import java.time.Duration;
 
 /**
  * @param workers        items of this step processed at once per instance
- * @param lease          how long a claimed item stays with its worker; must exceed the step's own timeouts
+ * @param lease          how long a claimed item stays with its worker
+ * @param timeout        how long one attempt may work; below the lease, so no second worker starts meanwhile
  * @param maxAttempts    attempts before the item fails for good and needs a manual re-drive
  * @param pollInterval   pause between looking for due items while none are found
  * @param initialBackoff delay before retrying after the first failed attempt
  * @param maxBackoff     upper bound of the retry delay
  */
-record StepSettings(int workers, Duration lease, int maxAttempts, Duration pollInterval, Duration initialBackoff,
-        Duration maxBackoff) {
+record StepSettings(int workers, Duration lease, Duration timeout, int maxAttempts, Duration pollInterval,
+        Duration initialBackoff, Duration maxBackoff) {
 
     StepSettings {
         if (workers < 1) {
@@ -23,6 +24,10 @@ record StepSettings(int workers, Duration lease, int maxAttempts, Duration pollI
             throw new IllegalArgumentException("max-attempts must be at least 1, was " + maxAttempts);
         }
         requirePositive("lease", lease);
+        requirePositive("timeout", timeout);
+        if (timeout.compareTo(lease) >= 0) {
+            throw new IllegalArgumentException("timeout " + timeout + " must be below the lease " + lease);
+        }
         requirePositive("poll-interval", pollInterval);
         requirePositive("initial-backoff", initialBackoff);
         requirePositive("max-backoff", maxBackoff);

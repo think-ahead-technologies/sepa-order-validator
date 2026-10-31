@@ -26,9 +26,10 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.modulith.test.ApplicationModuleTest;
+import org.springframework.modulith.test.ApplicationModuleTest.BootstrapMode;
 import org.testcontainers.containers.GenericContainer;
 
-@ApplicationModuleTest
+@ApplicationModuleTest(mode = BootstrapMode.DIRECT_DEPENDENCIES)
 @ExtendWith(OutputCaptureExtension.class)
 @Import({TestcontainersConfiguration.class, TestSupportConfiguration.class})
 class SftpIntakeIntegrationTest {
@@ -216,6 +217,8 @@ class SftpIntakeIntegrationTest {
         assertThat(paymentFiles.content(received.fileId())).hasValueSatisfying(stored -> assertThat(stored).isEqualTo(content));
         assertThat(LogLines.messagesForFile(output, received.fileId()))
                 .contains("Received payment file " + fileName + " (" + content.length + " bytes) from sftp:sepa");
+        assertThat(jdbc.sql("select count(*) from work_item where file_id = ? and step = 'VALIDATE'")
+                .param(received.fileId()).query(Integer.class).single()).as("validation scheduled").isEqualTo(1);
     }
 
     @Test

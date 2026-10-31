@@ -4,7 +4,7 @@ Date: 2026-10-31
 
 ## Status
 
-Accepted. It supersedes the event-related parts of ADR-0007: at-least-once module events as the processing chain, scheduled resubmission and republishing on restart. Migration is in progress: `DELIVER` runs on the work queue; `VALIDATE` and `REPORT` still run on module events.
+Accepted. It supersedes the event-related parts of ADR-0007: at-least-once module events as the processing chain, scheduled resubmission and republishing on restart. Migration is in progress: `VALIDATE` and `DELIVER` run on the work queue; `REPORT` still runs on module events.
 
 ## Context
 
@@ -83,7 +83,7 @@ External side effects (`DELIVER`) must be safe to repeat:
   - A failed attempt sets `next_attempt_at` with exponential backoff.
   - Attempts are counted when an item is claimed, so a file that crashes the worker every time (e.g. out of memory) stops after `max-attempts` instead of crash-looping across instances.
   - After `sepa.processing.<step>.max-attempts`, the item becomes `FAILED` and an alert is raised. Overdue replies remain alerted as today.
-  - `VALIDATE` never ends without a customer reply: a deterministic validation failure, and exhausting the attempts (including the deadline), yield a technical rejection (`FF01`) and continue with `REPORT`.
+  - `VALIDATE` never ends without a customer reply. A deterministic validation failure and a validation running past its deadline yield a technical rejection (`FF01`) at once, because a retry would fail the same way. Exhausting the attempts (e.g. a file that crashes its worker every time) records the same rejection as the step's fallback outcome, without loading the file again.
   - A `FAILED` `DELIVER` or `REPORT` item is re-driven by operations through a documented procedure that resets the item to `PENDING` and writes an audit entry for the manual intervention. It becomes a management API once management APIs have OAuth2 (design §10).
 - **Polling.** One poller per step and instance looks for due items every `sepa.processing.<step>.poll-interval` (default 1 s) while workers are free, and hands claimed items to the step's worker pool; it polls again immediately while items are found. Idle load is one query per step and instance per interval, not one per worker.
 - **Housekeeping.** `DONE` items are deleted after a retention period; the audit trail keeps the history.

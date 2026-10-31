@@ -4,6 +4,7 @@ package dev.thinkahead.sepa.validation.xml;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,11 +35,15 @@ public class SchemaValidator {
     }
 
     public List<SchemaError> validate(MessageFormat format, byte[] content) {
+        return validate(format, new ByteArrayInputStream(content));
+    }
+
+    public List<SchemaError> validate(MessageFormat format, InputStream content) {
         List<SchemaError> errors = new ArrayList<>();
         try {
             Validator validator = SecureXml.validator(schemaFor(format));
             validator.setErrorHandler(new CollectingErrorHandler(errors, maxErrors));
-            validator.validate(new SAXSource(SecureXml.xmlReader(), new InputSource(new ByteArrayInputStream(content))));
+            validator.validate(new SAXSource(SecureXml.xmlReader(), new InputSource(content)));
         } catch (ErrorCapReached e) {
             errors.add(new SchemaError(0, 0, "Schema validation stopped after " + maxErrors + " errors"));
         } catch (SAXParseException e) {

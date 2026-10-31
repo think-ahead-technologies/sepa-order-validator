@@ -37,7 +37,9 @@ public class TestcontainersConfiguration {
             "sepa.leader-election.lock-time-to-live", "sepa.leader-election.heartbeat", "sepa.intake.max-file-size",
             "sepa.intake.reply-check-interval", "server.port", "sepa.processing.deliver.poll-interval",
             "sepa.processing.deliver.initial-backoff", "sepa.processing.deliver.max-backoff",
-            "sepa.processing.deliver.lease");
+            "sepa.processing.deliver.lease", "sepa.processing.deliver.timeout",
+            "sepa.processing.validate.poll-interval", "sepa.processing.validate.initial-backoff",
+            "sepa.processing.validate.max-backoff", "sepa.processing.validate.max-attempts");
 
     private static final String[] HOST_KEYS = {
             "/etc/ssh/ssh_host_ecdsa_key.pub",
@@ -99,6 +101,11 @@ public class TestcontainersConfiguration {
         properties.put("sepa.processing.deliver.initial-backoff", "PT0.5S");
         properties.put("sepa.processing.deliver.max-backoff", "PT1S");
         properties.put("sepa.processing.deliver.lease", "PT10S");
+        properties.put("sepa.processing.deliver.timeout", "PT5S");
+        properties.put("sepa.processing.validate.poll-interval", "PT0.2S");
+        properties.put("sepa.processing.validate.initial-backoff", "PT0.2S");
+        properties.put("sepa.processing.validate.max-backoff", "PT0.5S");
+        properties.put("sepa.processing.validate.max-attempts", 3);
         return properties;
     }
 

@@ -53,6 +53,10 @@ class PaymentFileRepository {
         return Optional.ofNullable(rows.getFirst());
     }
 
+    String submitter(UUID id) {
+        return jdbc.sql("select submitter from payment_file where id = ?").param(id).query(String.class).single();
+    }
+
     StoredPaymentFile find(UUID id) {
         return jdbc.sql("select id, channel, file_name from payment_file where id = ?")
                 .param(id)

@@ -1,5 +1,5 @@
 // ABOUTME: Unit tests for per-step worker settings: backoff growth and validation of the configured values.
-// ABOUTME: Backoff doubles per attempt up to its maximum; invalid settings fail at startup.
+// ABOUTME: Backoff doubles per attempt up to its maximum; invalid settings, e.g. a timeout above the lease, fail.
 package dev.thinkahead.sepa.processing;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 class StepSettingsTest {
 
-    private static final StepSettings SETTINGS = new StepSettings(2, Duration.ofMinutes(2), 10, Duration.ofSeconds(1),
+    private static final StepSettings SETTINGS = new StepSettings(2, Duration.ofMinutes(2), Duration.ofMinutes(1), 10, Duration.ofSeconds(1),
             Duration.ofSeconds(10), Duration.ofMinutes(10));
 
     @Test
@@ -28,27 +28,37 @@ class StepSettingsTest {
 
     @Test
     void requiresAtLeastOneWorkerAndOneAttempt() {
-        assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(0, Duration.ofMinutes(2), 10,
+        assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(0, Duration.ofMinutes(2), Duration.ofMinutes(1), 10,
                 Duration.ofSeconds(1), Duration.ofSeconds(10), Duration.ofMinutes(10))).withMessageContaining("workers");
-        assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(2, Duration.ofMinutes(2), 0,
+        assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(2, Duration.ofMinutes(2), Duration.ofMinutes(1), 0,
                 Duration.ofSeconds(1), Duration.ofSeconds(10), Duration.ofMinutes(10)))
                 .withMessageContaining("max-attempts");
     }
 
     @Test
     void requiresPositiveDurations() {
-        assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(2, Duration.ZERO, 10,
+        assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(2, Duration.ZERO, Duration.ofMinutes(1), 10,
                 Duration.ofSeconds(1), Duration.ofSeconds(10), Duration.ofMinutes(10))).withMessageContaining("lease");
-        assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(2, Duration.ofMinutes(2), 10,
+        assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(2, Duration.ofMinutes(2), Duration.ofMinutes(1), 10,
                 null, Duration.ofSeconds(10), Duration.ofMinutes(10))).withMessageContaining("poll-interval");
-        assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(2, Duration.ofMinutes(2), 10,
+        assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(2, Duration.ofMinutes(2), Duration.ofMinutes(1), 10,
                 Duration.ofSeconds(1), Duration.ofSeconds(-1), Duration.ofMinutes(10)))
                 .withMessageContaining("initial-backoff");
     }
 
     @Test
+    void requiresTheTimeoutToBePositiveAndBelowTheLease() {
+        assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(2, Duration.ofMinutes(2),
+                Duration.ZERO, 10, Duration.ofSeconds(1), Duration.ofSeconds(10), Duration.ofMinutes(10)))
+                .withMessageContaining("timeout");
+        assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(2, Duration.ofMinutes(2),
+                Duration.ofMinutes(2), 10, Duration.ofSeconds(1), Duration.ofSeconds(10), Duration.ofMinutes(10)))
+                .withMessageContaining("lease");
+    }
+
+    @Test
     void requiresTheMaximumBackoffToBeAtLeastTheInitialOne() {
-        assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(2, Duration.ofMinutes(2), 10,
+        assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(2, Duration.ofMinutes(2), Duration.ofMinutes(1), 10,
                 Duration.ofSeconds(1), Duration.ofSeconds(10), Duration.ofSeconds(5)))
                 .withMessageContaining("max-backoff");
     }

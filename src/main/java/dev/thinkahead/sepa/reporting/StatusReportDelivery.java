@@ -7,6 +7,7 @@ import dev.thinkahead.sepa.processing.Completion;
 import dev.thinkahead.sepa.processing.ProcessingStep;
 import dev.thinkahead.sepa.processing.Step;
 import dev.thinkahead.sepa.reporting.StatusReportRepository.StoredStatusReport;
+import java.time.Instant;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,8 +35,11 @@ class StatusReportDelivery implements ProcessingStep {
         return Step.DELIVER;
     }
 
+    /**
+     * The SFTP I/O is bounded by the session factory's timeouts, not by the deadline.
+     */
     @Override
-    public Completion perform(UUID fileId) {
+    public Completion perform(UUID fileId, Instant deadline) {
         StoredStatusReport report = repository.findByFile(fileId);
         paymentFiles.writeStatusReport(fileId, report.content());
         return () -> {

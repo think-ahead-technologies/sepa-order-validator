@@ -28,6 +28,14 @@ record ValidationResult(String originalMessageId, String originalMessageNameId, 
                 "Document", "File could not be processed due to a technical error, reference " + fileId)));
     }
 
+    /**
+     * Rejection of a file whose validation did not finish within the deadline for processing.
+     */
+    static ValidationResult timedOut() {
+        return new ValidationResult(null, null, List.of(new Violation(PaymentFileValidator.INVALID_FILE_FORMAT,
+                "Document", "File could not be validated within the time limit for processing")));
+    }
+
     boolean accepted() {
         return violations.isEmpty();
     }

@@ -1,10 +1,11 @@
 // ABOUTME: Runs one processing step: a poller claims due work items while a worker is free and hands them over.
-// ABOUTME: Failed attempts are retried with backoff; after the last attempt the item fails and an ERROR is logged.
+// ABOUTME: Failed attempts are retried with backoff; after the last one the step's fallback or a failure is recorded.
 package dev.thinkahead.sepa.processing;
 
 import dev.thinkahead.sepa.LogContext;
 import dev.thinkahead.sepa.processing.WorkItemRepository.ClaimedItem;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -102,40 +103,68 @@ final class StepWorker {
 
     void process(ClaimedItem item) {
         try (var ignored = LogContext.scopedToFile(item.fileId())) {
+            if (item.attempt() > settings.maxAttempts()) {
+                // Earlier attempts ended without recording anything, e.g. their worker crashed: do not try again.
+                giveUp(item, "attempts exhausted without a recorded outcome", null);
+                return;
+            }
             try {
-                Completion completion = step.perform(item.fileId());
-                Boolean completed = transactions.execute(status -> {
-                    if (!workItems.complete(item)) {
-                        status.setRollbackOnly();
-                        return false;
-                    }
-                    completion.record();
-                    return true;
-                });
-                if (!Boolean.TRUE.equals(completed)) {
-                    LOG.warn("{} lost its lease before completing; another worker has taken the item over",
-                            step.step());
-                }
+                Completion completion = step.perform(item.fileId(), Instant.now().plus(settings.timeout()));
+                completeWith(item, completion);
             } catch (RuntimeException e) {
                 handleFailure(item, e);
             }
         }
     }
 
+    private void completeWith(ClaimedItem item, Completion completion) {
+        Boolean completed = transactions.execute(status -> {
+            if (!workItems.complete(item)) {
+                status.setRollbackOnly();
+                return false;
+            }
+            completion.record();
+            return true;
+        });
+        if (!Boolean.TRUE.equals(completed)) {
+            LOG.warn("{} lost its lease before completing; another worker has taken the item over", step.step());
+        }
+    }
+
     private void handleFailure(ClaimedItem item, RuntimeException e) {
         String error = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
-        boolean recorded;
         if (item.attempt() >= settings.maxAttempts()) {
-            recorded = workItems.fail(item, error);
-            LOG.error("{} failed for good after {} attempts; the work item needs a manual re-drive",
-                    step.step(), item.attempt(), e);
-        } else {
-            Duration backoff = settings.backoffAfter(item.attempt());
-            recorded = workItems.retryLater(item, backoff, error);
-            LOG.warn("{} failed (attempt {} of {}), retrying in {}", step.step(), item.attempt(),
-                    settings.maxAttempts(), backoff, e);
+            giveUp(item, error, e);
+            return;
         }
-        if (!recorded) {
+        Duration backoff = settings.backoffAfter(item.attempt());
+        LOG.warn("{} failed (attempt {} of {}), retrying in {}", step.step(), item.attempt(),
+                settings.maxAttempts(), backoff, e);
+        if (!workItems.retryLater(item, backoff, error)) {
+            LOG.warn("{} lost its lease before recording the failure; another worker has taken the item over",
+                    step.step());
+        }
+    }
+
+    /**
+     * Records the step's fallback outcome if it has one, so the file still moves on; otherwise fails the item.
+     */
+    private void giveUp(ClaimedItem item, String error, RuntimeException cause) {
+        Optional<Completion> fallback = step.whenAttemptsExhausted(item.fileId());
+        if (fallback.isPresent()) {
+            LOG.error("{} gave up after {} attempts; recording its fallback outcome", step.step(), item.attempt(),
+                    cause);
+            try {
+                completeWith(item, fallback.get());
+                return;
+            } catch (RuntimeException e) {
+                LOG.error("{} could not record its fallback outcome", step.step(), e);
+            }
+        } else {
+            LOG.error("{} failed for good after {} attempts; the work item needs a manual re-drive", step.step(),
+                    item.attempt(), cause);
+        }
+        if (!workItems.fail(item, error)) {
             LOG.warn("{} lost its lease before recording the failure; another worker has taken the item over",
                     step.step());
         }

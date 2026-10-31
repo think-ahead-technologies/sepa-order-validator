@@ -18,8 +18,9 @@ import org.springframework.integration.leader.event.OnGrantedEvent;
 import org.springframework.integration.util.UUIDConverter;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.modulith.test.ApplicationModuleTest;
+import org.springframework.modulith.test.ApplicationModuleTest.BootstrapMode;
 
-@ApplicationModuleTest
+@ApplicationModuleTest(mode = BootstrapMode.DIRECT_DEPENDENCIES)
 @Import({TestcontainersConfiguration.class, TestSupportConfiguration.class})
 class IntakeLeaderElectionIntegrationTest {
 

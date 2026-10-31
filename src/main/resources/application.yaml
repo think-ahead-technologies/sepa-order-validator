@@ -37,9 +37,18 @@ sepa:
     resubmit-after: PT5M
     resubmit-interval: PT1M
   processing:
+    validate:
+      workers: 2
+      lease: PT10M
+      timeout: PT5M
+      max-attempts: 3
+      poll-interval: PT1S
+      initial-backoff: PT10S
+      max-backoff: PT1M
     deliver:
       workers: 2
       lease: PT2M
+      timeout: PT1M
       max-attempts: 10
       poll-interval: PT1S
       initial-backoff: PT10S

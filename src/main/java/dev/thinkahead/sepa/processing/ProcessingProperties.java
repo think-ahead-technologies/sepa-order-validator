@@ -5,17 +5,19 @@ package dev.thinkahead.sepa.processing;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("sepa.processing")
-record ProcessingProperties(StepSettings validate, StepSettings deliver) {
+record ProcessingProperties(StepSettings validate, StepSettings report, StepSettings deliver) {
 
     ProcessingProperties {
-        if (validate == null || deliver == null) {
-            throw new IllegalArgumentException("sepa.processing.validate.* and sepa.processing.deliver.* are required");
+        if (validate == null || report == null || deliver == null) {
+            throw new IllegalArgumentException(
+                    "sepa.processing.validate.*, sepa.processing.report.* and sepa.processing.deliver.* are required");
         }
     }
 
     StepSettings settings(Step step) {
         return switch (step) {
             case VALIDATE -> validate;
+            case REPORT -> report;
             case DELIVER -> deliver;
         };
     }

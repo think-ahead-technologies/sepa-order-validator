@@ -1,11 +1,12 @@
 // ABOUTME: The VALIDATE processing step: validates a received file outside any transaction, then records the outcome.
-// ABOUTME: Recording registers the MsgId (DU01), moves the file status and publishes PaymentFileValidated at once.
+// ABOUTME: Recording registers the MsgId (DU01), moves the status, stores the outcome and schedules REPORT at once.
 package dev.thinkahead.sepa.validation;
 
 import dev.thinkahead.sepa.intake.PaymentFiles;
 import dev.thinkahead.sepa.processing.Completion;
 import dev.thinkahead.sepa.processing.ProcessingStep;
 import dev.thinkahead.sepa.processing.Step;
+import dev.thinkahead.sepa.processing.WorkQueue;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,13 +25,18 @@ class PaymentFileValidation implements ProcessingStep {
     private final PaymentFiles paymentFiles;
     private final PaymentFileValidator validator;
     private final AcceptedMessages acceptedMessages;
+    private final ValidationOutcomeRepository outcomes;
+    private final WorkQueue workQueue;
     private final ApplicationEventPublisher events;
 
     PaymentFileValidation(PaymentFiles paymentFiles, PaymentFileValidator validator,
-            AcceptedMessages acceptedMessages, ApplicationEventPublisher events) {
+            AcceptedMessages acceptedMessages, ValidationOutcomeRepository outcomes, WorkQueue workQueue,
+            ApplicationEventPublisher events) {
         this.paymentFiles = paymentFiles;
         this.validator = validator;
         this.acceptedMessages = acceptedMessages;
+        this.outcomes = outcomes;
+        this.workQueue = workQueue;
         this.events = events;
     }
 
@@ -85,8 +91,11 @@ class PaymentFileValidation implements ProcessingStep {
         if (!paymentFiles.recordValidationOutcome(fileId, outcome.accepted())) {
             throw new IllegalStateException("Validation outcome of payment file " + fileId + " changed concurrently");
         }
-        events.publishEvent(new PaymentFileValidated(fileId, outcome.originalMessageId(),
-                outcome.originalMessageNameId(), outcome.accepted(), outcome.violations()));
+        var validated = new PaymentFileValidated(fileId, outcome.originalMessageId(),
+                outcome.originalMessageNameId(), outcome.accepted(), outcome.violations());
+        outcomes.insert(validated);
+        workQueue.enqueue(fileId, Step.REPORT);
+        events.publishEvent(validated);
         logOutcome(outcome);
     }
 

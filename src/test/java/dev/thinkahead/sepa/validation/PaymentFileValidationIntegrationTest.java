@@ -55,6 +55,9 @@ class PaymentFileValidationIntegrationTest {
     AcceptedMessages acceptedMessages;
 
     @Autowired
+    ValidationOutcomes validationOutcomes;
+
+    @Autowired
     ApplicationEventPublisher publisher;
 
     @Autowired
@@ -157,6 +160,9 @@ class PaymentFileValidationIntegrationTest {
         assertThat(validated.originalMessageId()).isEqualTo(messageId);
         assertThat(validated.violations()).isEmpty();
         assertThat(statusOf(validated.fileId())).isEqualTo("ACCEPTED");
+        assertThat(validationOutcomes.find(validated.fileId())).as("stored outcome").isEqualTo(validated);
+        assertThat(jdbc.sql("select state from work_item where file_id = ? and step = 'REPORT'")
+                .param(validated.fileId()).query(String.class).single()).as("report scheduled").isEqualTo("PENDING");
     }
 
     @Test
@@ -167,6 +173,8 @@ class PaymentFileValidationIntegrationTest {
         assertThat(validated.accepted()).isFalse();
         assertThat(validated.violations()).extracting(Violation::reasonCode).containsExactly("AC03");
         assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
+        assertThat(validationOutcomes.find(validated.fileId())).as("stored outcome with violations")
+                .isEqualTo(validated);
         assertThat(LogLines.messagesForFile(output, validated.fileId()))
                 .contains("Validated payment file: rejected with reason codes [AC03]");
         assertThat(output).doesNotContain("NL91ABNA0417164301");

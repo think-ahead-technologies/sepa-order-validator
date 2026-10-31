@@ -45,6 +45,14 @@ sepa:
       poll-interval: PT1S
       initial-backoff: PT10S
       max-backoff: PT1M
+    report:
+      workers: 2
+      lease: PT2M
+      timeout: PT1M
+      max-attempts: 10
+      poll-interval: PT1S
+      initial-backoff: PT10S
+      max-backoff: PT10M
     deliver:
       workers: 2
       lease: PT2M

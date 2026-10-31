@@ -1,4 +1,4 @@
-// ABOUTME: Integration tests of the Flyway migrations that move delivery and validation onto the work queue.
+// ABOUTME: Integration tests of the Flyway migrations that move validation, reporting and delivery onto the queue.
 // ABOUTME: Pending work becomes work items and only the removed listeners' event publications are dropped.
 package dev.thinkahead.sepa.processing;
 
@@ -20,6 +20,8 @@ class WorkItemMigrationIntegrationTest {
             + "dev.thinkahead.sepa.reporting.StatusReportCreated)";
     private static final String VALIDATION_LISTENER = "dev.thinkahead.sepa.validation.PaymentFileValidationListener"
             + ".on(dev.thinkahead.sepa.intake.PaymentFileReceived)";
+    private static final String REPORT_LISTENER = "dev.thinkahead.sepa.reporting.StatusReportListener"
+            + ".on(dev.thinkahead.sepa.validation.PaymentFileValidated)";
     private static final String AUDIT_LISTENER = "dev.thinkahead.sepa.audit.AuditLog"
             + ".on(dev.thinkahead.sepa.intake.PaymentFileReceived)";
 
@@ -76,6 +78,34 @@ class WorkItemMigrationIntegrationTest {
         assertThat(jdbc.sql("select listener_id from event_publication where completion_date is null")
                 .query(String.class).list()).as("only the removed validation listener's publications are dropped")
                 .containsExactly(AUDIT_LISTENER);
+    }
+
+    @Test
+    void movesValidatedFilesWithoutReportToTheWorkQueueWithTheirOutcome() {
+        migrateTo("12");
+        UUID awaitingReport = UUID.randomUUID();
+        insertFile(awaitingReport, "REJECTED");
+        jdbc.sql("""
+                        insert into event_publication (id, listener_id, event_type, serialized_event,
+                                                       publication_date, status)
+                        values (?, ?, 'dev.thinkahead.sepa.validation.PaymentFileValidated', ?, now(), 'FAILED')""")
+                .params(UUID.randomUUID(), REPORT_LISTENER, """
+                        {"fileId":"%s","originalMessageId":"MSG-1","originalMessageNameId":"pain.001.001.09",
+                         "accepted":false,"violations":[{"reasonCode":"AC03","path":"PmtInf[1]","message":"Invalid IBAN"}]}"""
+                        .formatted(awaitingReport))
+                .update();
+
+        migrateTo("latest");
+
+        assertThat(jdbc.sql("""
+                        select original_message_id || '|' || original_message_name_id || '|' || accepted || '|'
+                               || (violations -> 0 ->> 'reasonCode')
+                        from validation_result where file_id = ?""").param(awaitingReport)
+                .query(String.class).single()).isEqualTo("MSG-1|pain.001.001.09|false|AC03");
+        assertThat(jdbc.sql("select file_id from work_item where step = 'REPORT' and state = 'PENDING'")
+                .query(UUID.class).list()).containsExactly(awaitingReport);
+        assertThat(jdbc.sql("select count(*) from event_publication where completion_date is null")
+                .query(Integer.class).single()).as("removed report listener's publications").isZero();
     }
 
     private void insertFile(UUID fileId, String status) {

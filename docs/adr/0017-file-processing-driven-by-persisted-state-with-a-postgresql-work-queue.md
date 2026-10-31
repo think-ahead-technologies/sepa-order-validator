@@ -4,7 +4,7 @@ Date: 2026-10-31
 
 ## Status
 
-Accepted. It supersedes the event-related parts of ADR-0007: at-least-once module events as the processing chain, scheduled resubmission and republishing on restart. Migration is in progress: `VALIDATE` and `DELIVER` run on the work queue; `REPORT` still runs on module events.
+Accepted. It supersedes the event-related parts of ADR-0007: at-least-once module events as the processing chain, scheduled resubmission and republishing on restart. `VALIDATE`, `REPORT` and `DELIVER` run on the work queue. Module events now only feed the audit trail; moving audit into the step transactions is still open.
 
 ## Context
 
@@ -93,6 +93,7 @@ External side effects (`DELIVER`) must be safe to repeat:
 - **`processing` module.** A new module owns `work_item`, the worker runtime and the public `ProcessingStep` interface.
 - **Step modules.** `validation` and `reporting` implement `ProcessingStep` for their steps. Delivery moves behind the same interface, and `intake` keeps the channel I/O behind its facade.
 - **Intake.** Intake inserts the first `VALIDATE` item in the same transaction that stores the file.
+- **Step results.** A step stores what the next step needs: `VALIDATE` keeps its outcome, including all violations, in `validation_result` (validation module), which `REPORT` reads through the `ValidationOutcomes` facade.
 - **Audit.** `audit` becomes a facade called inside step transactions and no longer listens to module events. This avoids a dependency cycle (`audit → validation → processing → audit`) and gives one audit entry per transition.
 - **Modulith events.** Events stay for notifications that are not part of the processing chain, e.g. metrics and future integrations. Completed publications are deleted (`spring.modulith.events.completion-mode: delete`). `republish-outstanding-events-on-restart` is switched off, and `IncompleteEventResubmission` is removed.
 - **Event contracts.** Events that remain are contracts across rolling deploys: fields are only added, and readers ignore fields they do not know.

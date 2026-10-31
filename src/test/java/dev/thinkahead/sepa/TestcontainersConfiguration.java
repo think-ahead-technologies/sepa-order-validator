@@ -43,7 +43,7 @@ public class TestcontainersConfiguration {
             "sepa.sftp.host", "sepa.sftp.port", "sepa.sftp.username", "sepa.sftp.password",
             "sepa.sftp.known-hosts", "sepa.sftp.poll-interval",
             "sepa.leader-election.lock-time-to-live", "sepa.leader-election.heartbeat", "sepa.intake.max-file-size",
-            "sepa.intake.reply-check-interval", "server.port", "sepa.processing.deliver.poll-interval",
+            "sepa.intake.reply-check-interval", "server.port", "server.address", "sepa.processing.deliver.poll-interval",
             "sepa.processing.deliver.initial-backoff", "sepa.processing.deliver.max-backoff",
             "sepa.processing.deliver.lease", "sepa.processing.deliver.timeout",
             "sepa.processing.validate.poll-interval", "sepa.processing.validate.initial-backoff",
@@ -107,6 +107,9 @@ public class TestcontainersConfiguration {
         properties.put("sepa.intake.max-file-size", "1MB");
         properties.put("sepa.intake.reply-check-interval", "PT1H");
         properties.put("server.port", 0);
+        // On macOS, Tomcat cannot wake its acceptor when bound to the wildcard address and logs an error on every
+        // stop; a concrete address avoids that locally. Linux, where the application runs, is not affected.
+        properties.put("server.address", "127.0.0.1");
         properties.put("sepa.processing.deliver.poll-interval", "PT0.2S");
         properties.put("sepa.processing.deliver.initial-backoff", "PT0.5S");
         properties.put("sepa.processing.deliver.max-backoff", "PT1S");

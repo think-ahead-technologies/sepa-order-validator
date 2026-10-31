@@ -28,6 +28,6 @@ Options considered:
 
 - No new infrastructure; leader election is platform-independent and tested end to end with two real application instances (exactly-once processing, failover on shutdown, takeover after a crashed leader's lock expires).
 - Graceful shutdown releases the lock immediately; after a crash, failover takes up to the lock time-to-live.
-- A leader that stalls longer than the time-to-live (long GC pause, network partition to the database) can briefly overlap with a new leader. Leader election alone is therefore not a correctness guarantee: duplicate-file detection by SHA-256 and `MsgId` (planned, see design doc) is the safety net.
+- A leader that stalls longer than the time-to-live (long GC pause, network partition to the database) can briefly overlap with a new leader. Leader election alone is therefore not a correctness guarantee: duplicate detection by `MsgId` per submitter (ADR-0016) is the safety net.
 - Lock expiry is computed from each instance's clock (UTC); instance clocks must be NTP-synchronised.
 - Further singleton tasks (e.g. EBICS polling, housekeeping) can reuse the same mechanism with their own role.

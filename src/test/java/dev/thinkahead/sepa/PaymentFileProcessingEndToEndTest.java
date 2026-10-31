@@ -2,8 +2,9 @@
 // ABOUTME: Runs the complete application against real PostgreSQL and SFTP containers, no test doubles.
 package dev.thinkahead.sepa;
 
-import static dev.thinkahead.sepa.Fixtures.VALID_PAIN_001;
 import static dev.thinkahead.sepa.Fixtures.bytes;
+import static dev.thinkahead.sepa.Fixtures.uniqueMessageId;
+import static dev.thinkahead.sepa.Fixtures.validPain001;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -41,10 +42,11 @@ class PaymentFileProcessingEndToEndTest {
 
     @Test
     void validFileIsAcceptedAndReportedWithAccp() throws Exception {
-        Delivery delivery = submit(VALID_PAIN_001);
+        String messageId = uniqueMessageId();
+        Delivery delivery = submit(validPain001(messageId));
 
         assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='OrgnlMsgId']")).isEqualTo("MSG-2026-10-31-001");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='OrgnlMsgId']")).isEqualTo(messageId);
         assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='OrgnlMsgNmId']")).isEqualTo("pain.001.001.09");
         assertThat(reasonCodes(delivery.report())).isEmpty();
         assertThat(fileStatus(delivery.fileName())).isEqualTo("ACCEPTED");
@@ -54,7 +56,7 @@ class PaymentFileProcessingEndToEndTest {
 
     @Test
     void invalidFileIsRejectedAsAWholeWithEveryReason() throws Exception {
-        Delivery delivery = submit(VALID_PAIN_001
+        Delivery delivery = submit(validPain001(uniqueMessageId())
                 .replace("NL91ABNA0417164300", "NL91ABNA0417164301")
                 .replace("Ccy=\"EUR\">50.50", "Ccy=\"USD\">50.50"));
 
@@ -66,11 +68,27 @@ class PaymentFileProcessingEndToEndTest {
 
     @Test
     void schemaInvalidFileIsRejectedWithFf01() throws Exception {
-        Delivery delivery = submit(VALID_PAIN_001.replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>XYZ</PmtMtd>"));
+        Delivery delivery = submit(validPain001(uniqueMessageId())
+                .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>XYZ</PmtMtd>"));
 
         assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
         assertThat(reasonCodes(delivery.report())).isNotEmpty().containsOnly("FF01");
         assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
+    }
+
+    @Test
+    void resubmittedFileIsRejectedAsDuplicateMessage() throws Exception {
+        String xml = validPain001(uniqueMessageId());
+        Delivery original = submit(xml);
+
+        Delivery resubmission = submit(xml);
+
+        assertThat(xpath(original.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
+        assertThat(xpath(resubmission.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(reasonCodes(resubmission.report())).containsExactly("DU01");
+        assertThat(fileStatus(original.fileName())).isEqualTo("ACCEPTED");
+        assertThat(fileStatus(resubmission.fileName())).isEqualTo("REJECTED");
+        assertAuditTrailComplete(resubmission.fileName());
     }
 
     @Test

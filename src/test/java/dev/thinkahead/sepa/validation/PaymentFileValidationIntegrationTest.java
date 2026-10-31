@@ -1,9 +1,10 @@
 // ABOUTME: Integration tests for the validation module together with intake, using real SFTP and PostgreSQL.
-// ABOUTME: A received file is validated asynchronously, its status updated and PaymentFileValidated published.
+// ABOUTME: Covers validation outcomes, status updates and race-free duplicate MsgId detection per submitter.
 package dev.thinkahead.sepa.validation;
 
-import static dev.thinkahead.sepa.Fixtures.VALID_PAIN_001;
 import static dev.thinkahead.sepa.Fixtures.bytes;
+import static dev.thinkahead.sepa.Fixtures.uniqueMessageId;
+import static dev.thinkahead.sepa.Fixtures.validPain001;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -13,7 +14,13 @@ import dev.thinkahead.sepa.TestSupportConfiguration;
 import dev.thinkahead.sepa.TestcontainersConfiguration;
 import dev.thinkahead.sepa.intake.PaymentFileReceived;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
@@ -36,12 +43,17 @@ class PaymentFileValidationIntegrationTest {
     @Autowired
     JdbcClient jdbc;
 
+    @Autowired
+    AcceptedMessages acceptedMessages;
+
     @Test
     void acceptsValidFileAndMarksItAccepted() {
-        PaymentFileValidated validated = uploadAndAwaitValidation(VALID_PAIN_001);
+        String messageId = uniqueMessageId();
+
+        PaymentFileValidated validated = uploadAndAwaitValidation(validPain001(messageId));
 
         assertThat(validated.accepted()).isTrue();
-        assertThat(validated.originalMessageId()).isEqualTo("MSG-2026-10-31-001");
+        assertThat(validated.originalMessageId()).isEqualTo(messageId);
         assertThat(validated.violations()).isEmpty();
         assertThat(statusOf(validated.fileId())).isEqualTo("ACCEPTED");
     }
@@ -49,11 +61,73 @@ class PaymentFileValidationIntegrationTest {
     @Test
     void rejectsInvalidFileAndMarksItRejected() {
         PaymentFileValidated validated = uploadAndAwaitValidation(
-                VALID_PAIN_001.replace("NL91ABNA0417164300", "NL91ABNA0417164301"));
+                validPain001(uniqueMessageId()).replace("NL91ABNA0417164300", "NL91ABNA0417164301"));
 
         assertThat(validated.accepted()).isFalse();
         assertThat(validated.violations()).extracting(Violation::reasonCode).containsExactly("AC03");
         assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
+    }
+
+    @Test
+    void rejectsResubmissionOfAnAcceptedMessageIdWithDu01() {
+        String xml = validPain001(uniqueMessageId());
+        PaymentFileValidated first = uploadAndAwaitValidation(xml);
+
+        PaymentFileValidated resubmission = uploadAndAwaitValidation(xml);
+
+        assertThat(first.accepted()).isTrue();
+        assertThat(resubmission.accepted()).isFalse();
+        assertThat(resubmission.violations())
+                .singleElement()
+                .satisfies(v -> {
+                    assertThat(v.reasonCode()).isEqualTo("DU01");
+                    assertThat(v.path()).isEqualTo("GrpHdr/MsgId");
+                });
+        assertThat(statusOf(resubmission.fileId())).isEqualTo("REJECTED");
+    }
+
+    @Test
+    void acceptsCorrectedResubmissionAfterARejection() {
+        String messageId = uniqueMessageId();
+        PaymentFileValidated rejected = uploadAndAwaitValidation(
+                validPain001(messageId).replace("NL91ABNA0417164300", "NL91ABNA0417164301"));
+
+        PaymentFileValidated corrected = uploadAndAwaitValidation(validPain001(messageId));
+
+        assertThat(rejected.accepted()).isFalse();
+        assertThat(corrected.accepted()).isTrue();
+    }
+
+    @Test
+    void scopesMessageIdsPerSubmitter() {
+        String messageId = uniqueMessageId();
+
+        assertThat(acceptedMessages.register("sftp:customer-a", messageId, UUID.randomUUID())).isTrue();
+        assertThat(acceptedMessages.register("sftp:customer-b", messageId, UUID.randomUUID())).isTrue();
+        assertThat(acceptedMessages.register("sftp:customer-a", messageId, UUID.randomUUID())).isFalse();
+    }
+
+    @Test
+    void registersAMessageIdExactlyOnceUnderConcurrentAcceptance() throws Exception {
+        String messageId = uniqueMessageId();
+        int contenders = 8;
+        var start = new CountDownLatch(1);
+        Callable<Boolean> register = () -> {
+            start.await();
+            return acceptedMessages.register("sftp:race", messageId, UUID.randomUUID());
+        };
+
+        try (var executor = Executors.newFixedThreadPool(contenders)) {
+            List<Future<Boolean>> results = IntStream.range(0, contenders)
+                    .mapToObj(i -> executor.submit(register)).toList();
+            start.countDown();
+
+            long winners = 0;
+            for (Future<Boolean> result : results) {
+                winners += result.get() ? 1 : 0;
+            }
+            assertThat(winners).isEqualTo(1);
+        }
     }
 
     private PaymentFileValidated uploadAndAwaitValidation(String xml) {

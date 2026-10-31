@@ -71,7 +71,7 @@ A **modular monolith** built with Spring Boot and Spring Modulith ([ADR-0002](..
 
 | Module | Responsibility |
 |---|---|
-| `intake` | Receive files from EBICS and SFTP (polled by the elected leader instance only, [ADR-0015](../adr/0015-leader-election-with-postgresql-locks.md)), store the raw file, compute SHA-256, reject duplicate files, start processing |
+| `intake` | Receive files from EBICS and SFTP (polled by the elected leader instance only, [ADR-0015](../adr/0015-leader-election-with-postgresql-locks.md)), store the raw file with its authenticated submitter and SHA-256, start processing |
 | `validation` | Format detection, XSD validation, streaming parse, rule evaluation |
 | `mandates` | SDD mandate store, mandate history, mandate lifecycle rules, management API |
 | `screening` | Sanctions, VoP and fraud checks, each behind its own port |
@@ -85,15 +85,13 @@ Internally each module follows a ports-and-adapters layout: the domain (model an
 
 ```mermaid
 flowchart TD
-    A[File received] --> B[Store raw file + SHA-256]
-    B --> C{Duplicate file?}
-    C -- yes --> R[REJECTED]
-    C -- no --> D[Detect format by namespace]
+    A[File received] --> B[Store raw file + submitter + SHA-256]
+    B --> D[Detect format by namespace]
     D --> E[Hardened XSD validation]
     E --> F[StAX streaming parse]
     F --> G[Group checks: NbOfTxs, CtrlSum]
     G --> H[Transaction rules per scheme/version/rulebook]
-    H --> I[Stateful checks: duplicate IDs, mandates]
+    H --> I[Stateful checks: MsgId not yet accepted for submitter, mandates]
     I --> J{Any violation?}
     J -- yes --> R
     J -- no --> K[Screening: sanctions, VoP, fraud]
@@ -148,8 +146,9 @@ public record Violation(
 | `GrpHdr/NbOfTxs` equals actual transaction count | AM18 |
 | `GrpHdr/CtrlSum` equals sum of amounts | AM10 |
 | Same checks per `PmtInf` | AM18 / AM10 |
-| `MsgId` unique per initiating party | DU01 |
-| `PmtInfId` unique within file and per initiating party | DU02 |
+| `MsgId` not yet accepted for the same submitter ([ADR-0016](../adr/0016-duplicate-detection-by-message-id.md)) | DU01 |
+| `PmtInfId` unique within file | DU02 |
+| `PmtInfId` unique per submitter across files (not yet implemented) | DU02 |
 
 **Transaction level — all schemes**
 
@@ -164,7 +163,7 @@ public record Violation(
 | Structured **or** unstructured remittance, not both | FF01 |
 | ISO 11649 creditor reference check digits | RR12 |
 | Postal address structured or hybrid (rulebook-version dependent) | RR (tbd) |
-| End-to-End ID unique within configurable window | DU05 |
+| End-to-End ID unique within configurable window (not yet implemented) | DU04 |
 
 **SCT / SCT Inst**
 
@@ -272,3 +271,4 @@ Test-first development; unit, integration and end-to-end tests for every feature
 | Q9 | Retention periods for raw files and audit data | Persistence, compliance |
 | Q10 | OpenShift version and admission mechanism for signature verification; Red Hat Trusted Artifact Signer / Trusted Profile Analyzer available? | ADR-0014 |
 | Q11 | Which CI system builds and signs (OpenShift Pipelines/Tekton, GitLab CI, Jenkins)? | ADR-0014 |
+| Q12 | How long must a `MsgId` stay unique per submitter (forever, or e.g. 90 days)? Does DK prescribe a window? | ADR-0016 |

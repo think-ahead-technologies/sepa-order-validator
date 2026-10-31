@@ -45,7 +45,7 @@ class AuditLogIntegrationTest {
         UUID fileId = UUID.randomUUID();
 
         transaction.executeWithoutResult(status -> {
-            publisher.publishEvent(new PaymentFileReceived(fileId, Channel.SFTP, "audit.xml", "ab12"));
+            publisher.publishEvent(new PaymentFileReceived(fileId, Channel.SFTP, "sftp:audit", "audit.xml", "ab12"));
             publisher.publishEvent(new PaymentFileValidated(fileId, "MSG-1", "pain.001.001.09", false,
                     List.of(new Violation("AC03", "PmtInf[1]/CdtTrfTxInf[1]/CdtrAcct/Id/IBAN", "Invalid IBAN"))));
             publisher.publishEvent(new StatusReportDelivered(fileId, "STS-1", GroupStatus.RJCT));
@@ -63,7 +63,7 @@ class AuditLogIntegrationTest {
     void auditTrailIsAppendOnly() {
         UUID fileId = UUID.randomUUID();
         transaction.executeWithoutResult(status ->
-                publisher.publishEvent(new PaymentFileReceived(fileId, Channel.SFTP, "audit.xml", "ab12")));
+                publisher.publishEvent(new PaymentFileReceived(fileId, Channel.SFTP, "sftp:audit", "audit.xml", "ab12")));
         await().atMost(TIMEOUT).untilAsserted(() -> assertThat(eventTypes(fileId)).hasSize(1));
 
         assertThatThrownBy(() -> jdbc.sql("update audit_event set event_type = 'tampered' where file_id = ?")

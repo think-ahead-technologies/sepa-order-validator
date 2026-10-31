@@ -26,7 +26,7 @@ class SftpInboundPoller {
         }
         for (String fileName : sftp.listInbound()) {
             byte[] content = sftp.readInbound(fileName);
-            UUID fileId = intake.receive(Channel.SFTP, fileName, content);
+            UUID fileId = intake.receive(Channel.SFTP, sftp.submitter(), fileName, content);
             sftp.moveToProcessed(fileName, fileId + "-" + fileName);
         }
     }

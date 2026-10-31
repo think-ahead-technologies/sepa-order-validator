@@ -43,6 +43,34 @@ class PaymentFileValidatorTest {
     }
 
     @Test
+    void rejectsRepeatedPaymentInformationIdWithinTheFile() {
+        ValidationResult result = validator.validate(bytes(withTwoPaymentInformationBlocks("PMT-001")));
+
+        assertThat(result.accepted()).isFalse();
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("DU02", "PmtInf[2]/PmtInfId"));
+    }
+
+    @Test
+    void acceptsSeveralPaymentInformationBlocksWithDistinctIds() {
+        ValidationResult result = validator.validate(bytes(withTwoPaymentInformationBlocks("PMT-002")));
+
+        assertThat(result.violations()).isEmpty();
+    }
+
+    private static String withTwoPaymentInformationBlocks(String secondPaymentInformationId) {
+        String first = VALID_PAIN_001.substring(VALID_PAIN_001.indexOf("<PmtInf>"),
+                VALID_PAIN_001.indexOf("</PmtInf>") + "</PmtInf>".length());
+        String second = first.replace("<PmtInfId>PMT-001</PmtInfId>",
+                "<PmtInfId>" + secondPaymentInformationId + "</PmtInfId>");
+        return VALID_PAIN_001
+                .replace(first, first + "\n    " + second)
+                .replace("<NbOfTxs>2</NbOfTxs>\n      <CtrlSum>150.50</CtrlSum>\n      <InitgPty>",
+                        "<NbOfTxs>4</NbOfTxs>\n      <CtrlSum>301.00</CtrlSum>\n      <InitgPty>");
+    }
+
+    @Test
     void rejectsSchemaInvalidFileWithFf01AndSkipsContentRules() {
         var xml = VALID_PAIN_001
                 .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>XYZ</PmtMtd>")

@@ -25,6 +25,13 @@ class SftpChannel {
         this.properties = properties;
     }
 
+    /**
+     * Identity of whoever submits files on this channel: the authenticated SFTP account.
+     */
+    String submitter() {
+        return "sftp:" + properties.username();
+    }
+
     List<String> listInbound() {
         try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
             return Arrays.stream(session.list(properties.inboundDirectory()))

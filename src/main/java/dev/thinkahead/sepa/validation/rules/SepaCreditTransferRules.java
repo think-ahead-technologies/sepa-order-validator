@@ -12,18 +12,18 @@ import java.util.List;
 
 public final class SepaCreditTransferRules implements Pain001Handler {
 
-    private static final List<ValidationRule<PaymentInformation>> PAYMENT_INFORMATION_RULES =
-            List.of(new DebtorIbanRule());
     private static final List<ValidationRule<CreditTransferTransaction>> TRANSACTION_RULES =
             List.of(new CreditorIbanRule(), new EuroCurrencyRule());
     private static final List<ValidationRule<Totals>> TOTALS_RULES =
             List.of(new NumberOfTransactionsRule(), new ControlSumRule());
 
+    private final List<ValidationRule<PaymentInformation>> paymentInformationRules =
+            List.of(new DebtorIbanRule(), new UniquePaymentInformationIdRule());
     private final List<Violation> violations = new ArrayList<>();
 
     @Override
     public void paymentInformation(PaymentInformation paymentInformation) {
-        apply(PAYMENT_INFORMATION_RULES, paymentInformation);
+        apply(paymentInformationRules, paymentInformation);
     }
 
     @Override

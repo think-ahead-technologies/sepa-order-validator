@@ -22,11 +22,11 @@ class PaymentFileIntake {
     }
 
     @Transactional
-    UUID receive(Channel channel, String fileName, byte[] content) {
+    UUID receive(Channel channel, String submitter, String fileName, byte[] content) {
         UUID id = UUID.randomUUID();
         String sha256 = sha256(content);
-        repository.insert(id, channel, fileName, sha256, content);
-        events.publishEvent(new PaymentFileReceived(id, channel, fileName, sha256));
+        repository.insert(id, channel, submitter, fileName, sha256, content);
+        events.publishEvent(new PaymentFileReceived(id, channel, submitter, fileName, sha256));
         return id;
     }
 

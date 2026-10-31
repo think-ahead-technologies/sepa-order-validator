@@ -19,3 +19,4 @@ Decisions for the SEPA Payment Order Validator. Format: [Michael Nygard's ADR te
 | [0013](0013-pain002-as-customer-status-report.md) | pain.002 as the customer status report | Accepted |
 | [0014](0014-supply-chain-sbom-signing-verification.md) | Supply chain: SBOM, signing and verification | Accepted |
 | [0015](0015-leader-election-with-postgresql-locks.md) | Leader election with PostgreSQL locks | Accepted |
+| [0016](0016-duplicate-detection-by-message-id.md) | Duplicate detection by message id per submitter | Accepted |

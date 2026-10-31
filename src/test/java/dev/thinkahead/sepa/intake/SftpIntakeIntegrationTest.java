@@ -53,12 +53,14 @@ class SftpIntakeIntegrationTest {
 
         String expectedHash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
         assertThat(received.channel()).isEqualTo(Channel.SFTP);
+        assertThat(received.submitter()).isEqualTo("sftp:sepa");
         assertThat(received.sha256()).isEqualTo(expectedHash);
-        assertThat(jdbc.sql("select status, sha256, channel from payment_file where id = ?")
+        assertThat(jdbc.sql("select status, sha256, channel, submitter from payment_file where id = ?")
                 .param(received.fileId())
-                .query((rs, n) -> rs.getString(1) + "|" + rs.getString(2) + "|" + rs.getString(3))
+                .query((rs, n) -> rs.getString(1) + "|" + rs.getString(2) + "|" + rs.getString(3)
+                        + "|" + rs.getString(4))
                 .single())
-                .isEqualTo("RECEIVED|" + expectedHash + "|SFTP");
+                .isEqualTo("RECEIVED|" + expectedHash + "|SFTP|sftp:sepa");
         assertThat(paymentFiles.content(received.fileId())).isEqualTo(content);
     }
 

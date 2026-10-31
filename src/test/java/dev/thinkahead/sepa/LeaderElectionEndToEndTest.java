@@ -2,7 +2,8 @@
 // ABOUTME: Proves each file is processed exactly once, and that leadership fails over on shutdown and crash.
 package dev.thinkahead.sepa;
 
-import static dev.thinkahead.sepa.Fixtures.VALID_PAIN_001;
+import static dev.thinkahead.sepa.Fixtures.uniqueMessageId;
+import static dev.thinkahead.sepa.Fixtures.validPain001;
 import static dev.thinkahead.sepa.Fixtures.bytes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -64,7 +65,7 @@ class LeaderElectionEndToEndTest {
         startInstance();
 
         List<String> fileNames = IntStream.range(0, 10).mapToObj(i -> "cluster-" + UUID.randomUUID() + ".xml").toList();
-        fileNames.forEach(name -> customer.upload("inbound", name, bytes(VALID_PAIN_001)));
+        fileNames.forEach(name -> customer.upload("inbound", name, bytes(validPain001(uniqueMessageId()))));
 
         await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("outbound")).hasSize(fileNames.size()));
         assertThat(jdbc.sql("select file_name from payment_file").query(String.class).list())
@@ -81,7 +82,7 @@ class LeaderElectionEndToEndTest {
 
         leader.close();
         String fileName = "failover-" + UUID.randomUUID() + ".xml";
-        customer.upload("inbound", fileName, bytes(VALID_PAIN_001));
+        customer.upload("inbound", fileName, bytes(validPain001(uniqueMessageId())));
 
         awaitStatusReportFor(fileName);
         assertThat(currentLockHolder()).isNotEqualTo(leaderClient);
@@ -100,7 +101,7 @@ class LeaderElectionEndToEndTest {
 
         startInstance();
         String fileName = "after-crash-" + UUID.randomUUID() + ".xml";
-        customer.upload("inbound", fileName, bytes(VALID_PAIN_001));
+        customer.upload("inbound", fileName, bytes(validPain001(uniqueMessageId())));
 
         Thread.sleep(1_500);
         assertThat(customer.list("inbound")).as("not polled while the crashed leader's lock is valid")

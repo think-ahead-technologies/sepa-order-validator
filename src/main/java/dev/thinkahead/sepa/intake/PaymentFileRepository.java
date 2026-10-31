@@ -15,12 +15,13 @@ class PaymentFileRepository {
         this.jdbc = jdbc;
     }
 
-    void insert(UUID id, Channel channel, String fileName, String sha256, byte[] content) {
+    void insert(UUID id, Channel channel, String submitter, String fileName, String sha256, byte[] content) {
         jdbc.sql("""
-                        insert into payment_file (id, channel, file_name, sha256, content, status)
-                        values (:id, :channel, :fileName, :sha256, :content, :status)""")
+                        insert into payment_file (id, channel, submitter, file_name, sha256, content, status)
+                        values (:id, :channel, :submitter, :fileName, :sha256, :content, :status)""")
                 .param("id", id)
                 .param("channel", channel.name())
+                .param("submitter", submitter)
                 .param("fileName", fileName)
                 .param("sha256", sha256)
                 .param("content", content)

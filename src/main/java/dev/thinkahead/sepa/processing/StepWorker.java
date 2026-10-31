@@ -7,10 +7,13 @@ import dev.thinkahead.sepa.processing.WorkItemRepository.ClaimedItem;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -109,11 +112,40 @@ final class StepWorker {
                 return;
             }
             try {
-                Completion completion = step.perform(item.fileId(), Instant.now().plus(settings.timeout()));
+                Completion completion = performWithinHardStop(item);
                 completeWith(item, completion);
             } catch (RuntimeException e) {
                 handleFailure(item, e);
             }
+        }
+    }
+
+    /**
+     * Runs the step's work in its own thread and interrupts it at the hard stop, so a hanging attempt (e.g. on an
+     * unresponsive SFTP server) ends before its lease expires and another worker could start.
+     */
+    private Completion performWithinHardStop(ClaimedItem item) {
+        Instant deadline = Instant.now().plus(settings.timeout());
+        var work = new FutureTask<>(() -> {
+            try (var ignored = LogContext.scopedToFile(item.fileId())) {
+                return step.perform(item.fileId(), deadline);
+            }
+        });
+        Thread.ofVirtual().name(Thread.currentThread().getName() + "-work").start(work);
+        try {
+            return work.get(settings.hardStopAfter().toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            work.cancel(true);
+            throw new StepTimedOut(step.step(), settings.timeout());
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof RuntimeException failure) {
+                throw failure;
+            }
+            throw new IllegalStateException(step.step() + " failed", e.getCause());
+        } catch (InterruptedException e) {
+            work.cancel(true);
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(step.step() + " was interrupted by shutdown", e);
         }
     }
 

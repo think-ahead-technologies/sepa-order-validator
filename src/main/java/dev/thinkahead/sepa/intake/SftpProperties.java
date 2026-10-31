@@ -13,6 +13,7 @@ import org.springframework.util.StringUtils;
  * @param privateKeyPassphrase passphrase of the private key, if it is encrypted
  * @param stagingDirectory     where reports are written before the rename into outbound; same file system as outbound
  * @param pollInterval         pause between the end of one inbound poll and the start of the next
+ * @param timeout              bounds connecting, logging in and waiting on an unresponsive server
  */
 @ConfigurationProperties("sepa.sftp")
 record SftpProperties(
@@ -28,7 +29,8 @@ record SftpProperties(
         String processedDirectory,
         String outboundDirectory,
         String stagingDirectory,
-        Duration pollInterval) {
+        Duration pollInterval,
+        Duration timeout) {
 
     SftpProperties {
         if (!StringUtils.hasText(host)) {
@@ -52,6 +54,9 @@ record SftpProperties(
         }
         if (pollInterval == null || !pollInterval.isPositive()) {
             throw new IllegalArgumentException("sepa.sftp.poll-interval must be positive, was " + pollInterval);
+        }
+        if (timeout == null || !timeout.isPositive()) {
+            throw new IllegalArgumentException("sepa.sftp.timeout must be positive, was " + timeout);
         }
     }
 }

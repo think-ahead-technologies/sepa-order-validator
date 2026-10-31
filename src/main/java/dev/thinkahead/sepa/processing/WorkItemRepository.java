@@ -91,6 +91,17 @@ class WorkItemRepository {
                 .update() == 1;
     }
 
+    /**
+     * @return number of DONE items completed longer ago than the retention that were deleted
+     */
+    int deleteDoneBefore(Duration retention) {
+        return jdbc.sql("""
+                        delete from work_item
+                        where state = 'DONE' and completed_at < now() - make_interval(secs => ?)""")
+                .param(retention.toSeconds())
+                .update();
+    }
+
     private static String truncate(String error) {
         return error.length() <= MAX_ERROR_LENGTH ? error : error.substring(0, MAX_ERROR_LENGTH);
     }

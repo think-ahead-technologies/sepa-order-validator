@@ -149,10 +149,8 @@ class StatusReportIntegrationTest {
     }
 
     private void reDrive(UUID fileId, String step) {
-        jdbc.sql("""
-                        update work_item set state = 'PENDING', next_attempt_at = now(), lease_token = null,
-                                             locked_until = null
-                        where file_id = ? and step = ?""").params(fileId, step).update();
+        jdbc.sql("select redrive_work_item(?, ?, 'test', 'integration test re-drive')").params(fileId, step)
+                .query(String.class).single();
     }
 
     private String itemState(UUID fileId, String step) {

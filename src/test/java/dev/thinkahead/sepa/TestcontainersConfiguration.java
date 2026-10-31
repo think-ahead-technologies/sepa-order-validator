@@ -6,10 +6,16 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import org.apache.sshd.common.keyprovider.KeyIdentityProvider;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -19,6 +25,7 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.integration.sftp.session.DefaultSftpSessionFactory;
 import org.springframework.test.context.DynamicPropertyRegistrar;
 import org.springframework.util.function.SingletonSupplier;
+import org.testcontainers.containers.Container;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
@@ -30,6 +37,7 @@ public class TestcontainersConfiguration {
     static final String SFTP_USER = "sepa";
     static final String SFTP_PASSWORD = "sepa-test-password";
     static final int SFTP_PORT = 22;
+    private static final Duration EXEC_TIMEOUT = Duration.ofSeconds(30);
 
     private static final List<String> APPLICATION_PROPERTY_NAMES = List.of(
             "sepa.sftp.host", "sepa.sftp.port", "sepa.sftp.username", "sepa.sftp.password",
@@ -152,9 +160,32 @@ public class TestcontainersConfiguration {
         }
     }
 
+    /**
+     * Runs docker exec with a time limit, so a hanging Docker daemon fails the test instead of stalling the build.
+     */
+    private static Container.ExecResult withinExecTimeout(Callable<Container.ExecResult> exec)
+            throws IOException, InterruptedException {
+        var task = new FutureTask<>(exec);
+        Thread.ofVirtual().name("docker-exec").start(task);
+        try {
+            return task.get(EXEC_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            task.cancel(true);
+            throw new IllegalStateException("docker exec did not return within " + EXEC_TIMEOUT);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IOException io) {
+                throw io;
+            }
+            if (e.getCause() instanceof InterruptedException interrupted) {
+                throw interrupted;
+            }
+            throw new IllegalStateException("docker exec failed", e.getCause());
+        }
+    }
+
     private static String exec(GenericContainer<?> container, String... command) {
         try {
-            var result = container.execInContainer(command);
+            var result = withinExecTimeout(() -> container.execInContainer(command));
             if (result.getExitCode() != 0) {
                 throw new IllegalStateException("Command " + String.join(" ", command) + " failed: "
                         + result.getStderr());
@@ -172,7 +203,7 @@ public class TestcontainersConfiguration {
         try {
             var knownHosts = new StringBuilder();
             for (String hostKey : HOST_KEYS) {
-                String publicKey = sftp.execInContainer("cat", hostKey).getStdout().trim();
+                String publicKey = exec(sftp, "cat", hostKey).trim();
                 String[] typeAndKey = publicKey.split(" ");
                 knownHosts.append("[").append(sftp.getHost()).append("]:").append(sftp.getMappedPort(SFTP_PORT))
                         .append(' ').append(typeAndKey[0]).append(' ').append(typeAndKey[1]).append('\n');
@@ -182,9 +213,6 @@ public class TestcontainersConfiguration {
             return Files.writeString(file, knownHosts);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException(e);
         }
     }
 }

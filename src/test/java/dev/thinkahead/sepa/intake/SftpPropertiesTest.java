@@ -31,7 +31,7 @@ class SftpPropertiesTest {
     void requiresKnownHosts() {
         assertThatIllegalArgumentException().isThrownBy(() -> new SftpProperties("sftp.example", 22, "customer",
                         "secret", null, null, null, "inbound", "processing", "processed", "outbound", "staging",
-                        Duration.ofSeconds(5)))
+                        Duration.ofSeconds(5), Duration.ofSeconds(30)))
                 .withMessageContaining("sepa.sftp.known-hosts");
     }
 
@@ -75,8 +75,16 @@ class SftpPropertiesTest {
     void requiresAStagingDirectory() {
         assertThatIllegalArgumentException().isThrownBy(() -> new SftpProperties("sftp.example", 22, "customer",
                         "secret", null, null, KNOWN_HOSTS, "inbound", "processing", "processed", "outbound", " ",
-                        Duration.ofSeconds(5)))
+                        Duration.ofSeconds(5), Duration.ofSeconds(30)))
                 .withMessageContaining("sepa.sftp.staging-directory");
+    }
+
+    @Test
+    void requiresAPositiveTimeout() {
+        assertThatIllegalArgumentException().isThrownBy(() -> new SftpProperties("sftp.example", 22, "customer",
+                        "secret", null, null, KNOWN_HOSTS, "inbound", "processing", "processed", "outbound", "staging",
+                        Duration.ofSeconds(5), Duration.ZERO))
+                .withMessageContaining("sepa.sftp.timeout");
     }
 
     @Test
@@ -92,6 +100,6 @@ class SftpPropertiesTest {
     private static SftpProperties properties(String host, int port, String username, String password,
             Resource privateKey, Duration pollInterval) {
         return new SftpProperties(host, port, username, password, privateKey, null, KNOWN_HOSTS,
-                "inbound", "processing", "processed", "outbound", "staging", pollInterval);
+                "inbound", "processing", "processed", "outbound", "staging", pollInterval, Duration.ofSeconds(30));
     }
 }

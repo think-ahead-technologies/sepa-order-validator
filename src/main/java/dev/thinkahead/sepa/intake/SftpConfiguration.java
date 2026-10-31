@@ -2,8 +2,11 @@
 // ABOUTME: Authenticates only with the configured password or private key, never with keys from the user's ~/.ssh.
 package dev.thinkahead.sepa.intake;
 
+import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.password.PasswordIdentityProvider;
 import org.apache.sshd.common.keyprovider.KeyIdentityProvider;
+import org.apache.sshd.core.CoreModuleProperties;
+import org.apache.sshd.sftp.SftpModuleProperties;
 import org.apache.sshd.sftp.client.SftpClient;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -28,18 +31,32 @@ class SftpConfiguration {
         factory.setPort(properties.port());
         factory.setUser(properties.username());
         factory.setKnownHostsResource(properties.knownHosts());
+        factory.setTimeout(Math.toIntExact(properties.timeout().toMillis()));
         if (properties.privateKey() != null) {
             factory.setPrivateKey(properties.privateKey());
             factory.setPrivateKeyPassphrase(properties.privateKeyPassphrase());
             // The configured key has replaced the default key provider; only password login is left to disable.
-            factory.setSshClientConfigurer(client ->
-                    client.setPasswordIdentityProvider(PasswordIdentityProvider.EMPTY_PASSWORDS_PROVIDER));
+            factory.setSshClientConfigurer(client -> {
+                applyTimeouts(client, properties);
+                client.setPasswordIdentityProvider(PasswordIdentityProvider.EMPTY_PASSWORDS_PROVIDER);
+            });
         } else {
             factory.setPassword(properties.password());
-            factory.setSshClientConfigurer(client ->
-                    client.setKeyIdentityProvider(KeyIdentityProvider.EMPTY_KEYS_PROVIDER));
+            factory.setSshClientConfigurer(client -> {
+                applyTimeouts(client, properties);
+                client.setKeyIdentityProvider(KeyIdentityProvider.EMPTY_KEYS_PROVIDER);
+            });
         }
         return factory;
+    }
+
+    /**
+     * A connection without any traffic for the timeout is closed, which also ends requests waiting on a server that
+     * stopped responding.
+     */
+    private static void applyTimeouts(SshClient client, SftpProperties properties) {
+        CoreModuleProperties.IDLE_TIMEOUT.set(client, properties.timeout());
+        SftpModuleProperties.SFTP_CHANNEL_OPEN_TIMEOUT.set(client, properties.timeout());
     }
 
     /**

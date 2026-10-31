@@ -38,6 +38,14 @@ record StepSettings(int workers, Duration lease, Duration timeout, int maxAttemp
     }
 
     /**
+     * When the worker interrupts an attempt still running: halfway between its timeout and the end of its lease, so
+     * a step that honours its deadline is never interrupted and no second worker can start meanwhile.
+     */
+    Duration hardStopAfter() {
+        return timeout.plus(lease.minus(timeout).dividedBy(2));
+    }
+
+    /**
      * @param failedAttempt number of the attempt that just failed, starting at 1
      */
     Duration backoffAfter(int failedAttempt) {

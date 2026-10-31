@@ -73,20 +73,22 @@ External side effects (`DELIVER`) must be safe to repeat:
 ### Bounded workers, leases and timeouts
 
 - **Workers.** Each step type has its own fixed-size worker pool (`sepa.processing.<step>.workers`). This bounds memory and database connections per stage, and a slow customer SFTP server stalls only delivery.
-- **Connection pool.** The pool is sized as the sum of all worker pools plus headroom for intake, leader election, the event publication registry, housekeeping, the actuator health check and the metrics gauges that query on every scrape (ADR-0018). Startup fails if it is smaller.
+- **Connection pool.** The pool must cover the sum of all worker pools plus a headroom of 4 connections for intake, leader election, the overdue-reply gauge and monitor, and the actuator health check (ADR-0018). Startup fails if it is smaller, naming the size needed.
 - **Connection limits across instances.** Instances × pool size must stay below PostgreSQL's `max_connections`, minus what other clients and migrations need.
 - **Leases and timeouts.**
-  - Every step has a timeout: SFTP connect, read and write timeouts, a JDBC statement timeout, and for `VALIDATE` a deadline on parsing and rule checks.
+  - Every step has a timeout (`sepa.processing.<step>.timeout`) and receives its deadline. `VALIDATE` stops reading the file at the deadline.
   - The lease (`sepa.processing.<step>.lease`) must exceed the step timeout, and startup fails otherwise.
-  - There is no lease renewal. A step that cannot finish within its lease is treated as failed.
+  - The worker interrupts an attempt still running halfway between its timeout and the end of its lease, and counts it as failed. So a hanging attempt, e.g. on an unresponsive SFTP server, ends before another worker can take the item over.
+  - SFTP connect and login, and any connection without traffic, are bounded by `sepa.sftp.timeout` (30 s), so an interrupted attempt does not leave a connection hanging.
+  - There is no lease renewal.
 - **Retries.**
   - A failed attempt sets `next_attempt_at` with exponential backoff.
   - Attempts are counted when an item is claimed, so a file that crashes the worker every time (e.g. out of memory) stops after `max-attempts` instead of crash-looping across instances.
   - After `sepa.processing.<step>.max-attempts`, the item becomes `FAILED` and an alert is raised. Overdue replies remain alerted as today.
   - `VALIDATE` never ends without a customer reply. A deterministic validation failure and a validation running past its deadline yield a technical rejection (`FF01`) at once, because a retry would fail the same way. Exhausting the attempts (e.g. a file that crashes its worker every time) records the same rejection as the step's fallback outcome, without loading the file again.
-  - A `FAILED` `DELIVER` or `REPORT` item is re-driven by operations through a documented procedure that resets the item to `PENDING` and writes an audit entry for the manual intervention. It becomes a management API once management APIs have OAuth2 (design §10).
+  - A `FAILED` `DELIVER` or `REPORT` item is re-driven by operations with the database function `redrive_work_item(file, step, operator, reason)` ([runbook](../operations/redrive-work-items.md)). In one statement, it makes the item due again with fresh attempts and writes a `WorkItemRedriven` audit entry naming the operator and reason. It becomes a management API once management APIs have OAuth2 (design §10).
 - **Polling.** One poller per step and instance looks for due items every `sepa.processing.<step>.poll-interval` (default 1 s) while workers are free, and hands claimed items to the step's worker pool; it polls again immediately while items are found. Idle load is one query per step and instance per interval, not one per worker.
-- **Housekeeping.** `DONE` items are deleted after a retention period; the audit trail keeps the history.
+- **Housekeeping.** `DONE` items are deleted after `sepa.processing.retention` (7 days), checked every `sepa.processing.housekeeping-interval` (1 h) on every instance; the audit trail keeps the history. `FAILED` items stay until they are re-driven.
 
 ### Modules and Spring Modulith
 

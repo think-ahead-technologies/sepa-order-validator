@@ -27,11 +27,14 @@ sepa:
     outbound-directory: outbound
     staging-directory: staging
     poll-interval: PT5S
+    timeout: PT30S
   intake:
     max-file-size: 100MB
     reply-overdue-after: PT10M
     reply-check-interval: PT1M
   processing:
+    retention: P7D
+    housekeeping-interval: PT1H
     validate:
       workers: 2
       lease: PT10M

@@ -47,6 +47,11 @@ class StepSettingsTest {
     }
 
     @Test
+    void stopsAnAttemptHalfwayBetweenItsTimeoutAndTheEndOfTheLease() {
+        assertThat(SETTINGS.hardStopAfter()).isEqualTo(Duration.ofSeconds(90));
+    }
+
+    @Test
     void requiresTheTimeoutToBePositiveAndBelowTheLease() {
         assertThatIllegalArgumentException().isThrownBy(() -> new StepSettings(2, Duration.ofMinutes(2),
                 Duration.ZERO, 10, Duration.ofSeconds(1), Duration.ofSeconds(10), Duration.ofMinutes(10)))

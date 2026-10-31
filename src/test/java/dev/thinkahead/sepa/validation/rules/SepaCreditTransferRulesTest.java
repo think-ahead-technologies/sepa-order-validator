@@ -8,14 +8,17 @@ import dev.thinkahead.sepa.validation.Violation;
 import dev.thinkahead.sepa.validation.pain001.CreditTransferTransaction;
 import dev.thinkahead.sepa.validation.pain001.RemittanceInformation;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class SepaCreditTransferRulesTest {
 
+    private static final LocalDate TODAY = LocalDate.of(2026, 10, 30);
+
     @Test
     void reportsEveryViolationUpToTheCap() {
-        var rules = new SepaCreditTransferRules(5);
+        var rules = new SepaCreditTransferRules(5, TODAY);
 
         invalidTransactions(rules, 3);
 
@@ -24,7 +27,7 @@ class SepaCreditTransferRulesTest {
 
     @Test
     void summarisesViolationsBeyondTheCapInOneNarrativeEntry() {
-        var rules = new SepaCreditTransferRules(2);
+        var rules = new SepaCreditTransferRules(2, TODAY);
 
         invalidTransactions(rules, 5);
 

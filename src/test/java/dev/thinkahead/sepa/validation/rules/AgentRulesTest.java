@@ -9,6 +9,7 @@ import dev.thinkahead.sepa.validation.pain001.CreditTransferTransaction;
 import dev.thinkahead.sepa.validation.pain001.PaymentInformation;
 import dev.thinkahead.sepa.validation.pain001.RemittanceInformation;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
 class AgentRulesTest {
@@ -17,7 +18,8 @@ class AgentRulesTest {
     private final CreditorAgentRule creditorAgentRule = new CreditorAgentRule();
 
     private static PaymentInformation paymentInformation(Agent debtorAgent) {
-        return new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013000", debtorAgent);
+        return new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013000", debtorAgent,
+                LocalDate.of(2026, 11, 2));
     }
 
     private static CreditTransferTransaction transaction(Agent creditorAgent) {

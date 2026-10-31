@@ -10,15 +10,57 @@ import static dev.thinkahead.sepa.Fixtures.withSepaFieldRuleViolations;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
 
 class PaymentFileValidatorTest {
 
     private static final Instant NO_DEADLINE = Instant.now().plus(Duration.ofHours(1));
 
-    private final PaymentFileValidator validator = new PaymentFileValidator();
+    private static final Clock FRIDAY_30_OCTOBER_2026 = clockAt("2026-10-30T09:00:00Z");
+
+    private final PaymentFileValidator validator = new PaymentFileValidator(FRIDAY_30_OCTOBER_2026);
+
+    private static Clock clockAt(String instant) {
+        return Clock.fixed(Instant.parse(instant), ZoneOffset.UTC);
+    }
+
+    @Test
+    void rejectsAnExecutionDateInThePastWithDt01() {
+        var xml = VALID_PAIN_001.replace("<Dt>2026-11-02</Dt>", "<Dt>2026-10-29</Dt>");
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.accepted()).isFalse();
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(tuple("DT01", "PmtInf[1]/ReqdExctnDt"));
+    }
+
+    @Test
+    void rejectsAnExecutionDateOnAWeekendWithDt01() {
+        var xml = VALID_PAIN_001.replace("<Dt>2026-11-02</Dt>", "<Dt>2026-11-07</Dt>");
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(tuple("DT01", "PmtInf[1]/ReqdExctnDt"));
+    }
+
+    @Test
+    void judgesThePastByTheCalendarDateInFrankfurt() {
+        // 2 November 2026, 23:30 in Frankfurt, but already 3 November there at 00:30 (UTC+1).
+        var lateEvening = new PaymentFileValidator(clockAt("2026-11-02T22:30:00Z"));
+        var afterMidnight = new PaymentFileValidator(clockAt("2026-11-02T23:30:00Z"));
+
+        assertThat(lateEvening.validate(bytes(VALID_PAIN_001), NO_DEADLINE).violations()).isEmpty();
+        assertThat(afterMidnight.validate(bytes(VALID_PAIN_001), NO_DEADLINE).violations())
+                .extracting(Violation::reasonCode).containsExactly("DT01");
+    }
 
     @Test
     void rejectsAFileWhoseValidationRunsPastTheDeadlineWithFf01() {

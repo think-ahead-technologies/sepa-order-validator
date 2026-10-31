@@ -128,6 +128,19 @@ class PaymentFileProcessingEndToEndTest {
     }
 
     @Test
+    void executionOnAWeekendIsRejectedWithDt01() throws Exception {
+        java.time.LocalDate saturday = Fixtures.futureExecutionDate()
+                .with(java.time.temporal.TemporalAdjusters.next(java.time.DayOfWeek.SATURDAY));
+
+        Delivery delivery = submit(validPain001(uniqueMessageId(), saturday));
+
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(reasonCodes(delivery.report())).containsExactly("DT01");
+        assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
+        assertAuditTrailComplete(delivery.fileName());
+    }
+
+    @Test
     void schemaInvalidFileIsRejectedWithFf01() throws Exception {
         Delivery delivery = submit(validPain001(uniqueMessageId())
                 .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>XYZ</PmtMtd>"));

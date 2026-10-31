@@ -1,17 +1,21 @@
 // ABOUTME: Loads real pain.001 sample files from test resources for use across all test levels.
-// ABOUTME: Tests derive invalid variants from the valid sample by targeted text replacement.
+// ABOUTME: Tests derive variants from the valid sample by targeted text replacement, with a future execution date.
 package dev.thinkahead.sepa;
 
+import dev.thinkahead.sepa.validation.rules.TargetCalendar;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.UUID;
 
 public final class Fixtures {
 
     public static final String VALID_PAIN_001 = load("/fixtures/valid-pain.001.001.09.xml");
     public static final String SAMPLE_MESSAGE_ID = "MSG-2026-10-31-001";
+    public static final LocalDate SAMPLE_EXECUTION_DATE = LocalDate.of(2026, 11, 2);
 
     private Fixtures() {
     }
@@ -23,8 +27,29 @@ public final class Fixtures {
         return "M" + UUID.randomUUID().toString().replace("-", "");
     }
 
+    /**
+     * The valid sample with the given MsgId, executed on {@link #futureExecutionDate()} so it passes DT01 whenever the
+     * tests run.
+     */
     public static String validPain001(String messageId) {
-        return VALID_PAIN_001.replace("<MsgId>" + SAMPLE_MESSAGE_ID + "</MsgId>", "<MsgId>" + messageId + "</MsgId>");
+        return validPain001(messageId, futureExecutionDate());
+    }
+
+    public static String validPain001(String messageId, LocalDate executionDate) {
+        return VALID_PAIN_001
+                .replace("<MsgId>" + SAMPLE_MESSAGE_ID + "</MsgId>", "<MsgId>" + messageId + "</MsgId>")
+                .replace("<Dt>" + SAMPLE_EXECUTION_DATE + "</Dt>", "<Dt>" + executionDate + "</Dt>");
+    }
+
+    /**
+     * The first TARGET business day at least two days after today in Frankfurt.
+     */
+    public static LocalDate futureExecutionDate() {
+        LocalDate date = LocalDate.now(ZoneId.of("Europe/Berlin")).plusDays(2);
+        while (!TargetCalendar.isBusinessDay(date)) {
+            date = date.plusDays(1);
+        }
+        return date;
     }
 
     /**
@@ -74,13 +99,18 @@ public final class Fixtures {
     }
 
     /**
-     * The valid sample executed on 23 November 2026, the first business day on which SEPA allows only structured and
-     * hybrid addresses, so the unstructured creditor address of the second transaction is rejected (RR03); the first
+     * The valid sample executed on 23 November 2026 (the first business day on which SEPA allows only structured and
+     * hybrid addresses) or later, with an unstructured creditor address in the second transaction (RR03); the first
      * transaction lacks its creditor name (RR03).
      */
     public static String withCreditorNameAndAddressViolations(String messageId) {
-        return validPain001(messageId)
-                .replace("<Dt>2026-11-02</Dt>", "<Dt>2026-11-23</Dt>")
+        LocalDate firstBusinessDayWithStructuredAddresses = LocalDate.of(2026, 11, 23);
+        LocalDate future = futureExecutionDate();
+        return validPain001(messageId,
+                future.isAfter(firstBusinessDayWithStructuredAddresses) ? future : firstBusinessDayWithStructuredAddresses)
+                .replace("<TwnNm>Paris</TwnNm>", "")
+                .replace("<AdrLine>12 Rue de la Paix</AdrLine>",
+                        "<AdrLine>12 Rue de la Paix</AdrLine><AdrLine>75002 Paris</AdrLine>")
                 .replace("<Nm>Lieferant AG</Nm>", "");
     }
 

@@ -9,6 +9,7 @@ import dev.thinkahead.sepa.validation.pain001.CreditTransferTransaction;
 import dev.thinkahead.sepa.validation.pain001.PaymentInformation;
 import dev.thinkahead.sepa.validation.pain001.RemittanceInformation;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
 class TransactionRulesTest {
@@ -44,7 +45,8 @@ class TransactionRulesTest {
 
     @Test
     void debtorIbanRuleReportsAc02WithLocation() {
-        var pmtInf = new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013001", null);
+        var pmtInf = new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013001", null,
+                LocalDate.of(2026, 11, 2));
 
         assertThat(new DebtorIbanRule().validate(pmtInf))
                 .singleElement()
@@ -56,7 +58,8 @@ class TransactionRulesTest {
 
     @Test
     void debtorIbanRuleAcceptsValidIban() {
-        var pmtInf = new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013000", null);
+        var pmtInf = new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013000", null,
+                LocalDate.of(2026, 11, 2));
 
         assertThat(new DebtorIbanRule().validate(pmtInf)).isEmpty();
     }

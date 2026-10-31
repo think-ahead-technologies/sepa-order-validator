@@ -11,7 +11,10 @@ import dev.thinkahead.sepa.validation.xml.SchemaError;
 import dev.thinkahead.sepa.validation.xml.SchemaValidator;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -22,12 +25,20 @@ class PaymentFileValidator {
 
     static final String INVALID_FILE_FORMAT = "FF01";
 
+    /** The bank's time zone: it decides which calendar day "today" is for execution dates. */
+    static final ZoneId BANK_ZONE = ZoneId.of("Europe/Berlin");
+
     /** Upper bound of violations listed per file, keeping pain.002 reports and memory use bounded. */
     static final int MAX_REPORTED_VIOLATIONS = 1_000;
 
     private final FormatDetector formatDetector = new FormatDetector();
     private final SchemaValidator schemaValidator = new SchemaValidator(MAX_REPORTED_VIOLATIONS);
     private final Pain001Parser parser = new Pain001Parser();
+    private final Clock clock;
+
+    PaymentFileValidator(Clock clock) {
+        this.clock = clock;
+    }
 
     /**
      * @param deadline once passed, validation stops and the file is rejected with FF01 (time limit)
@@ -57,7 +68,7 @@ class PaymentFileValidator {
                     .toList());
         }
 
-        var rules = new SepaCreditTransferRules(MAX_REPORTED_VIOLATIONS);
+        var rules = new SepaCreditTransferRules(MAX_REPORTED_VIOLATIONS, LocalDate.now(clock.withZone(BANK_ZONE)));
         GroupHeader header = beforeDeadline(deadline, () -> parser.parse(read(content, deadline), rules));
         return new ValidationResult(header.messageId(), format.messageNameId(), rules.violations());
     }

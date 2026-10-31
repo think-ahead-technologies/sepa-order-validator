@@ -170,7 +170,7 @@ public record Violation(
 
 | Rule | Reason code |
 |---|---|
-| Requested execution date is a TARGET business day and not in the past | DT01 |
+| Requested execution date is a TARGET business day (closed on weekends, 1 January, Good Friday, Easter Monday, 1 May, 25 and 26 December) and not before today in Europe/Berlin | DT01 |
 | SCT Inst amount within configured limits (scheme and customer) | AM02 |
 
 **SDD Core / B2B**

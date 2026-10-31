@@ -60,7 +60,7 @@ class Pain001ParserTest {
                 new PostalAddress("PmtInf[1]/CdtTrfTxInf[1]/Cdtr/PstlAdr", Party.CREDITOR, executionDate,
                         1, true, true, true),
                 new PostalAddress("PmtInf[1]/CdtTrfTxInf[2]/Cdtr/PstlAdr", Party.CREDITOR, executionDate,
-                        2, false, true, false));
+                        1, true, true, true));
     }
 
     @Test
@@ -72,6 +72,8 @@ class Pain001ParserTest {
         assertThat(handler.postalAddresses)
                 .allSatisfy(address -> assertThat(address.requestedExecutionDate())
                         .isEqualTo(LocalDate.of(2026, 11, 23)));
+        assertThat(handler.paymentInformation.getFirst().requestedExecutionDate())
+                .isEqualTo(LocalDate.of(2026, 11, 23));
     }
 
     @Test
@@ -178,7 +180,7 @@ class Pain001ParserTest {
 
         assertThat(handler.paymentInformation).containsExactly(
                 new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013000",
-                        new Agent("COBADEFFXXX", null, false)));
+                        new Agent("COBADEFFXXX", null, false), LocalDate.of(2026, 11, 2)));
     }
 
     @Test

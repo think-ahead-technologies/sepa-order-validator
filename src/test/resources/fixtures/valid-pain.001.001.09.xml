@@ -83,9 +83,9 @@
         <Cdtr>
           <Nm>Fournisseur SA</Nm>
           <PstlAdr>
+            <TwnNm>Paris</TwnNm>
             <Ctry>FR</Ctry>
             <AdrLine>12 Rue de la Paix</AdrLine>
-            <AdrLine>75002 Paris</AdrLine>
           </PstlAdr>
         </Cdtr>
         <CdtrAcct>

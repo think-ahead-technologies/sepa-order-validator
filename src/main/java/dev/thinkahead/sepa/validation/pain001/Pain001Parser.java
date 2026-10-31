@@ -248,7 +248,7 @@ public class Pain001Parser {
 
         private void endPaymentInformation() {
             handler.paymentInformation(new PaymentInformation(paymentInformationPath, paymentInformationId, debtorIban,
-                    debtorAgent == null ? null : debtorAgent.build()));
+                    debtorAgent == null ? null : debtorAgent.build(), requestedExecutionDate));
             handler.totals(new Totals(paymentInformationPath, paymentNumberOfTransactions, paymentControlSum,
                     paymentCount, paymentSum));
         }

@@ -210,6 +210,21 @@ class PaymentFileValidationIntegrationTest {
     }
 
     @Test
+    void rejectsAnExecutionDateInThePastWithDt01() {
+        PaymentFileValidated validated = uploadAndAwaitValidation(
+                validPain001(uniqueMessageId(), java.time.LocalDate.of(2026, 10, 1)));
+
+        assertThat(validated.accepted()).isFalse();
+        assertThat(validated.violations())
+                .singleElement()
+                .satisfies(v -> {
+                    assertThat(v.reasonCode()).isEqualTo("DT01");
+                    assertThat(v.path()).isEqualTo("PmtInf[1]/ReqdExctnDt");
+                });
+        assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
+    }
+
+    @Test
     void acceptsCreditorsInCountriesThatJoinedSepaIn2025() {
         PaymentFileValidated validated = uploadAndAwaitValidation(validPain001(uniqueMessageId())
                 .replace("NL91ABNA0417164300", "AL47212110090000000235698741")

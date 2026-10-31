@@ -1,8 +1,13 @@
-// ABOUTME: PostgreSQL persistence for received payment files: raw content, SHA-256 hash and lifecycle status.
+// ABOUTME: PostgreSQL persistence for received payment files: raw content, size, SHA-256 hash and lifecycle status.
 // ABOUTME: Uses plain SQL via JdbcClient against the Flyway-managed payment_file table.
 package dev.thinkahead.sepa.intake;
 
+import java.sql.Types;
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import org.springframework.jdbc.core.SqlParameterValue;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -15,22 +20,37 @@ class PaymentFileRepository {
         this.jdbc = jdbc;
     }
 
-    void insert(UUID id, Channel channel, String submitter, String fileName, String sha256, byte[] content) {
-        jdbc.sql("""
-                        insert into payment_file (id, channel, submitter, file_name, sha256, content, status)
-                        values (:id, :channel, :submitter, :fileName, :sha256, :content, :status)""")
+    /**
+     * @return false if a file with this id already exists; the existing record is left untouched
+     */
+    boolean insertIfAbsent(UUID id, Channel channel, String submitter, String fileName, ReceivedContent content) {
+        return jdbc.sql("""
+                        insert into payment_file
+                            (id, channel, submitter, file_name, size_bytes, sha256, content, status)
+                        values (:id, :channel, :submitter, :fileName, :size, :sha256, :content, :status)
+                        on conflict (id) do nothing""")
                 .param("id", id)
                 .param("channel", channel.name())
                 .param("submitter", submitter)
                 .param("fileName", fileName)
-                .param("sha256", sha256)
-                .param("content", content)
+                .param("size", content.size())
+                .param("sha256", content.sha256())
+                .param("content", new SqlParameterValue(Types.BINARY, content.content()))
                 .param("status", FileStatus.RECEIVED.name())
-                .update();
+                .update() == 1;
     }
 
-    byte[] content(UUID id) {
-        return jdbc.sql("select content from payment_file where id = ?").param(id).query(byte[].class).single();
+    /**
+     * @return the stored bytes, or empty if the file exceeded the maximum size and only its hash was kept
+     */
+    Optional<byte[]> content(UUID id) {
+        List<byte[]> rows = jdbc.sql("select content from payment_file where id = ?").param(id)
+                .query((rs, rowNum) -> rs.getBytes("content"))
+                .list();
+        if (rows.isEmpty()) {
+            throw new IllegalStateException("Payment file " + id + " not found");
+        }
+        return Optional.ofNullable(rows.getFirst());
     }
 
     StoredPaymentFile find(UUID id) {
@@ -43,13 +63,37 @@ class PaymentFileRepository {
                 .single();
     }
 
-    void updateStatus(UUID id, FileStatus status) {
-        int updated = jdbc.sql("update payment_file set status = ?, status_changed_at = now() where id = ?")
-                .param(status.name())
-                .param(id)
-                .update();
-        if (updated != 1) {
-            throw new IllegalStateException("Payment file " + id + " not found");
-        }
+    void markReplied(UUID id) {
+        jdbc.sql("update payment_file set replied_at = now() where id = ?").param(id).update();
+    }
+
+    List<UUID> unansweredSince(Duration age, int limit) {
+        return jdbc.sql("""
+                        select id from payment_file
+                        where replied_at is null and received_at < now() - make_interval(secs => ?)
+                        order by received_at
+                        limit ?""")
+                .params(age.toSeconds(), limit)
+                .query(UUID.class)
+                .list();
+    }
+
+    FileStatus status(UUID id) {
+        return jdbc.sql("select status from payment_file where id = ?").param(id)
+                .query((rs, rowNum) -> FileStatus.valueOf(rs.getString("status")))
+                .single();
+    }
+
+    /**
+     * Moves the file from one status to the next.
+     *
+     * @return false if the file was no longer in the expected status
+     */
+    boolean updateStatus(UUID id, FileStatus expected, FileStatus next) {
+        return jdbc.sql("""
+                        update payment_file set status = ?, status_changed_at = now()
+                        where id = ? and status = ?""")
+                .params(next.name(), id, expected.name())
+                .update() == 1;
     }
 }

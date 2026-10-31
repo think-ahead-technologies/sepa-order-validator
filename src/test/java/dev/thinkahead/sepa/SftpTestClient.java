@@ -40,6 +40,18 @@ public final class SftpTestClient {
         }
     }
 
+    /**
+     * Changes the permission bits of a file over SFTP, e.g. 0 to make it unreadable for the application.
+     */
+    public void chmod(String directory, String fileName, int permissions) {
+        try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
+            var client = (SftpClient) session.getClientInstance();
+            client.setStat(directory + "/" + fileName, new SftpClient.Attributes().perms(permissions));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     public byte[] download(String directory, String fileName) {
         try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
             var out = new ByteArrayOutputStream();

@@ -1,5 +1,5 @@
 // ABOUTME: Validates payment files against the bundled XSD of their message format using a hardened parser.
-// ABOUTME: Collects all schema errors; compiled schemas are cached per format because they are thread-safe.
+// ABOUTME: Collects schema errors up to a cap; compiled schemas are cached per format because they are thread-safe.
 package dev.thinkahead.sepa.validation.xml;
 
 import java.io.ByteArrayInputStream;
@@ -20,13 +20,23 @@ import org.xml.sax.SAXParseException;
 public class SchemaValidator {
 
     private final Map<MessageFormat, Schema> schemas = new ConcurrentHashMap<>();
+    private final int maxErrors;
+
+    /**
+     * @param maxErrors validation stops once this many errors are collected, keeping memory use bounded
+     */
+    public SchemaValidator(int maxErrors) {
+        this.maxErrors = maxErrors;
+    }
 
     public List<SchemaError> validate(MessageFormat format, byte[] content) {
         List<SchemaError> errors = new ArrayList<>();
         try {
             Validator validator = SecureXml.validator(schemaFor(format));
-            validator.setErrorHandler(new CollectingErrorHandler(errors));
+            validator.setErrorHandler(new CollectingErrorHandler(errors, maxErrors));
             validator.validate(new SAXSource(SecureXml.xmlReader(), new InputSource(new ByteArrayInputStream(content))));
+        } catch (ErrorCapReached e) {
+            errors.add(new SchemaError(0, 0, "Schema validation stopped after " + maxErrors + " errors"));
         } catch (SAXParseException e) {
             errors.add(toError(e));
         } catch (SAXException | IOException e) {
@@ -53,15 +63,25 @@ public class SchemaValidator {
         return new SchemaError(e.getLineNumber(), e.getColumnNumber(), e.getMessage());
     }
 
-    private record CollectingErrorHandler(List<SchemaError> errors) implements ErrorHandler {
+    private static final class ErrorCapReached extends SAXException {
+    }
+
+    private record CollectingErrorHandler(List<SchemaError> errors, int maxErrors) implements ErrorHandler {
 
         @Override
-        public void warning(SAXParseException e) {
-            errors.add(toError(e));
+        public void warning(SAXParseException e) throws SAXException {
+            collect(e);
         }
 
         @Override
-        public void error(SAXParseException e) {
+        public void error(SAXParseException e) throws SAXException {
+            collect(e);
+        }
+
+        private void collect(SAXParseException e) throws SAXException {
+            if (errors.size() >= maxErrors) {
+                throw new ErrorCapReached();
+            }
             errors.add(toError(e));
         }
 

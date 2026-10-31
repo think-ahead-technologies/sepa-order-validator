@@ -71,7 +71,7 @@ A **modular monolith** built with Spring Boot and Spring Modulith ([ADR-0002](..
 
 | Module | Responsibility |
 |---|---|
-| `intake` | Receive files from EBICS and SFTP (polled by the elected leader instance only, [ADR-0015](../adr/0015-leader-election-with-postgresql-locks.md)), store the raw file with its authenticated submitter and SHA-256, start processing |
+| `intake` | Receive files from EBICS and SFTP (polled by the elected leader instance only, [ADR-0015](../adr/0015-leader-election-with-postgresql-locks.md)), claim each file by atomic rename to `processing/<file id>-<name>`, store it idempotently with its authenticated submitter and SHA-256, archive it, start processing ([ADR-0007](../adr/0007-asynchronous-processing-with-file-lifecycle.md)) |
 | `validation` | Format detection, XSD validation, streaming parse, rule evaluation |
 | `mandates` | SDD mandate store, mandate history, mandate lifecycle rules, management API |
 | `screening` | Sanctions, VoP and fraud checks, each behind its own port |
@@ -272,3 +272,4 @@ Test-first development; unit, integration and end-to-end tests for every feature
 | Q10 | OpenShift version and admission mechanism for signature verification; Red Hat Trusted Artifact Signer / Trusted Profile Analyzer available? | ADR-0014 |
 | Q11 | Which CI system builds and signs (OpenShift Pipelines/Tekton, GitLab CI, Jenkins)? | ADR-0014 |
 | Q12 | How long must a `MsgId` stay unique per submitter (forever, or e.g. 90 days)? Does DK prescribe a window? | ADR-0016 |
+| Q13 | Maximum accepted file size (default 100 MB) and overdue-reply threshold (default 10 min): confirm with business and operations, size pods accordingly | ADR-0004, ADR-0007 |

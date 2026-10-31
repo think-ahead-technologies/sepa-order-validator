@@ -84,6 +84,51 @@ class StatusReportIntegrationTest {
         assertThat(text(parse(stored), "OrgnlGrpInfAndSts/StsRsnInf[1]/Rsn/Cd")).isEqualTo("AC03");
     }
 
+    @Test
+    void redeliveredValidationOutcomeDoesNotCreateASecondReport() {
+        String fileName = "report-redelivered-" + UUID.randomUUID() + ".xml";
+        UUID fileId = receive(fileName);
+        var outcome = new PaymentFileValidated(fileId, "MSG-REDELIVERED", "pain.001.001.09", true, List.of());
+        StatusReportDelivered first = validated(outcome);
+
+        transaction.executeWithoutResult(status -> publisher.publishEvent(outcome));
+
+        await().during(Duration.ofSeconds(2)).atMost(TIMEOUT).untilAsserted(() -> {
+            assertThat(jdbc.sql("select count(*) from status_report where file_id = ?").param(fileId)
+                    .query(Integer.class).single()).isEqualTo(1);
+            assertThat(deliveriesFor(fileId)).isEqualTo(1);
+        });
+        assertThat(storedReportMessageId(fileId)).isEqualTo(first.reportMessageId());
+        assertThat(customer.list("outbound")).filteredOn(name -> name.startsWith(fileName.replace(".xml", "")))
+                .hasSize(1);
+    }
+
+    @Test
+    void redeliveredCreationResendsTheStoredReportUnchanged() {
+        String fileName = "report-resent-" + UUID.randomUUID() + ".xml";
+        UUID fileId = receive(fileName);
+        StatusReportDelivered first = validated(
+                new PaymentFileValidated(fileId, "MSG-RESENT", "pain.001.001.09", true, List.of()));
+        byte[] stored = storedReport(fileId);
+
+        transaction.executeWithoutResult(status ->
+                publisher.publishEvent(new StatusReportCreated(fileId, first.reportMessageId())));
+
+        await().atMost(TIMEOUT).until(() -> deliveriesFor(fileId) == 2);
+        String reportName = fileName.replace(".xml", "") + "-" + fileId + ".pain002.xml";
+        assertThat(customer.download("outbound", reportName)).isEqualTo(stored);
+        assertThat(storedReportMessageId(fileId)).isEqualTo(first.reportMessageId());
+    }
+
+    private long deliveriesFor(UUID fileId) {
+        return events.ofType(StatusReportDelivered.class).stream().filter(e -> e.fileId().equals(fileId)).count();
+    }
+
+    private String storedReportMessageId(UUID fileId) {
+        return jdbc.sql("select message_id from status_report where file_id = ?").param(fileId)
+                .query(String.class).single();
+    }
+
     private UUID receive(String fileName) {
         customer.upload("inbound", fileName, bytes(VALID_PAIN_001));
         return await().atMost(TIMEOUT).until(

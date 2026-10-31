@@ -2,6 +2,7 @@
 // ABOUTME: Status reports are delivered through the channel the payment file arrived on (ADR-0013).
 package dev.thinkahead.sepa.intake;
 
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
@@ -16,12 +17,28 @@ public class PaymentFiles {
         this.sftp = sftp;
     }
 
-    public byte[] content(UUID fileId) {
+    /**
+     * @return the file's bytes, or empty if the file exceeded the maximum size and was not stored
+     */
+    public Optional<byte[]> content(UUID fileId) {
         return repository.content(fileId);
     }
 
-    public void recordValidationOutcome(UUID fileId, boolean accepted) {
-        repository.updateStatus(fileId, accepted ? FileStatus.ACCEPTED : FileStatus.REJECTED);
+    /**
+     * True while the file has been received but no validation outcome is recorded yet.
+     */
+    public boolean isAwaitingValidation(UUID fileId) {
+        return repository.status(fileId) == FileStatus.RECEIVED;
+    }
+
+    /**
+     * Records the outcome of the first validation of the file.
+     *
+     * @return false if an outcome was already recorded, e.g. by a concurrent delivery of the same event
+     */
+    public boolean recordValidationOutcome(UUID fileId, boolean accepted) {
+        return repository.updateStatus(fileId, FileStatus.RECEIVED,
+                accepted ? FileStatus.ACCEPTED : FileStatus.REJECTED);
     }
 
     public void deliverStatusReport(UUID fileId, byte[] report) {
@@ -29,6 +46,7 @@ public class PaymentFiles {
         switch (file.channel()) {
             case SFTP -> sftp.writeOutbound(statusReportName(file), report);
         }
+        repository.markReplied(fileId);
     }
 
     private static String statusReportName(StoredPaymentFile file) {

@@ -20,6 +20,15 @@ public final class SepaCreditTransferRules implements Pain001Handler {
     private final List<ValidationRule<PaymentInformation>> paymentInformationRules =
             List.of(new DebtorIbanRule(), new UniquePaymentInformationIdRule());
     private final List<Violation> violations = new ArrayList<>();
+    private final int maxReportedViolations;
+    private long unreportedViolations;
+
+    /**
+     * @param maxReportedViolations violations beyond this number are only counted and summarised in one NARR entry
+     */
+    public SepaCreditTransferRules(int maxReportedViolations) {
+        this.maxReportedViolations = maxReportedViolations;
+    }
 
     @Override
     public void paymentInformation(PaymentInformation paymentInformation) {
@@ -37,10 +46,24 @@ public final class SepaCreditTransferRules implements Pain001Handler {
     }
 
     public List<Violation> violations() {
-        return List.copyOf(violations);
+        if (unreportedViolations == 0) {
+            return List.copyOf(violations);
+        }
+        var reported = new ArrayList<>(violations);
+        reported.add(new Violation("NARR", "Document",
+                "... and " + unreportedViolations + " more violations not listed"));
+        return List.copyOf(reported);
     }
 
     private <T> void apply(List<ValidationRule<T>> rules, T subject) {
-        rules.forEach(rule -> violations.addAll(rule.validate(subject)));
+        for (ValidationRule<T> rule : rules) {
+            for (Violation violation : rule.validate(subject)) {
+                if (violations.size() < maxReportedViolations) {
+                    violations.add(violation);
+                } else {
+                    unreportedViolations++;
+                }
+            }
+        }
     }
 }

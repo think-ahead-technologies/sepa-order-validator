@@ -1,5 +1,5 @@
 // ABOUTME: Integration tests for the intake module alone against real SFTP and PostgreSQL containers.
-// ABOUTME: Covers polling, storage with hash and status, archiving, event publication and report delivery.
+// ABOUTME: Covers claiming, idempotent storage, archiving, failure isolation, reply monitoring and report delivery.
 package dev.thinkahead.sepa.intake;
 
 import static dev.thinkahead.sepa.Fixtures.VALID_PAIN_001;
@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import dev.thinkahead.sepa.CapturedEvents;
+import dev.thinkahead.sepa.Fixtures;
 import dev.thinkahead.sepa.SftpTestClient;
 import dev.thinkahead.sepa.TestSupportConfiguration;
 import dev.thinkahead.sepa.TestcontainersConfiguration;
@@ -16,12 +17,16 @@ import java.time.Duration;
 import java.util.HexFormat;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.modulith.test.ApplicationModuleTest;
 
 @ApplicationModuleTest
+@ExtendWith(OutputCaptureExtension.class)
 @Import({TestcontainersConfiguration.class, TestSupportConfiguration.class})
 class SftpIntakeIntegrationTest {
 
@@ -38,6 +43,139 @@ class SftpIntakeIntegrationTest {
 
     @Autowired
     PaymentFiles paymentFiles;
+
+    @Autowired
+    PaymentFileIntake intake;
+
+    @Autowired
+    SftpChannel sftpChannel;
+
+    @Autowired
+    UnansweredFileMonitor unansweredFiles;
+
+    @Test
+    void anUnreadableFileDoesNotBlockTheFilesBehindIt(CapturedOutput output) {
+        var poison = new ClaimedFile(UUID.fromString("00000000-0000-0000-0000-000000000000"),
+                "poison-" + UUID.randomUUID() + ".xml");
+        customer.upload("processing", poison.claimedName(), bytes(VALID_PAIN_001));
+        customer.chmod("processing", poison.claimedName(), 0);
+        try {
+            String behind = "behind-poison-" + UUID.randomUUID() + ".xml";
+
+            customer.upload("inbound", behind, bytes(VALID_PAIN_001));
+
+            await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("processed"))
+                    .anySatisfy(name -> assertThat(name).endsWith(behind)));
+            assertThat(customer.list("processing")).contains(poison.claimedName());
+            assertThat(output).contains("Could not take in claimed file " + poison.claimedName());
+        } finally {
+            customer.chmod("processing", poison.claimedName(), 0644);
+        }
+        await().atMost(TIMEOUT).untilAsserted(() ->
+                assertThat(customer.list("processed")).contains(poison.claimedName()));
+    }
+
+    @Test
+    void alertsAboutFilesStillWithoutReplyAfterTheThreshold(CapturedOutput output) {
+        UUID fileId = UUID.randomUUID();
+        intake.receive(fileId, Channel.SFTP, "sftp:sepa", "overdue.xml", ReceivedContent.of(bytes(VALID_PAIN_001)));
+        jdbc.sql("update payment_file set received_at = now() - interval '1 hour' where id = ?").param(fileId).update();
+
+        assertThat(unansweredFiles.check()).contains(fileId);
+        assertThat(output).contains("without a reply").contains(fileId.toString());
+
+        paymentFiles.deliverStatusReport(fileId, bytes("<Document/>"));
+
+        assertThat(unansweredFiles.check()).doesNotContain(fileId);
+        assertThat(jdbc.sql("select replied_at is not null from payment_file where id = ?").param(fileId)
+                .query(Boolean.class).single()).isTrue();
+    }
+
+    @Test
+    void onlyOneClaimSucceedsForTheSameInboundFile() {
+        String fileName = "contested-" + UUID.randomUUID() + ".tmp";
+        customer.upload("inbound", fileName, bytes(VALID_PAIN_001));
+
+        boolean first = sftpChannel.claim(fileName, new ClaimedFile(UUID.randomUUID(), fileName).claimedName());
+        boolean second = sftpChannel.claim(fileName, new ClaimedFile(UUID.randomUUID(), fileName).claimedName());
+
+        assertThat(first).isTrue();
+        assertThat(second).isFalse();
+        assertThat(customer.list("processing")).filteredOn(name -> name.endsWith(fileName)).hasSize(1);
+    }
+
+    @Test
+    void recoversAFileClaimedByAnInstanceThatCrashedBeforeReceivingIt() {
+        var claimed = new ClaimedFile(UUID.randomUUID(), "crashed-before-receive-" + UUID.randomUUID() + ".xml");
+
+        customer.upload("processing", claimed.claimedName(), bytes(VALID_PAIN_001));
+
+        await().atMost(TIMEOUT).untilAsserted(() -> {
+            assertThat(customer.list("processed")).contains(claimed.claimedName());
+            assertThat(customer.list("processing")).doesNotContain(claimed.claimedName());
+        });
+        assertThat(recordsWithId(claimed.fileId())).isEqualTo(1);
+        assertThat(receivedEventsFor(claimed.fileId())).isEqualTo(1);
+        assertThat(jdbc.sql("select file_name from payment_file where id = ?").param(claimed.fileId())
+                .query(String.class).single()).isEqualTo(claimed.originalName());
+    }
+
+    @Test
+    void doesNotReceiveAgainWhenAnInstanceCrashedAfterReceivingButBeforeArchiving() {
+        var claimed = new ClaimedFile(UUID.randomUUID(), "crashed-after-receive-" + UUID.randomUUID() + ".xml");
+        byte[] content = bytes(VALID_PAIN_001);
+        assertThat(intake.receive(claimed.fileId(), Channel.SFTP, "sftp:sepa", claimed.originalName(), ReceivedContent.of(content)))
+                .isTrue();
+
+        customer.upload("processing", claimed.claimedName(), content);
+
+        await().atMost(TIMEOUT).untilAsserted(() ->
+                assertThat(customer.list("processed")).contains(claimed.claimedName()));
+        assertThat(recordsWithId(claimed.fileId())).isEqualTo(1);
+        assertThat(receivedEventsFor(claimed.fileId())).isEqualTo(1);
+    }
+
+    @Test
+    void receivingTheSameClaimTwiceStoresAndAnnouncesItOnce() {
+        UUID fileId = UUID.randomUUID();
+        byte[] content = bytes(VALID_PAIN_001);
+
+        boolean first = intake.receive(fileId, Channel.SFTP, "sftp:sepa", "twice.xml", ReceivedContent.of(content));
+        boolean second = intake.receive(fileId, Channel.SFTP, "sftp:sepa", "twice.xml", ReceivedContent.of(content));
+
+        assertThat(first).isTrue();
+        assertThat(second).isFalse();
+        assertThat(recordsWithId(fileId)).isEqualTo(1);
+        assertThat(receivedEventsFor(fileId)).isEqualTo(1);
+    }
+
+    @Test
+    void storesOnlySizeAndHashOfAFileAboveTheMaximumSize() throws Exception {
+        String fileName = "oversized-" + UUID.randomUUID() + ".xml";
+        byte[] content = bytes(Fixtures.paddedTo(VALID_PAIN_001, 1_100_000));
+
+        customer.upload("inbound", fileName, content);
+
+        PaymentFileReceived received = await().atMost(TIMEOUT).until(
+                () -> events.ofType(PaymentFileReceived.class).stream()
+                        .filter(e -> e.fileName().equals(fileName)).findFirst().orElse(null),
+                e -> e != null);
+        assertThat(received.sha256())
+                .isEqualTo(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content)));
+        assertThat(paymentFiles.content(received.fileId())).isEmpty();
+        assertThat(jdbc.sql("select size_bytes from payment_file where id = ?").param(received.fileId())
+                .query(Long.class).single()).isEqualTo(content.length);
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("processed"))
+                .anySatisfy(name -> assertThat(name).endsWith(fileName)));
+    }
+
+    private int recordsWithId(UUID fileId) {
+        return jdbc.sql("select count(*) from payment_file where id = ?").param(fileId).query(Integer.class).single();
+    }
+
+    private long receivedEventsFor(UUID fileId) {
+        return events.ofType(PaymentFileReceived.class).stream().filter(e -> e.fileId().equals(fileId)).count();
+    }
 
     @Test
     void storesUploadedFileWithHashAndPublishesEvent() throws Exception {
@@ -61,7 +199,7 @@ class SftpIntakeIntegrationTest {
                         + "|" + rs.getString(4))
                 .single())
                 .isEqualTo("RECEIVED|" + expectedHash + "|SFTP|sftp:sepa");
-        assertThat(paymentFiles.content(received.fileId())).isEqualTo(content);
+        assertThat(paymentFiles.content(received.fileId())).hasValueSatisfying(stored -> assertThat(stored).isEqualTo(content));
     }
 
     @Test

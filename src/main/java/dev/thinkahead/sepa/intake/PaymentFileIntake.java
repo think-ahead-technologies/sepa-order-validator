@@ -1,10 +1,7 @@
-// ABOUTME: Accepts a payment file from a channel: hashes and stores it, then publishes PaymentFileReceived.
-// ABOUTME: Storage and event publication share one transaction, so no received file is ever lost (ADR-0007).
+// ABOUTME: Accepts a claimed payment file: stores it under its file id, then publishes PaymentFileReceived.
+// ABOUTME: Idempotent per file id, so a claim processed again after a crash is stored and announced only once.
 package dev.thinkahead.sepa.intake;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -21,20 +18,17 @@ class PaymentFileIntake {
         this.events = events;
     }
 
+    /**
+     * Stores the file and announces it, unless a file with this id was already received.
+     *
+     * @return true if the file was newly received
+     */
     @Transactional
-    UUID receive(Channel channel, String submitter, String fileName, byte[] content) {
-        UUID id = UUID.randomUUID();
-        String sha256 = sha256(content);
-        repository.insert(id, channel, submitter, fileName, sha256, content);
-        events.publishEvent(new PaymentFileReceived(id, channel, submitter, fileName, sha256));
-        return id;
-    }
-
-    private static String sha256(byte[] content) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is not available", e);
+    boolean receive(UUID fileId, Channel channel, String submitter, String fileName, ReceivedContent content) {
+        if (!repository.insertIfAbsent(fileId, channel, submitter, fileName, content)) {
+            return false;
         }
+        events.publishEvent(new PaymentFileReceived(fileId, channel, submitter, fileName, content.sha256()));
+        return true;
     }
 }

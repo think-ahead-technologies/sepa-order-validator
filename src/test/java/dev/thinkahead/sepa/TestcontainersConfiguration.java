@@ -30,7 +30,8 @@ public class TestcontainersConfiguration {
     private static final List<String> APPLICATION_PROPERTY_NAMES = List.of(
             "sepa.sftp.host", "sepa.sftp.port", "sepa.sftp.username", "sepa.sftp.password",
             "sepa.sftp.known-hosts", "sepa.sftp.poll-interval",
-            "sepa.leader-election.lock-time-to-live", "sepa.leader-election.heartbeat");
+            "sepa.leader-election.lock-time-to-live", "sepa.leader-election.heartbeat", "sepa.intake.max-file-size",
+            "sepa.intake.reply-check-interval");
 
     private static final String[] HOST_KEYS = {
             "/etc/ssh/ssh_host_ecdsa_key.pub",
@@ -85,6 +86,8 @@ public class TestcontainersConfiguration {
         properties.put("sepa.sftp.poll-interval", "PT0.5S");
         properties.put("sepa.leader-election.lock-time-to-live", "PT3S");
         properties.put("sepa.leader-election.heartbeat", "PT0.5S");
+        properties.put("sepa.intake.max-file-size", "1MB");
+        properties.put("sepa.intake.reply-check-interval", "PT1H");
         return properties;
     }
 

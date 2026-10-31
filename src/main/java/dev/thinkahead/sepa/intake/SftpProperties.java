@@ -14,6 +14,7 @@ record SftpProperties(
         String password,
         Resource knownHosts,
         String inboundDirectory,
+        String processingDirectory,
         String processedDirectory,
         String outboundDirectory,
         Duration pollInterval) {

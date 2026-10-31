@@ -1,5 +1,5 @@
-// ABOUTME: File operations on the customer SFTP server: list and read inbound, archive, write outbound.
-// ABOUTME: Only *.xml files are picked up, so customers can upload under a temporary name and rename.
+// ABOUTME: File operations on the customer SFTP server: list inbound, claim, read and archive claims, write outbound.
+// ABOUTME: Claiming is an atomic rename, so of several competing instances exactly one gets each file.
 package dev.thinkahead.sepa.intake;
 
 import java.io.ByteArrayInputStream;
@@ -32,35 +32,82 @@ class SftpChannel {
         return "sftp:" + properties.username();
     }
 
+    /**
+     * Customer files waiting in inbound. Only *.xml files count, so customers can upload under a temporary name.
+     */
     List<String> listInbound() {
+        return list(properties.inboundDirectory()).stream()
+                .filter(name -> name.toLowerCase(Locale.ROOT).endsWith(".xml"))
+                .toList();
+    }
+
+    /**
+     * Atomically moves an inbound file to the processing directory under its claimed name.
+     *
+     * @return false if the file is no longer in inbound because another instance claimed it first
+     */
+    boolean claim(String fileName, String claimedName) {
         try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
-            return Arrays.stream(session.list(properties.inboundDirectory()))
+            return renameIfPresent(session, properties.inboundDirectory() + "/" + fileName,
+                    properties.processingDirectory() + "/" + claimedName);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Cannot claim SFTP inbound file " + fileName, e);
+        }
+    }
+
+    List<RemoteFile> listProcessing() {
+        try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
+            return Arrays.stream(session.list(properties.processingDirectory()))
                     .filter(entry -> entry.getAttributes().isRegularFile())
-                    .map(SftpClient.DirEntry::getFilename)
-                    .filter(name -> name.toLowerCase(Locale.ROOT).endsWith(".xml"))
-                    .sorted()
+                    .map(entry -> new RemoteFile(entry.getFilename(), entry.getAttributes().getSize()))
+                    .sorted(java.util.Comparator.comparing(RemoteFile::name))
                     .toList();
         } catch (IOException e) {
-            throw new UncheckedIOException("Cannot list SFTP inbound directory", e);
+            throw new UncheckedIOException("Cannot list SFTP processing directory", e);
         }
     }
 
-    byte[] readInbound(String fileName) {
+    /**
+     * Reads a claimed file completely; only for files within the maximum file size.
+     */
+    ReceivedContent readProcessing(String claimedName) {
         try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
             var out = new ByteArrayOutputStream();
-            session.read(properties.inboundDirectory() + "/" + fileName, out);
-            return out.toByteArray();
+            session.read(properties.processingDirectory() + "/" + claimedName, out);
+            return ReceivedContent.of(out.toByteArray());
         } catch (IOException e) {
-            throw new UncheckedIOException("Cannot read SFTP inbound file " + fileName, e);
+            throw new UncheckedIOException("Cannot read SFTP processing file " + claimedName, e);
         }
     }
 
-    void moveToProcessed(String fileName, String archivedName) {
+    /**
+     * Streams a claimed file through SHA-256 without keeping it, for files above the maximum file size.
+     */
+    ReceivedContent hashProcessing(String claimedName) {
         try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
-            session.rename(properties.inboundDirectory() + "/" + fileName,
-                    properties.processedDirectory() + "/" + archivedName);
+            ReceivedContent hashed;
+            try (var in = session.readRaw(properties.processingDirectory() + "/" + claimedName)) {
+                hashed = ReceivedContent.oversized(in);
+            }
+            session.finalizeRaw();
+            return hashed;
         } catch (IOException e) {
-            throw new UncheckedIOException("Cannot archive SFTP inbound file " + fileName, e);
+            throw new UncheckedIOException("Cannot hash SFTP processing file " + claimedName, e);
+        }
+    }
+
+    record RemoteFile(String name, long size) {
+    }
+
+    /**
+     * Moves a claimed file to the processed directory; a file another instance already archived is left alone.
+     */
+    void archive(String claimedName) {
+        try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
+            renameIfPresent(session, properties.processingDirectory() + "/" + claimedName,
+                    properties.processedDirectory() + "/" + claimedName);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Cannot archive SFTP processing file " + claimedName, e);
         }
     }
 
@@ -69,6 +116,31 @@ class SftpChannel {
             session.write(new ByteArrayInputStream(content), properties.outboundDirectory() + "/" + fileName);
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot write SFTP outbound file " + fileName, e);
+        }
+    }
+
+    private List<String> list(String directory) {
+        try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
+            return Arrays.stream(session.list(directory))
+                    .filter(entry -> entry.getAttributes().isRegularFile())
+                    .map(SftpClient.DirEntry::getFilename)
+                    .sorted()
+                    .toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Cannot list SFTP directory " + directory, e);
+        }
+    }
+
+    private static boolean renameIfPresent(Session<SftpClient.DirEntry> session, String from, String to)
+            throws IOException {
+        try {
+            session.rename(from, to);
+            return true;
+        } catch (IOException e) {
+            if (!session.exists(from)) {
+                return false;
+            }
+            throw e;
         }
     }
 }

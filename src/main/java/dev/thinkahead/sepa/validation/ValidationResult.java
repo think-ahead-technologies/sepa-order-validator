@@ -4,11 +4,28 @@ package dev.thinkahead.sepa.validation;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 record ValidationResult(String originalMessageId, String originalMessageNameId, List<Violation> violations) {
 
     ValidationResult {
         violations = List.copyOf(violations);
+    }
+
+    /**
+     * Rejection of a file that intake did not store because it exceeds the maximum file size.
+     */
+    static ValidationResult tooLarge() {
+        return new ValidationResult(null, null, List.of(new Violation(PaymentFileValidator.INVALID_FILE_FORMAT,
+                "Document", "File exceeds the maximum size accepted for processing")));
+    }
+
+    /**
+     * Rejection of a file whose validation failed unexpectedly; the file id lets support find the logged cause.
+     */
+    static ValidationResult technicalError(UUID fileId) {
+        return new ValidationResult(null, null, List.of(new Violation(PaymentFileValidator.INVALID_FILE_FORMAT,
+                "Document", "File could not be processed due to a technical error, reference " + fileId)));
     }
 
     boolean accepted() {

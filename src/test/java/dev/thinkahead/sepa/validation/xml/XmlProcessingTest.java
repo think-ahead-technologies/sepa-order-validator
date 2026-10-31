@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class XmlProcessingTest {
 
     private final FormatDetector detector = new FormatDetector();
-    private final SchemaValidator schemaValidator = new SchemaValidator();
+    private final SchemaValidator schemaValidator = new SchemaValidator(1_000);
 
     @Test
     void detectsPain001Version09ByNamespace() {
@@ -42,6 +42,19 @@ class XmlProcessingTest {
         assertThat(schemaValidator.validate(MessageFormat.PAIN_001_001_09, bytes(xml)))
                 .isNotEmpty()
                 .allSatisfy(error -> assertThat(error.line()).isPositive());
+    }
+
+    @Test
+    void stopsSchemaValidationOnceTheErrorCapIsReached() {
+        var xml = VALID_PAIN_001
+                .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>XYZ</PmtMtd>")
+                .replace("Ccy=\"EUR\"", "Ccy=\"eur\"")
+                .replace("<ChrgBr>SLEV</ChrgBr>", "<ChrgBr>NONE</ChrgBr>");
+
+        var errors = new SchemaValidator(2).validate(MessageFormat.PAIN_001_001_09, bytes(xml));
+
+        assertThat(errors).hasSize(3);
+        assertThat(errors.get(2).message()).contains("stopped after 2 errors");
     }
 
     @Test

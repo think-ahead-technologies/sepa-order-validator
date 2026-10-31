@@ -23,10 +23,12 @@ import java.util.concurrent.Future;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.modulith.test.ApplicationModuleTest;
 import org.springframework.modulith.test.ApplicationModuleTest.BootstrapMode;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ApplicationModuleTest(mode = BootstrapMode.DIRECT_DEPENDENCIES)
 @Import({TestcontainersConfiguration.class, TestSupportConfiguration.class})
@@ -45,6 +47,44 @@ class PaymentFileValidationIntegrationTest {
 
     @Autowired
     AcceptedMessages acceptedMessages;
+
+    @Autowired
+    ApplicationEventPublisher publisher;
+
+    @Autowired
+    TransactionTemplate transaction;
+
+    @Test
+    void redeliveredReceivedEventDoesNotValidateTheFileAgain() {
+        PaymentFileValidated first = uploadAndAwaitValidation(validPain001(uniqueMessageId()));
+        PaymentFileReceived received = events.ofType(PaymentFileReceived.class).stream()
+                .filter(e -> e.fileId().equals(first.fileId())).findFirst().orElseThrow();
+
+        transaction.executeWithoutResult(status -> publisher.publishEvent(received));
+
+        await().during(Duration.ofSeconds(2)).atMost(TIMEOUT).untilAsserted(() ->
+                assertThat(events.ofType(PaymentFileValidated.class))
+                        .filteredOn(e -> e.fileId().equals(first.fileId()))
+                        .singleElement()
+                        .satisfies(e -> assertThat(e.accepted()).isTrue()));
+        assertThat(statusOf(first.fileId())).isEqualTo("ACCEPTED");
+    }
+
+    @Test
+    void rejectsAFileAboveTheMaximumSizeWithFf01() {
+        PaymentFileValidated validated = uploadAndAwaitValidation(
+                dev.thinkahead.sepa.Fixtures.paddedTo(validPain001(uniqueMessageId()), 1_100_000));
+
+        assertThat(validated.accepted()).isFalse();
+        assertThat(validated.violations())
+                .singleElement()
+                .satisfies(v -> {
+                    assertThat(v.reasonCode()).isEqualTo("FF01");
+                    assertThat(v.path()).isEqualTo("Document");
+                    assertThat(v.message()).contains("maximum size");
+                });
+        assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
+    }
 
     @Test
     void acceptsValidFileAndMarksItAccepted() {

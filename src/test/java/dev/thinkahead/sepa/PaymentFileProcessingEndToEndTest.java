@@ -50,6 +50,8 @@ class PaymentFileProcessingEndToEndTest {
         assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='OrgnlMsgNmId']")).isEqualTo("pain.001.001.09");
         assertThat(reasonCodes(delivery.report())).isEmpty();
         assertThat(fileStatus(delivery.fileName())).isEqualTo("ACCEPTED");
+        assertThat(jdbc.sql("select replied_at is not null from payment_file where file_name = ?")
+                .param(delivery.fileName()).query(Boolean.class).single()).isTrue();
         assertThat(customer.list("inbound")).doesNotContain(delivery.fileName());
         assertAuditTrailComplete(delivery.fileName());
     }
@@ -89,6 +91,40 @@ class PaymentFileProcessingEndToEndTest {
         assertThat(fileStatus(original.fileName())).isEqualTo("ACCEPTED");
         assertThat(fileStatus(resubmission.fileName())).isEqualTo("REJECTED");
         assertAuditTrailComplete(resubmission.fileName());
+    }
+
+    @Test
+    void fileLeftInProcessingByACrashedInstanceIsReportedExactlyOnce() {
+        String fileName = "left-behind-" + UUID.randomUUID() + ".xml";
+        String reportPrefix = fileName.replace(".xml", "") + "-";
+
+        customer.upload("processing", UUID.randomUUID() + "-" + fileName, bytes(validPain001(uniqueMessageId())));
+
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("outbound"))
+                .filteredOn(name -> name.startsWith(reportPrefix)).hasSize(1));
+        assertThat(fileStatus(fileName)).isEqualTo("ACCEPTED");
+        assertAuditTrailComplete(fileName);
+    }
+
+    @Test
+    void fileAboveTheMaximumSizeIsRejectedWithFf01() throws Exception {
+        Delivery delivery = submit(Fixtures.paddedTo(validPain001(uniqueMessageId()), 1_100_000));
+
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(reasonCodes(delivery.report())).containsExactly("FF01");
+        assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
+    }
+
+    @Test
+    void reportedReasonsAreCappedForAFileWithVeryManyErrors() throws Exception {
+        Delivery delivery = submit(Fixtures.withInvalidCreditorIbans(uniqueMessageId(), 1_200));
+
+        List<String> reasons = reasonCodes(delivery.report());
+        assertThat(reasons).hasSize(1_001);
+        assertThat(reasons.subList(0, 1_000)).containsOnly("AC03");
+        assertThat(reasons.get(1_000)).isEqualTo("NARR");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='StsRsnInf'][1001]/*[local-name()='AddtlInf'][2]"))
+                .contains("200 more violations");
     }
 
     @Test

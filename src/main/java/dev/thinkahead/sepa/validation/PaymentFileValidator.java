@@ -18,8 +18,11 @@ class PaymentFileValidator {
 
     static final String INVALID_FILE_FORMAT = "FF01";
 
+    /** Upper bound of violations listed per file, keeping pain.002 reports and memory use bounded. */
+    static final int MAX_REPORTED_VIOLATIONS = 1_000;
+
     private final FormatDetector formatDetector = new FormatDetector();
-    private final SchemaValidator schemaValidator = new SchemaValidator();
+    private final SchemaValidator schemaValidator = new SchemaValidator(MAX_REPORTED_VIOLATIONS);
     private final Pain001Parser parser = new Pain001Parser();
 
     ValidationResult validate(byte[] content) {
@@ -38,7 +41,7 @@ class PaymentFileValidator {
                     .toList());
         }
 
-        var rules = new SepaCreditTransferRules();
+        var rules = new SepaCreditTransferRules(MAX_REPORTED_VIOLATIONS);
         GroupHeader header = parser.parse(content, rules);
         return new ValidationResult(header.messageId(), format.messageNameId(), rules.violations());
     }

@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.sftp.session.DefaultSftpSessionFactory;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(SftpProperties.class)
+@EnableConfigurationProperties({SftpProperties.class, IntakeProperties.class})
 class SftpConfiguration {
 
     @Bean

@@ -105,7 +105,7 @@ class PaymentFileValidator {
             return new ValidationResult(header.messageId(), format.messageNameId(), rules.violations());
         }
 
-        // Last gate (ADR-0022): a file the rules pass is accepted only if it also meets the DK subset.
+        // Last gate (spec file-validation): a file the rules pass is accepted only if it also meets the DK subset.
         List<SchemaError> dkSubsetErrors = beforeDeadline(deadline,
                 () -> schemaValidator.validateDkSubset(format, read(content, deadline)));
         return new ValidationResult(header.messageId(), format.messageNameId(), dkSubsetErrors.stream()

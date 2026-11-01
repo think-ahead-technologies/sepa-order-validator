@@ -1,5 +1,5 @@
 // ABOUTME: Callback interface receiving pain.001 content piece by piece while the file is streamed.
-// ABOUTME: Lets rules run per transaction without holding the whole file in memory (ADR-0004).
+// ABOUTME: Lets rules run per transaction without holding the whole file in memory (baseline design A2).
 package dev.thinkahead.sepa.validation.pain001;
 
 public interface Pain001Handler {

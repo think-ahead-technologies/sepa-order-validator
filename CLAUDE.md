@@ -4,7 +4,7 @@
 
 A Spring Boot modular monolith that validates SEPA payment order files (pain.001 / pain.008, German DK formats) for a real bank, screens them, and answers with a pain.002 status report.
 
-Design: `docs/design/payment-order-validator.md`. Decisions: `docs/adr/` (read the ADR index before changing architecture).
+Behaviour: OpenSpec capability specs in `openspec/specs/`; project context in `openspec/config.yaml`. Rationale for the architecture: the `design.md` of archived changes, starting with `openspec/changes/archive/*-adopt-openspec-baseline/design.md` (sections A1-A10); read it before changing architecture. Planned work and open questions: `docs/roadmap.md`. New work starts as an OpenSpec change (`/opsx:propose`).
 
 ## Tooling
 
@@ -22,14 +22,14 @@ Design: `docs/design/payment-order-validator.md`. Decisions: `docs/adr/` (read t
 
 - Spring Modulith modules are the direct sub-packages of `dev.thinkahead.sepa`: `intake`, `validation`, `reporting`, `audit`, `processing`. `ModularityTests` fails the build on boundary violations.
 - A module's base package is its public API (events, facades). Everything else is package-private or lives in a sub-package.
-- Modules talk via public facades. File processing runs as work items on the `processing` work queue (ADR-0017); application events only notify. No dependency cycles.
+- Modules talk via public facades. File processing runs as work items on the `processing` work queue (spec `file-processing`); application events only notify. No dependency cycles.
 - Database schema changes go through Flyway migrations in `src/main/resources/db/migration` only.
-- All XML parsers and schema validators are created via `validation.xml.SecureXml` (ADR-0004).
+- All XML parsers and schema validators are created via `validation.xml.SecureXml` (spec `xml-security`).
 
 ## Conventions
 
 - Test first. Every feature has unit, integration (`*IntegrationTest`) and end-to-end (`*EndToEndTest`) tests. No mocks; use real PostgreSQL and SFTP containers and real-world payment data.
 - Every source file starts with two `// ABOUTME:` comment lines.
 - Violations carry ISO 20022 external status reason codes (e.g. `AC03`, `AM03`, `FF01`).
-- Logs are ECS JSON. Never log values from a payment file (names, IBANs, amounts, violation or parser messages); log ids, reason codes and positions. Processing steps get the file id from their worker (ADR-0018).
+- Logs are ECS JSON. Never log values from a payment file (names, IBANs, amounts, violation or parser messages); log ids, reason codes and positions. Processing steps get the file id from their worker (spec `observability`).
 - Conventional commits, imperative mood. Never use `--no-verify`.

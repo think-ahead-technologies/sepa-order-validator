@@ -98,7 +98,7 @@ public class SchemaValidator {
 
         @Override
         public void warning(SAXParseException e) {
-            // Position only: parser messages can quote values from the payment file (ADR-0018).
+            // Position only: parser messages can quote values from the payment file (spec observability).
             LOG.info("Schema validation warning at line {}, column {}", e.getLineNumber(), e.getColumnNumber());
         }
 

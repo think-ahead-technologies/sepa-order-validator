@@ -1,4 +1,4 @@
-// ABOUTME: Elects one intake leader across all running instances via a shared lock (ADR-0015).
+// ABOUTME: Elects one intake leader across all running instances via a shared lock (spec file-intake).
 // ABOUTME: Only the leader polls customer channels, so every received file is processed exactly once.
 package dev.thinkahead.sepa.intake;
 

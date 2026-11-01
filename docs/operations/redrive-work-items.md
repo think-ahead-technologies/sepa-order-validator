@@ -1,6 +1,6 @@
 # Runbook: re-drive a work item
 
-Each processing step of a payment file (`VALIDATE`, `REPORT`, `DELIVER`) is a row in `work_item` ([ADR-0017](../adr/0017-file-processing-driven-by-persisted-state-with-a-postgresql-work-queue.md)). Failed attempts are retried automatically with backoff. Once a step has used up its attempts, its item is `FAILED`, an ERROR is logged, and nothing moves it on until operations re-drive it.
+Each processing step of a payment file (`VALIDATE`, `REPORT`, `DELIVER`) is a row in `work_item` (spec [`file-processing`](../../openspec/specs/file-processing/spec.md)). Failed attempts are retried automatically with backoff. Once a step has used up its attempts, its item is `FAILED`, an ERROR is logged, and nothing moves it on until operations re-drive it.
 
 `VALIDATE` never reaches `FAILED`: after its last attempt the file is rejected technically (`FF01`), so the customer always gets a reply.
 
@@ -21,7 +21,7 @@ where w.state = 'FAILED'
 order by w.next_attempt_at;
 ```
 
-The ERROR log line carries the same file id in its `fileId` field ([ADR-0018](../adr/0018-structured-logging-and-operational-endpoints.md)).
+The ERROR log line carries the same file id in its `fileId` field (spec [`observability`](../../openspec/specs/observability/spec.md)).
 
 ## Re-drive it
 

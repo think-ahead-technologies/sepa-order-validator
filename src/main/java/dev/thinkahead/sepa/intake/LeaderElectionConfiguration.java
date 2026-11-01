@@ -1,4 +1,4 @@
-// ABOUTME: Wires the PostgreSQL-backed lock registry used to elect the single intake leader (ADR-0015).
+// ABOUTME: Wires the PostgreSQL-backed lock registry used to elect the single intake leader (baseline design A5).
 // ABOUTME: Locks live in the Flyway-managed INT_LOCK table, region "sepa", and expire after the configured TTL.
 package dev.thinkahead.sepa.intake;
 

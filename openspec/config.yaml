@@ -1,0 +1,55 @@
+schema: spec-driven
+
+context: |
+  Domain: SEPA Payment Order Validator for a German bank. Customers submit
+  payment order files (pain.001 credit transfers, SCT and SCT Inst) via SFTP.
+  Before an order is executed the system checks it against the German DK
+  specification (DFUe-Abkommen Anlage 3 V3.9, TVS GBIC_5) and the EPC
+  rulebooks and implementation guidelines, detects duplicates, and answers
+  every message with an ISO 20022 pain.002 status report (whole-file ACCP or
+  RJCT with every violation). It sits between the customer channels and
+  downstream payment processing. Out of scope: executing or booking payments,
+  interbank messages (pacs.*), implementing EBICS, a customer UI. Planned work
+  (SDD and mandates, EBICS bank server, screening, VoP) and open questions are
+  in docs/roadmap.md. Behaviour lives in openspec/specs/; architecture
+  rationale lives in the design.md of archived changes, starting with
+  openspec/changes/archive/*-adopt-openspec-baseline/design.md (sections A1-A10).
+
+  Stack: Java 25, Spring Boot 4, Spring Modulith, Spring Integration (SFTP,
+  JDBC lock registry), PostgreSQL with Flyway, Gradle (Kotlin DSL) with
+  dependency verification; Java and Gradle pinned in mise.toml. Runs as
+  several instances on OpenShift.
+
+  Architecture: modular monolith. Modules are the direct sub-packages of
+  dev.thinkahead.sepa: intake, validation, reporting, audit, processing.
+  A module's base package is its public API; everything else is
+  package-private or in a sub-package. Modules call each other through
+  facades; file processing runs as work items on the processing module's
+  PostgreSQL work queue, application events only notify. No dependency
+  cycles; ModularityTests enforces the boundaries. Schema changes only via
+  Flyway migrations; applied migrations are never edited. All XML parsers and
+  schema validators come from validation.xml.SecureXml.
+
+  Persistence: one PostgreSQL database holds raw files with SHA-256, file
+  status, work items, validation results, accepted message ids, status
+  reports, the append-only audit trail and the leader lock (INT_LOCK).
+  Uniqueness is enforced by database constraints.
+
+  Security and compliance: payment files are untrusted input. SFTP host keys
+  are always verified. Logs are ECS JSON and never contain values from a
+  payment file (names, IBANs, amounts, remittance, violation or parser
+  messages), only ids, reason codes and positions; IBANs are masked as a
+  safety net. Retention periods are pending with Compliance (GwG, HGB/AO
+  versus GDPR).
+
+  Testing: test first. Every feature has unit, integration (*IntegrationTest)
+  and end-to-end (*EndToEndTest) tests. No mocks: real PostgreSQL and SFTP
+  via Testcontainers and real-world payment data; security cases (XXE,
+  entity expansion, oversized files) are part of the suite. Test output must
+  be clean; expected errors are asserted.
+
+  Conventions: violations carry ISO 20022 external status reason codes
+  (AC03, AM03, FF01, ...) and the file location; requirements cite their
+  EPC or DK source section. Every source file starts with two "// ABOUTME:"
+  lines. Conventional commits in the imperative mood; never --no-verify.
+

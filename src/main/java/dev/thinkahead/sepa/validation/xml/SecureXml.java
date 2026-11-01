@@ -1,5 +1,5 @@
 // ABOUTME: The only place that creates XML parsers and schema validators, all hardened against XXE and DTD attacks.
-// ABOUTME: Disables DTDs and external entities and blocks external DTD/schema access (ADR-0004).
+// ABOUTME: Disables DTDs and external entities and blocks external DTD/schema access (spec xml-security).
 package dev.thinkahead.sepa.validation.xml;
 
 import java.net.URL;

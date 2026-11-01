@@ -1,4 +1,4 @@
-// ABOUTME: Entry point of the SEPA Payment Order Validator, a Spring Modulith modular monolith (ADR-0002).
+// ABOUTME: Entry point of the SEPA Payment Order Validator, a Spring Modulith modular monolith (baseline design A1).
 // ABOUTME: Enables scheduling for channel polling and async execution for module event listeners.
 package dev.thinkahead.sepa;
 

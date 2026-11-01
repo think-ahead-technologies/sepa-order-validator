@@ -10,7 +10,7 @@ public enum MessageFormat {
     /**
      * The DK subset is the technical validation subset GBIC_5 of DFÜ-Abkommen Anlage 3 V3.9 (ebics.de, file
      * DK-TVS_SEPA_GBIC_5zzglISO_Originale.zip), unchanged; it restricts the message to SEPA, e.g. payment method TRF
-     * and charge bearer SLEV only (ADR-0022).
+     * and charge bearer SLEV only (spec file-validation).
      */
     PAIN_001_001_09("urn:iso:std:iso:20022:tech:xsd:pain.001.001.09", "pain.001.001.09",
             "/xsd/pain.001.001.09.xsd", "/xsd/pain.001.001.09_GBIC_5.xsd");

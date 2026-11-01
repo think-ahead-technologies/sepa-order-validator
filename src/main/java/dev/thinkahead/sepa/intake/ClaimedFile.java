@@ -1,5 +1,5 @@
 // ABOUTME: A claimed file, named "<file id>-<name>" in processing, "<file id>.instant-<name>" from the SCT Inst inbox.
-// ABOUTME: The file id in the name lets receiving and archiving be repeated safely after a crash (ADR-0007).
+// ABOUTME: The file id in the name lets receiving and archiving be repeated safely after a crash (spec file-intake).
 package dev.thinkahead.sepa.intake;
 
 import java.util.Optional;

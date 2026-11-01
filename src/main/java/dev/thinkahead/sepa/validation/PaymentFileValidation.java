@@ -108,7 +108,7 @@ class PaymentFileValidation implements ProcessingStep {
 
     /**
      * Receives each message of the container as a payment file of its own, scheduled for validation in this
-     * transaction; the container itself ends as split and gets no status report (ADR-0020).
+     * transaction; the container itself ends as split and gets no status report (spec container-split).
      */
     private void recordSplit(UUID fileId, List<byte[]> messages) {
         if (!paymentFiles.isAwaitingValidation(fileId)) {

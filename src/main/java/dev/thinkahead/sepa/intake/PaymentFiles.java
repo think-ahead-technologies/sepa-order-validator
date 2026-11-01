@@ -1,5 +1,5 @@
 // ABOUTME: Public facade of the intake module for other modules: file content, status updates, report writing.
-// ABOUTME: Status reports are delivered through the channel the payment file arrived on (ADR-0013).
+// ABOUTME: Status reports are delivered through the channel the payment file arrived on (spec status-report).
 package dev.thinkahead.sepa.intake;
 
 import java.util.Optional;

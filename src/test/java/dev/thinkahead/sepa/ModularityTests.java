@@ -1,5 +1,5 @@
 // ABOUTME: Verifies the Spring Modulith module structure: no cycles, no access to other modules' internals.
-// ABOUTME: Fails the build when a module boundary from ADR-0002 is violated.
+// ABOUTME: Fails the build when a module boundary from baseline design A1 is violated.
 package dev.thinkahead.sepa;
 
 import static org.assertj.core.api.Assertions.assertThat;

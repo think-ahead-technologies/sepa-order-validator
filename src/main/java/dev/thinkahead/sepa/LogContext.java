@@ -1,5 +1,5 @@
 // ABOUTME: Puts the payment file id into the logging MDC, so every log line about a file carries its "fileId".
-// ABOUTME: Pollers and processing workers scope it to the block that handles one file (ADR-0018).
+// ABOUTME: Pollers and processing workers scope it to the block that handles one file (spec observability).
 package dev.thinkahead.sepa;
 
 import java.util.UUID;

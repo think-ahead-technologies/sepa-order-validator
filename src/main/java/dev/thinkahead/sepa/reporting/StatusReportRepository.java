@@ -1,4 +1,4 @@
-// ABOUTME: Stores exactly one pain.002 status report per payment file, for delivery, redelivery and audit (ADR-0013).
+// ABOUTME: Stores exactly one pain.002 status report per payment file, for delivery, redelivery and audit (spec status-report).
 // ABOUTME: Uses plain SQL via JdbcClient against the Flyway-managed status_report table.
 package dev.thinkahead.sepa.reporting;
 

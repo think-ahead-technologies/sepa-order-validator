@@ -13,7 +13,7 @@ spring:
       enabled: true
   modulith:
     events:
-      # Events only notify; processing runs on the work queue (ADR-0017). Nothing is republished on restart, and
+      # Events only notify; processing runs on the work queue (spec file-processing). Nothing is republished on restart, and
       # completed publications are not kept.
       republish-outstanding-events-on-restart: false
       completion-mode: delete

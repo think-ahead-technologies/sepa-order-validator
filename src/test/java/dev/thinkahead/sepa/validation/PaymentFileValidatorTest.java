@@ -358,7 +358,7 @@ class PaymentFileValidatorTest {
     @ParameterizedTest
     @ValueSource(strings = {"pain.001.001.03", "pain.001.003.03"})
     void rejectsPredecessorVersionsAsUnsupportedFormatWithFf01(String version) {
-        // ADR-0019: only pain.001.001.09 is accepted for credit transfers.
+        // Spec format-acceptance: only pain.001.001.09 is accepted for credit transfers.
         var xml = VALID_PAIN_001.replace("pain.001.001.09", version);
 
         ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);

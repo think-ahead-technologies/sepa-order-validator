@@ -78,7 +78,6 @@ Found when the specs were written from the code. Each is either confirmed as spe
 | # | Behaviour today | Question | Affects |
 |---|---|---|---|
 | D1 | SCT Inst amounts are capped at 999,999,999.99 (`AM02`) like SCT | The SCT Inst Rulebook 2025 has no scheme maximum. Drop the cap for SCT Inst, and where do customer limits come from (Q15)? | credit-transfer-rules |
-| D2 | The structured-address switch on 22 November 2026 is decided by `ReqdExctnDt` | An SCT Inst file dated before the switch but submitted after it still passes with unstructured addresses, since a past date means "execute now". Decide by submission date for SCT Inst? Urgent: the switch is on 22 November 2026. | credit-transfer-rules |
 | D3 | IBAN rule messages quote the IBAN in the pain.002 `AddtlInf` | Acceptable on the customer's own channel, or mask it? | status-report, credit-transfer-rules |
 | D4 | `REPORT` writes no audit entry | Should every step transition be audited, including report creation? | file-processing |
 | D5 | A `FAILED` work item only logs an ERROR; the invariant "one open work item per non-terminal file" is not monitored | Add a metric for failed items and an invariant check? | file-processing, observability |
@@ -94,7 +93,7 @@ Found when the specs were written from the code. Each is either confirmed as spe
 | Q4 | SDD: creditor side only (`pain.008`), or also debtor side (incoming `pacs.003` and B2B mandates)? | SDD, scope |
 | Q5 | Review: four-eyes principle required? UI needed? | Review |
 | Q6 | `.003.03` / `.003.02` ended 11/2022; `.001.03` / `.008.001.02` are temporarily usable by bilateral agreement, end date pending (DK format lifecycle 09/2026). Decided not to support them. Do any of our customers still send them? | format-acceptance |
-| Q7 | The structured or hybrid address requirement from 22 November 2026 is confirmed by EPC C2PSP IG 2025. Confirm the reason codes RR02 / RR03 and applying it by requested execution date with Compliance (see D2) | credit-transfer-rules |
+| Q7 | Debtor and creditor addresses must contain `TwnNm` and `Ctry` at any date, as the DK subset GBIC_5 requires (EPC C2PSP IG 2025 from 22 November 2026). Confirm the reason codes RR02 (debtor) / RR03 (creditor) with Compliance | credit-transfer-rules |
 | Q9 | Retention periods for raw files and audit data | Persistence, compliance |
 | Q10 | OpenShift version and admission mechanism for signature verification; Red Hat Trusted Artifact Signer / Trusted Profile Analyzer available? | Supply chain |
 | Q11 | Which CI system builds and signs (OpenShift Pipelines/Tekton, GitLab CI, Jenkins)? | Supply chain |

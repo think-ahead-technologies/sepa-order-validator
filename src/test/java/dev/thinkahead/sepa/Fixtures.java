@@ -107,19 +107,30 @@ public final class Fixtures {
     }
 
     /**
-     * The valid sample executed on 23 November 2026 (the first business day on which SEPA allows only structured and
-     * hybrid addresses) or later, with an unstructured creditor address in the second transaction (RR03); the first
-     * transaction lacks its creditor name (RR03).
+     * The valid sample with an unstructured creditor address in the second transaction (RR03); the first transaction
+     * lacks its creditor name (RR03).
      */
     public static String withCreditorNameAndAddressViolations(String messageId) {
-        LocalDate firstBusinessDayWithStructuredAddresses = LocalDate.of(2026, 11, 23);
-        LocalDate future = futureExecutionDate();
-        return validPain001(messageId,
-                future.isAfter(firstBusinessDayWithStructuredAddresses) ? future : firstBusinessDayWithStructuredAddresses)
+        return withUnstructuredCreditorAddress(validPain001(messageId)).replace("<Nm>Lieferant AG</Nm>", "");
+    }
+
+    /**
+     * The given sample with the second transaction's creditor address made unstructured: only two AdrLine and Ctry,
+     * no TwnNm (RR03 at any execution date).
+     */
+    public static String withUnstructuredCreditorAddress(String pain001) {
+        return pain001
                 .replace("<TwnNm>Paris</TwnNm>", "")
                 .replace("<AdrLine>12 Rue de la Paix</AdrLine>",
-                        "<AdrLine>12 Rue de la Paix</AdrLine><AdrLine>75002 Paris</AdrLine>")
-                .replace("<Nm>Lieferant AG</Nm>", "");
+                        "<AdrLine>12 Rue de la Paix</AdrLine><AdrLine>75002 Paris</AdrLine>");
+    }
+
+    /**
+     * A SEPA Instant file whose requested execution date is the given past date, meaning immediate execution, with an
+     * unstructured creditor address in the second transaction (RR03).
+     */
+    public static String pastDatedInstantWithUnstructuredCreditorAddress(String messageId, LocalDate executionDate) {
+        return withUnstructuredCreditorAddress(validInstantPain001(messageId, executionDate));
     }
 
     public static final String FRENCH_CREDITOR_NAME = "Société Générale";

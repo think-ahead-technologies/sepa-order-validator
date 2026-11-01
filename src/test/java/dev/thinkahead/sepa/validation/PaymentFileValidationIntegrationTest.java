@@ -199,7 +199,7 @@ class PaymentFileValidationIntegrationTest {
     }
 
     @Test
-    void rejectsMissingCreditorNameAndUnstructuredAddressAfterTheCutoverWithoutLoggingThem(CapturedOutput output) {
+    void rejectsMissingCreditorNameAndUnstructuredAddressWithoutLoggingThem(CapturedOutput output) {
         PaymentFileValidated validated = uploadAndAwaitValidation(
                 dev.thinkahead.sepa.Fixtures.withCreditorNameAndAddressViolations(uniqueMessageId()));
 

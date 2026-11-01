@@ -293,7 +293,7 @@ class PaymentFileValidatorTest {
     }
 
     @Test
-    void rejectsMissingCreditorNameAndUnstructuredAddressAfterTheCutoverWithRr03() {
+    void rejectsMissingCreditorNameAndUnstructuredAddressWithRr03() {
         ValidationResult result = validator.validate(
                 bytes(withCreditorNameAndAddressViolations(SAMPLE_MESSAGE_ID)), NO_DEADLINE);
 
@@ -303,6 +303,31 @@ class PaymentFileValidatorTest {
                 .containsExactlyInAnyOrder(
                         tuple("RR03", "PmtInf[1]/CdtTrfTxInf[1]/Cdtr/Nm"),
                         tuple("RR03", "PmtInf[1]/CdtTrfTxInf[2]/Cdtr/PstlAdr"));
+    }
+
+    @Test
+    void rejectsAPastDatedSepaInstantFileWithAnUnstructuredAddressWithRr03Only() {
+        String xml = dev.thinkahead.sepa.Fixtures.pastDatedInstantWithUnstructuredCreditorAddress(SAMPLE_MESSAGE_ID,
+                java.time.LocalDate.of(2026, 10, 25));
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.accepted()).isFalse();
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(tuple("RR03", "PmtInf[1]/CdtTrfTxInf[2]/Cdtr/PstlAdr"));
+    }
+
+    @Test
+    void rejectsAnUnstructuredAddressBefore22November2026WithRr03InsteadOfTheDkSubsetsFf01() {
+        String xml = dev.thinkahead.sepa.Fixtures.withUnstructuredCreditorAddress(
+                dev.thinkahead.sepa.Fixtures.validPain001(SAMPLE_MESSAGE_ID, java.time.LocalDate.of(2026, 11, 20)));
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(tuple("RR03", "PmtInf[1]/CdtTrfTxInf[2]/Cdtr/PstlAdr"));
     }
 
     @Test

@@ -118,11 +118,24 @@ class PaymentFileProcessingEndToEndTest {
     }
 
     @Test
-    void unstructuredAddressAfterTheCutoverAndMissingCreditorNameAreRejectedWithRr03() throws Exception {
+    void unstructuredAddressAndMissingCreditorNameAreRejectedWithRr03() throws Exception {
         Delivery delivery = submit(Fixtures.withCreditorNameAndAddressViolations(uniqueMessageId()));
 
         assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
         assertThat(reasonCodes(delivery.report())).containsExactly("RR03", "RR03");
+        assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
+        assertAuditTrailComplete(delivery.fileName());
+    }
+
+    @Test
+    void pastDatedSepaInstantWithAnUnstructuredAddressIsRejectedWithRr03() throws Exception {
+        java.time.LocalDate pastSunday = java.time.LocalDate.of(2026, 10, 25);
+
+        Delivery delivery = submit(Fixtures.pastDatedInstantWithUnstructuredCreditorAddress(uniqueMessageId(),
+                pastSunday));
+
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(reasonCodes(delivery.report())).containsExactly("RR03");
         assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
         assertAuditTrailComplete(delivery.fileName());
     }

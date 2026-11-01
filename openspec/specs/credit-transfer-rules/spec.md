@@ -173,28 +173,28 @@ The system SHALL require every credit transfer to name its creditor in `CdtTrfTx
 - **WHEN** a transaction's `Cdtr` has no `Nm`
 - **THEN** the file is rejected with `RR03` at `PmtInf[n]/CdtTrfTxInf[m]/Cdtr/Nm`
 
-### Requirement: Debtor and creditor postal addresses
-The system SHALL check the debtor address (`PmtInf/Dbtr/PstlAdr`) and each creditor address (`CdtTrfTxInf/Cdtr/PstlAdr`); addresses of ultimate parties and agents SHALL NOT be checked. An address MUST have at most two `AdrLine`. For a requested execution date (`ReqdExctnDt/Dt`, or the date of `ReqdExctnDt/DtTm`) on or after 22 November 2026, an address MUST be structured or hybrid, i.e. contain `TwnNm` and `Ctry` (EPC IG 1.7, 2.23, 2.118). For an earlier date, an address MUST be structured or hybrid, or unstructured: at least one `AdrLine` and no element besides `AdrLine` and `Ctry`. Violations MUST be reported with `RR02` for the debtor and `RR03` for the creditor, at `PstlAdr` for the address form and at `PstlAdr/AdrLine` for too many lines.
+### Requirement: Structured debtor and creditor postal addresses
+The system SHALL check the debtor address (`PmtInf/Dbtr/PstlAdr`) and each creditor address (`CdtTrfTxInf/Cdtr/PstlAdr`); addresses of ultimate parties and agents SHALL NOT be checked. An address MUST be structured or hybrid, i.e. contain `TwnNm` and `Ctry`, and MUST have at most two `AdrLine` (EPC IG 1.7, 2.23, 2.118; DK TVS GBIC_5, which makes `TwnNm` and `Ctry` mandatory in these addresses). This applies at any requested execution date and to SCT and SCT Inst alike. Violations MUST be reported with `RR02` for the debtor and `RR03` for the creditor, at `PstlAdr` for the address form and at `PstlAdr/AdrLine` for too many lines.
 
 #### Scenario: Structured and hybrid addresses
-- **WHEN** an address contains `TwnNm` and `Ctry`, with or without up to two `AdrLine`, for execution before or from 22 November 2026
+- **WHEN** an address contains `TwnNm` and `Ctry`, with or without up to two `AdrLine`
 - **THEN** no address violation is reported
 
-#### Scenario: Unstructured address before the switch
-- **WHEN** a creditor address consists only of `AdrLine` elements, with or without `Ctry`, and the requested execution date is 21 November 2026
-- **THEN** no address violation is reported
-
-#### Scenario: Unstructured creditor address from the switch on
-- **WHEN** a creditor address has no `TwnNm` and the requested execution date is on or after 22 November 2026
+#### Scenario: Unstructured creditor address
+- **WHEN** a creditor address consists only of `AdrLine` elements, with or without `Ctry`, whether the requested execution date is 21 November 2026 or later
 - **THEN** the file is rejected with `RR03` at `PmtInf[n]/CdtTrfTxInf[m]/Cdtr/PstlAdr`
 
-#### Scenario: Unstructured debtor address from the switch on
-- **WHEN** a debtor address consists only of `AdrLine` and `Ctry` and the requested execution date is after 22 November 2026
+#### Scenario: Unstructured debtor address
+- **WHEN** a debtor address consists only of `AdrLine` and `Ctry`
 - **THEN** the file is rejected with `RR02` at `PmtInf[n]/Dbtr/PstlAdr`
 
-#### Scenario: Neither structured nor unstructured before the switch
-- **WHEN** before 22 November 2026 an address combines `AdrLine` with `StrtNm` but lacks `TwnNm` and `Ctry`, or has only `Ctry`
-- **THEN** the file is rejected with `RR03` for a creditor address
+#### Scenario: Town without country
+- **WHEN** a creditor address contains `TwnNm` but no `Ctry`
+- **THEN** the file is rejected with `RR03` at `PmtInf[n]/CdtTrfTxInf[m]/Cdtr/PstlAdr`
+
+#### Scenario: Past-dated SEPA Instant with an unstructured address
+- **WHEN** an SCT Inst block with a requested execution date in the past has a creditor address without `TwnNm`
+- **THEN** the file is rejected with `RR03` at `PmtInf[n]/CdtTrfTxInf[m]/Cdtr/PstlAdr` as its only violation, without `DT01` and without `FF01`
 
 #### Scenario: More than two address lines
 - **WHEN** a debtor address has three `AdrLine`

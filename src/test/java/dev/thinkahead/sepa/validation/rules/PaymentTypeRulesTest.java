@@ -1,5 +1,5 @@
-// ABOUTME: Unit tests for the SEPA Instant rules on payment type information (DK Anlage 3 v3.9, 2.2.4.1).
-// ABOUTME: Local instrument only INST (AG02), no mixing of SCT and SCT Inst (AG02), PmtTpInf on one level only (FF01).
+// ABOUTME: Unit tests for the rules on payment type information (DK Anlage 3 v3.9, 2.2.4.1, GBIC_5 TVS).
+// ABOUTME: Service level SEPA and local instrument INST (AG02), one scheme per file (AG02), PmtTpInf on one level (FF01).
 package dev.thinkahead.sepa.validation.rules;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,14 +23,14 @@ class PaymentTypeRulesTest {
     void localInstrumentRuleAcceptsNoLocalInstrumentAndInst() {
         var rule = new LocalInstrumentRule();
 
-        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", null, null))).isEmpty();
-        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null))).isEmpty();
+        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", null, null, null))).isEmpty();
+        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null, null))).isEmpty();
     }
 
     @Test
     void localInstrumentRuleReportsAg02ForOtherCodes() {
         assertThat(new LocalInstrumentRule().validate(
-                new PaymentTypeInformation("PmtInf[1]/CdtTrfTxInf[3]/PmtTpInf", "SDCL", null)))
+                new PaymentTypeInformation("PmtInf[1]/CdtTrfTxInf[3]/PmtTpInf", "SDCL", null, null)))
                 .singleElement()
                 .satisfies(v -> {
                     assertThat(v.reasonCode()).isEqualTo("AG02");
@@ -42,26 +42,46 @@ class PaymentTypeRulesTest {
     @Test
     void localInstrumentRuleReportsAg02ForAProprietaryLocalInstrument() {
         assertThat(new LocalInstrumentRule().validate(
-                new PaymentTypeInformation("PmtInf[1]/PmtTpInf", null, "INSTANT")))
+                new PaymentTypeInformation("PmtInf[1]/PmtTpInf", null, "INSTANT", null)))
                 .extracting(Violation::reasonCode, Violation::path)
                 .containsExactly(tuple("AG02", "PmtInf[1]/PmtTpInf/LclInstrm"));
+    }
+
+    @Test
+    void serviceLevelRuleAcceptsNoServiceLevelAndSepa() {
+        var rule = new ServiceLevelRule();
+
+        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", null, null, null))).isEmpty();
+        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null, "SEPA"))).isEmpty();
+    }
+
+    @Test
+    void serviceLevelRuleReportsAg02ForOtherCodes() {
+        assertThat(new ServiceLevelRule().validate(
+                new PaymentTypeInformation("PmtInf[1]/CdtTrfTxInf[2]/PmtTpInf", null, null, "URGP")))
+                .singleElement()
+                .satisfies(v -> {
+                    assertThat(v.reasonCode()).isEqualTo("AG02");
+                    assertThat(v.path()).isEqualTo("PmtInf[1]/CdtTrfTxInf[2]/PmtTpInf/SvcLvl/Cd");
+                    assertThat(v.message()).contains("URGP").contains("SEPA");
+                });
     }
 
     @Test
     void levelRuleAcceptsPaymentTypeInformationOnEitherLevel() {
         var rule = new PaymentTypeInformationLevelRule();
 
-        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null))).isEmpty();
-        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[2]/CdtTrfTxInf[1]/PmtTpInf", "INST", null)))
+        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null, null))).isEmpty();
+        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[2]/CdtTrfTxInf[1]/PmtTpInf", "INST", null, null)))
                 .isEmpty();
     }
 
     @Test
     void levelRuleReportsFf01WhenBothLevelsCarryPaymentTypeInformation() {
         var rule = new PaymentTypeInformationLevelRule();
-        rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null));
+        rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null, null));
 
-        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/CdtTrfTxInf[2]/PmtTpInf", "INST", null)))
+        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/CdtTrfTxInf[2]/PmtTpInf", "INST", null, null)))
                 .extracting(Violation::reasonCode, Violation::path)
                 .containsExactly(tuple("FF01", "PmtInf[1]/CdtTrfTxInf[2]/PmtTpInf"));
     }

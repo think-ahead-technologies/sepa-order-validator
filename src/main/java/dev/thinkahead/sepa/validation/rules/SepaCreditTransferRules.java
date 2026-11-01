@@ -29,7 +29,7 @@ public final class SepaCreditTransferRules implements Pain001Handler {
 
     private final List<ValidationRule<PaymentInformation>> paymentInformationRules;
     private final List<ValidationRule<PaymentTypeInformation>> paymentTypeRules =
-            List.of(new LocalInstrumentRule(), new PaymentTypeInformationLevelRule());
+            List.of(new ServiceLevelRule(), new LocalInstrumentRule(), new PaymentTypeInformationLevelRule());
     private final List<Violation> violations = new ArrayList<>();
     private final int maxReportedViolations;
     private long unreportedViolations;

@@ -66,6 +66,7 @@ public class Pain001Parser {
         private int instantTransactions;
         private String paymentTypeCode;
         private String paymentTypeProprietary;
+        private String serviceLevelCode;
         private String debtorIban;
         private AgentBuilder debtorAgent;
         private long paymentCount;
@@ -172,10 +173,12 @@ public class Pain001Parser {
                 case PMT_INF + "/PmtTpInf" -> {
                     paymentTypeCode = null;
                     paymentTypeProprietary = null;
+                    serviceLevelCode = null;
                 }
                 case TX + "/PmtTpInf" -> {
                     paymentTypeCode = null;
                     paymentTypeProprietary = null;
+                    serviceLevelCode = null;
                     transactionHasPaymentType = true;
                 }
                 case STRD -> {
@@ -207,15 +210,16 @@ public class Pain001Parser {
                 case PMT_INF + "/PmtTpInf/LclInstrm/Cd", TX + "/PmtTpInf/LclInstrm/Cd" -> paymentTypeCode = value;
                 case PMT_INF + "/PmtTpInf/LclInstrm/Prtry", TX + "/PmtTpInf/LclInstrm/Prtry" ->
                         paymentTypeProprietary = value;
+                case PMT_INF + "/PmtTpInf/SvcLvl/Cd", TX + "/PmtTpInf/SvcLvl/Cd" -> serviceLevelCode = value;
                 case PMT_INF + "/PmtTpInf" -> {
                     paymentInformationLocalInstrument = paymentTypeCode;
                     handler.paymentTypeInformation(new PaymentTypeInformation(paymentInformationPath + "/PmtTpInf",
-                            paymentTypeCode, paymentTypeProprietary));
+                            paymentTypeCode, paymentTypeProprietary, serviceLevelCode));
                 }
                 case TX + "/PmtTpInf" -> {
                     transactionLocalInstrument = paymentTypeCode;
                     handler.paymentTypeInformation(new PaymentTypeInformation(transactionPath + "/PmtTpInf",
-                            paymentTypeCode, paymentTypeProprietary));
+                            paymentTypeCode, paymentTypeProprietary, serviceLevelCode));
                 }
                 case PMT_INF + "/ReqdExctnDt/Dt" -> requestedExecutionDate = LocalDate.parse(value);
                 case PMT_INF + "/ReqdExctnDt/DtTm" -> requestedExecutionDate = LocalDate.parse(value.substring(0, 10));

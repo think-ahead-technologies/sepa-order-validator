@@ -91,7 +91,8 @@ flowchart TD
     E --> F[StAX streaming parse]
     F --> G[Group checks: NbOfTxs, CtrlSum]
     G --> H[Transaction rules per scheme/version/rulebook]
-    H --> I[Stateful checks: MsgId not yet accepted for submitter, mandates]
+    H --> T[DK subset XSD, only if no rule violation]
+    T --> I[Stateful checks: MsgId not yet accepted for submitter, mandates]
     I --> J{Any violation?}
     J -- yes --> R
     J -- no --> K[Screening: sanctions, VoP, fraud]
@@ -143,7 +144,8 @@ public record Violation(
 
 | Rule | Reason code |
 |---|---|
-| File is well-formed XML and valid against the XSD of its namespace | FF01 |
+| File is well-formed XML and valid against the ISO XSD of its namespace | FF01 |
+| File that passes every other rule is also valid against the DK technical validation subset GBIC_5, e.g. `PmtMtd` only `TRF`, `ChrgBr` only `SLEV` ([ADR-0022](../adr/0022-dk-technical-validation-subset-as-final-gate.md)) | FF01 |
 | `GrpHdr/NbOfTxs` equals actual transaction count | AM18 |
 | `GrpHdr/CtrlSum` equals sum of amounts | AM10 |
 | Same checks per `PmtInf` | AM18 / AM10 |
@@ -173,6 +175,7 @@ public record Violation(
 |---|---|
 | SCT: requested execution date is a TARGET business day (closed on weekends, 1 January, Good Friday, Easter Monday, 1 May, 25 and 26 December) and not before today in Europe/Berlin. SCT Inst: the date is the earliest start of execution, any day, past dates mean immediately (DK Anlage 3 v3.9, 2.2.4.1) | DT01 |
 | SCT Inst is marked by local instrument `INST`; no other local instrument, SCT carries none (DK Anlage 3 v3.9, 2.2.4.1) | AG02 |
+| Service level, if given, is `SEPA` (GBIC_5 TVS usage rule, AT-T001) | AG02 |
 | A file holds either SCT or SCT Inst, never both (separate DK order types CCT and CIP) | AG02 |
 | The SEPA Instant inbox takes only SCT Inst; SCT Inst is never submitted in a container ([ADR-0021](../adr/0021-sepa-instant-inbox-with-priority-processing.md)) | AG02 |
 | Payment type information on payment information or transaction level, not both | FF01 |

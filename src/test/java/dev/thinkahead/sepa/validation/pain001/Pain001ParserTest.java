@@ -210,8 +210,8 @@ class Pain001ParserTest {
         new Pain001Parser().parse(bytes(xml), handler);
 
         assertThat(handler.paymentTypes).containsExactly(
-                new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null),
-                new PaymentTypeInformation("PmtInf[1]/CdtTrfTxInf[2]/PmtTpInf", null, "EXPRESS"));
+                new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null, "SEPA"),
+                new PaymentTypeInformation("PmtInf[1]/CdtTrfTxInf[2]/PmtTpInf", null, "EXPRESS", null));
     }
 
     @Test

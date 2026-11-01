@@ -326,6 +326,28 @@ class PaymentFileValidationIntegrationTest {
     }
 
     @Test
+    void rejectsAChequeOrderAgainstTheDkSchemaWithFf01() {
+        PaymentFileValidated validated = uploadAndAwaitValidation(validPain001(uniqueMessageId())
+                .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>CHK</PmtMtd>"));
+
+        assertThat(validated.accepted()).isFalse();
+        assertThat(validated.violations()).extracting(Violation::reasonCode).containsOnly("FF01");
+        assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
+    }
+
+    @Test
+    void rejectsAServiceLevelOtherThanSepaWithAg02() {
+        PaymentFileValidated validated = uploadAndAwaitValidation(validPain001(uniqueMessageId())
+                .replaceFirst("(<SvcLvl>\\s*<Cd>)SEPA(</Cd>)", "$1URGP$2"));
+
+        assertThat(validated.accepted()).isFalse();
+        assertThat(validated.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("AG02", "PmtInf[1]/PmtTpInf/SvcLvl/Cd"));
+        assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
+    }
+
+    @Test
     void acceptsCreditorsInCountriesThatJoinedSepaIn2025() {
         PaymentFileValidated validated = uploadAndAwaitValidation(validPain001(uniqueMessageId())
                 .replace("NL91ABNA0417164300", "AL47212110090000000235698741")

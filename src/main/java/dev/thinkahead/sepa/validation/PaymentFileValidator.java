@@ -1,4 +1,4 @@
-// ABOUTME: Validates a payment file's content: format detection, hardened XSD validation, then content rules.
+// ABOUTME: Validates a payment file: format detection, hardened ISO XSD, content rules, then the DK subset XSD.
 // ABOUTME: Rules run only on schema-valid files; DK containers are read and split instead. A deadline bounds both.
 package dev.thinkahead.sepa.validation;
 
@@ -27,6 +27,9 @@ import org.springframework.stereotype.Component;
 class PaymentFileValidator {
 
     static final String INVALID_FILE_FORMAT = "FF01";
+
+    /** Marks schema errors of the DK subset, so the customer can tell them from errors against the ISO schema. */
+    static final String DK_SUBSET = "DK subset GBIC_5: ";
 
     /** The bank's time zone: it decides which calendar day "today" is for execution dates. */
     static final ZoneId BANK_ZONE = ZoneId.of("Europe/Berlin");
@@ -98,7 +101,17 @@ class PaymentFileValidator {
         var rules = new SepaCreditTransferRules(MAX_REPORTED_VIOLATIONS, LocalDate.now(clock.withZone(BANK_ZONE)),
                 submission);
         GroupHeader header = beforeDeadline(deadline, () -> parser.parse(read(content, deadline), rules));
-        return new ValidationResult(header.messageId(), format.messageNameId(), rules.violations());
+        if (!rules.violations().isEmpty()) {
+            return new ValidationResult(header.messageId(), format.messageNameId(), rules.violations());
+        }
+
+        // Last gate (ADR-0022): a file the rules pass is accepted only if it also meets the DK subset.
+        List<SchemaError> dkSubsetErrors = beforeDeadline(deadline,
+                () -> schemaValidator.validateDkSubset(format, read(content, deadline)));
+        return new ValidationResult(header.messageId(), format.messageNameId(), dkSubsetErrors.stream()
+                .map(error -> new Violation(INVALID_FILE_FORMAT,
+                        "Line " + error.line() + ", column " + error.column(), DK_SUBSET + error.message()))
+                .toList());
     }
 
     private static InputStream read(byte[] content, Instant deadline) {

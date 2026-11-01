@@ -119,6 +119,62 @@ class PaymentFileValidatorTest {
     }
 
     @Test
+    void rejectsAChequeOrderAgainstTheDkSchemaWithFf01() {
+        var xml = VALID_PAIN_001.replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>CHK</PmtMtd>");
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.accepted()).isFalse();
+        assertThat(result.violations()).isNotEmpty()
+                .allSatisfy(violation -> assertThat(violation.reasonCode()).isEqualTo("FF01"));
+    }
+
+    @Test
+    void rejectsAChargeBearerOtherThanSlevAgainstTheDkSchemaWithFf01() {
+        var xml = VALID_PAIN_001.replace("<ChrgBr>SLEV</ChrgBr>", "<ChrgBr>DEBT</ChrgBr>");
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.accepted()).isFalse();
+        assertThat(result.violations()).isNotEmpty()
+                .allSatisfy(violation -> assertThat(violation.reasonCode()).isEqualTo("FF01"));
+    }
+
+    @Test
+    void reportsRuleViolationsWithTheirReasonCodesBeforeCheckingTheDkSubset() {
+        var xml = VALID_PAIN_001.replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>CHK</PmtMtd>")
+                .replace("<CtrlSum>150.50</CtrlSum>", "<CtrlSum>150.51</CtrlSum>");
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactlyInAnyOrder(tuple("AM10", "GrpHdr/CtrlSum"), tuple("AM10", "PmtInf[1]/CtrlSum"));
+    }
+
+    @Test
+    void keepsTheMessageIdOfAFileRejectedByTheDkSubset() {
+        var xml = VALID_PAIN_001.replace("<ChrgBr>SLEV</ChrgBr>", "<ChrgBr>DEBT</ChrgBr>");
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.originalMessageId()).isEqualTo(SAMPLE_MESSAGE_ID);
+        assertThat(result.violations()).first()
+                .satisfies(violation -> assertThat(violation.message()).startsWith("DK subset GBIC_5: "));
+    }
+
+    @Test
+    void rejectsAServiceLevelOtherThanSepaWithAg02() {
+        var xml = VALID_PAIN_001.replaceFirst("(<SvcLvl>\\s*<Cd>)SEPA(</Cd>)", "$1URGP$2");
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(tuple("AG02", "PmtInf[1]/PmtTpInf/SvcLvl/Cd"));
+    }
+
+    @Test
     void rejectsPaymentTypeInformationOnBothLevelsWithFf01() {
         String xml = dev.thinkahead.sepa.Fixtures.validInstantPain001(SAMPLE_MESSAGE_ID,
                 java.time.LocalDate.of(2026, 11, 2)).replaceFirst(

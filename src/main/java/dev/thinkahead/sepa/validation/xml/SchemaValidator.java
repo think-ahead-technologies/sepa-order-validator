@@ -1,5 +1,5 @@
-// ABOUTME: Validates payment files against the bundled XSD of their message format using a hardened parser.
-// ABOUTME: Collects schema errors up to a cap and only logs warnings; compiled schemas are cached per format.
+// ABOUTME: Validates payment files against the ISO XSD or the DK subset XSD of their format with a hardened parser.
+// ABOUTME: Collects schema errors up to a cap and only logs warnings; compiled schemas are cached per resource.
 package dev.thinkahead.sepa.validation.xml;
 
 import java.io.ByteArrayInputStream;
@@ -24,7 +24,8 @@ public class SchemaValidator {
 
     private static final Logger LOG = LoggerFactory.getLogger(SchemaValidator.class);
 
-    private final Map<MessageFormat, Schema> schemas = new ConcurrentHashMap<>();
+    // Compiled schemas by resource path.
+    private final Map<String, Schema> schemas = new ConcurrentHashMap<>();
     private final int maxErrors;
 
     /**
@@ -39,7 +40,18 @@ public class SchemaValidator {
     }
 
     public List<SchemaError> validate(MessageFormat format, InputStream content) {
-        return validate(schemaFor(format), content);
+        return validate(schemaAt(format.schemaResource()), content);
+    }
+
+    public List<SchemaError> validateDkSubset(MessageFormat format, byte[] content) {
+        return validateDkSubset(format, new ByteArrayInputStream(content));
+    }
+
+    /**
+     * Validates against the DK technical validation subset of the format, which is stricter than its ISO schema.
+     */
+    public List<SchemaError> validateDkSubset(MessageFormat format, InputStream content) {
+        return validate(schemaAt(format.dkSubsetSchemaResource()), content);
     }
 
     public List<SchemaError> validate(Schema schema, InputStream content) {
@@ -58,16 +70,16 @@ public class SchemaValidator {
         return errors;
     }
 
-    private Schema schemaFor(MessageFormat format) {
-        return schemas.computeIfAbsent(format, f -> {
-            URL xsd = SchemaValidator.class.getResource(f.schemaResource());
+    private Schema schemaAt(String resource) {
+        return schemas.computeIfAbsent(resource, r -> {
+            URL xsd = SchemaValidator.class.getResource(r);
             if (xsd == null) {
-                throw new IllegalStateException("Missing XSD " + f.schemaResource());
+                throw new IllegalStateException("Missing XSD " + r);
             }
             try {
                 return SecureXml.schema(xsd);
             } catch (SAXException e) {
-                throw new IllegalStateException("Cannot compile XSD " + f.schemaResource(), e);
+                throw new IllegalStateException("Cannot compile XSD " + r, e);
             }
         });
     }

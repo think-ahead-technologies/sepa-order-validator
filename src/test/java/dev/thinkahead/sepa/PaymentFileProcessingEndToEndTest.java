@@ -162,6 +162,25 @@ class PaymentFileProcessingEndToEndTest {
     }
 
     @Test
+    void ordersOutsideSepaCreditTransferAreRejected() throws Exception {
+        Delivery cheque = submit(validPain001(uniqueMessageId())
+                .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>CHK</PmtMtd>"));
+        Delivery chargesToDebtor = submit(validPain001(uniqueMessageId())
+                .replace("<ChrgBr>SLEV</ChrgBr>", "<ChrgBr>DEBT</ChrgBr>"));
+        Delivery urgentPayment = submit(validPain001(uniqueMessageId())
+                .replaceFirst("(<SvcLvl>\\s*<Cd>)SEPA(</Cd>)", "$1URGP$2"));
+
+        for (Delivery delivery : List.of(cheque, chargesToDebtor, urgentPayment)) {
+            assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+            assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
+            assertAuditTrailComplete(delivery.fileName());
+        }
+        assertThat(reasonCodes(cheque.report())).containsOnly("FF01");
+        assertThat(reasonCodes(chargesToDebtor.report())).containsOnly("FF01");
+        assertThat(reasonCodes(urgentPayment.report())).containsExactly("AG02");
+    }
+
+    @Test
     void executionOnAWeekendIsRejectedWithDt01() throws Exception {
         java.time.LocalDate saturday = Fixtures.futureExecutionDate()
                 .with(java.time.temporal.TemporalAdjusters.next(java.time.DayOfWeek.SATURDAY));

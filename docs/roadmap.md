@@ -68,7 +68,7 @@ Built today: dependency and wrapper verification (spec `supply-chain`). Planned:
 
 ### Operations
 
-- A CI pipeline that runs `gradlew fullTest` (integration and end-to-end tests with Testcontainers) on every push; locally only `build` with the unit tests runs by default. Needs a git remote and a CI system (Q11).
+- GitLab CI (`.gitlab-ci.yml`) is defined: `build`, then `fullTest` on Docker-in-Docker, for merge requests and branches. It has not run yet: it needs a GitLab project as git remote and a runner that allows privileged services.
 - Management APIs (e.g. re-driving work items, today a database function, see [runbook](operations/redrive-work-items.md)) once management APIs have OAuth2.
 - Raw files stored as streams (object storage or PostgreSQL large objects) for flat memory per file, when volumes require it; depends on Q9.
 
@@ -97,7 +97,7 @@ Found when the specs were written from the code. Each is either confirmed as spe
 | Q7 | Debtor and creditor addresses must contain `TwnNm` and `Ctry` at any date, as the DK subset GBIC_5 requires (EPC C2PSP IG 2025 from 22 November 2026). Confirm the reason codes RR02 (debtor) / RR03 (creditor) with Compliance | credit-transfer-rules |
 | Q9 | Retention periods for raw files and audit data | Persistence, compliance |
 | Q10 | OpenShift version and admission mechanism for signature verification; Red Hat Trusted Artifact Signer / Trusted Profile Analyzer available? | Supply chain |
-| Q11 | Which CI system builds and signs (OpenShift Pipelines/Tekton, GitLab CI, Jenkins)? | Supply chain |
+| Q11 | GitLab CI builds and tests. Which GitLab (gitlab.com or the bank's instance) and runners, and may the pipeline sign with Vault Transit from there? | Supply chain |
 | Q12 | How long must a `MsgId` stay unique per submitter (forever, or e.g. 90 days)? Does DK prescribe a window? | file-validation |
 | Q13 | Maximum accepted file size (default 100 MB) and overdue-reply threshold (default 10 min): confirm with business and operations, size pods accordingly | file-intake |
 | Q14 | Characters outside the DK set (e.g. `é`, `ł`) are rejected with CH16. Should they be accepted and converted per EPC217-08 instead, and if so by this system or by downstream payment processing? | credit-transfer-rules |

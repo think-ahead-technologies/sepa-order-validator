@@ -1,0 +1,67 @@
+# GitLab CI for the SEPA Payment Order Validator.
+# build: compile, Spotless check and unit tests. full-test: all tests, with Testcontainers on Docker-in-Docker.
+#
+# Runner requirement: full-test needs a Docker executor that allows privileged services (docker:dind).
+# Images are pinned by tag and digest; Java matches mise.toml, Gradle comes from the verified wrapper.
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+default:
+  image: eclipse-temurin:25.0.5_8-jdk-noble@sha256:95e350ad1eb738f943e141640f7e3d797e483359a3b33c3864255bfd1ad71f8a
+  interruptible: true
+
+variables:
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+stages:
+  - build
+  - test
+
+.gradle-cache:
+  cache:
+    key:
+      files:
+        - gradle/wrapper/gradle-wrapper.properties
+        - gradle/libs.versions.toml
+        - gradle/verification-metadata.xml
+    paths:
+      - .gradle-home/caches/
+      - .gradle-home/wrapper/
+
+build:
+  stage: build
+  extends: .gradle-cache
+  script:
+    - ./gradlew build
+  artifacts:
+    when: always
+    reports:
+      junit: build/test-results/test/TEST-*.xml
+
+full-test:
+  stage: test
+  extends: .gradle-cache
+  needs: [build]
+  cache:
+    policy: pull
+  services:
+    - name: docker:29.9.1-dind@sha256:3e5756e2b6dad6a5f1f5deacf0a19f9eaa2581b76ae092b2d4a118162e1d4d4e
+      alias: docker
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    # Containers publish their ports on the dind service, not on localhost.
+    TESTCONTAINERS_HOST_OVERRIDE: docker
+  script:
+    - ./gradlew fullTest
+  artifacts:
+    when: always
+    reports:
+      junit: build/test-results/fullTest/TEST-*.xml

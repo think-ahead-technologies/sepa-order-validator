@@ -11,6 +11,7 @@ Behaviour: OpenSpec capability specs in `openspec/specs/`; project context in `o
 - Java and Gradle are pinned in `mise.toml`. Run everything through mise:
   - `mise install` — install the pinned JDK and Gradle
   - `mise exec -- ./gradlew build` — compile and run all tests
+  - `mise exec -- ./gradlew unitTest` — unit tests only (no Spring context, no containers), for the inner loop
   - `mise exec -- ./gradlew test --tests '*IbanCheckTest'` — single test class
   - `mise exec -- ./gradlew bootTestRun` — run the app locally with PostgreSQL and SFTP from Testcontainers
 - Docker must be running: integration and end-to-end tests use Testcontainers (PostgreSQL and an SFTP server).

@@ -52,10 +52,23 @@ configurations.testImplementation {
     exclude(group = "org.mockito")
 }
 
-tasks.test {
+tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     testLogging {
         events("failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
+}
+
+// Fast inner loop: everything except *IntegrationTest and *EndToEndTest, so no Spring context, PostgreSQL or SFTP.
+// `build` still runs the full suite through `test`.
+tasks.register<Test>("unitTest") {
+    description = "Runs the unit tests only, without Spring contexts or Testcontainers."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    filter {
+        excludeTestsMatching("*IntegrationTest")
+        excludeTestsMatching("*EndToEndTest")
     }
 }

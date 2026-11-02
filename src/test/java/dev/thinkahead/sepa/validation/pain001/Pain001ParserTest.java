@@ -51,16 +51,13 @@ class Pain001ParserTest {
     }
 
     @Test
-    void emitsDebtorAndCreditorAddressesWithTheRequestedExecutionDate() {
+    void emitsDebtorAndCreditorAddresses() {
         new Pain001Parser().parse(bytes(VALID_PAIN_001), handler);
 
-        LocalDate executionDate = LocalDate.of(2026, 11, 2);
         assertThat(handler.postalAddresses).containsExactly(
-                new PostalAddress("PmtInf[1]/Dbtr/PstlAdr", Party.DEBTOR, executionDate, 0, true, true, true),
-                new PostalAddress("PmtInf[1]/CdtTrfTxInf[1]/Cdtr/PstlAdr", Party.CREDITOR, executionDate,
-                        1, true, true, true),
-                new PostalAddress("PmtInf[1]/CdtTrfTxInf[2]/Cdtr/PstlAdr", Party.CREDITOR, executionDate,
-                        1, true, true, true));
+                new PostalAddress("PmtInf[1]/Dbtr/PstlAdr", Party.DEBTOR, 0, true, true),
+                new PostalAddress("PmtInf[1]/CdtTrfTxInf[1]/Cdtr/PstlAdr", Party.CREDITOR, 1, true, true),
+                new PostalAddress("PmtInf[1]/CdtTrfTxInf[2]/Cdtr/PstlAdr", Party.CREDITOR, 1, true, true));
     }
 
     @Test
@@ -69,9 +66,6 @@ class Pain001ParserTest {
 
         new Pain001Parser().parse(bytes(xml), handler);
 
-        assertThat(handler.postalAddresses)
-                .allSatisfy(address -> assertThat(address.requestedExecutionDate())
-                        .isEqualTo(LocalDate.of(2026, 11, 23)));
         assertThat(handler.paymentInformation.getFirst().requestedExecutionDate())
                 .isEqualTo(LocalDate.of(2026, 11, 23));
     }

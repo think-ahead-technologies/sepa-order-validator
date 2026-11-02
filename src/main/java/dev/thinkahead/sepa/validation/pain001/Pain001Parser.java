@@ -224,9 +224,9 @@ public class Pain001Parser {
                 case PMT_INF + "/ReqdExctnDt/Dt" -> requestedExecutionDate = LocalDate.parse(value);
                 case PMT_INF + "/ReqdExctnDt/DtTm" -> requestedExecutionDate = LocalDate.parse(value.substring(0, 10));
                 case DEBTOR_ADDRESS -> handler.postalAddress(
-                        address.build(paymentInformationPath + "/Dbtr/PstlAdr", Party.DEBTOR, requestedExecutionDate));
+                        address.build(paymentInformationPath + "/Dbtr/PstlAdr", Party.DEBTOR));
                 case CREDITOR_ADDRESS -> handler.postalAddress(
-                        address.build(transactionPath + "/Cdtr/PstlAdr", Party.CREDITOR, requestedExecutionDate));
+                        address.build(transactionPath + "/Cdtr/PstlAdr", Party.CREDITOR));
                 case PMT_INF + "/Dbtr/Nm" ->
                         handler.partyName(new PartyName(paymentInformationPath + "/Dbtr/Nm", value));
                 case PMT_INF + "/UltmtDbtr/Nm" ->
@@ -331,23 +331,20 @@ public class Pain001Parser {
         private int addressLineCount;
         private boolean townName;
         private boolean country;
-        private boolean otherElements;
 
         void element(String localName) {
             switch (localName) {
                 case "AdrLine" -> addressLineCount++;
                 case "Ctry" -> country = true;
-                case "TwnNm" -> {
-                    townName = true;
-                    otherElements = true;
+                case "TwnNm" -> townName = true;
+                default -> {
+                    // Other address elements do not decide whether the address is structured or hybrid.
                 }
-                default -> otherElements = true;
             }
         }
 
-        PostalAddress build(String path, Party party, LocalDate requestedExecutionDate) {
-            return new PostalAddress(path, party, requestedExecutionDate, addressLineCount, townName, country,
-                    otherElements);
+        PostalAddress build(String path, Party party) {
+            return new PostalAddress(path, party, addressLineCount, townName, country);
         }
     }
 

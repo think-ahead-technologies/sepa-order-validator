@@ -53,3 +53,15 @@ context: |
   EPC or DK source section. Every source file starts with two "// ABOUTME:"
   lines. Conventional commits in the imperative mood; never --no-verify.
 
+
+rules:
+  proposal:
+    - Name the roadmap entry (D-number or Q-number) the change resolves, if any.
+  specs:
+    - Specify only behaviour that exists once the change is applied; planned behaviour belongs in docs/roadmap.md.
+    - Name the ISO 20022 reason code and the element path for every rejection, and cite the EPC or DK source section.
+    - Before specifying a rule, check whether the DK technical validation subset GBIC_5 already restricts the same content, and state how the two interact.
+  design:
+    - Record the alternatives considered for every decision and why they were rejected; once archived, this file is the decision record.
+  tasks:
+    - Order tasks test first - unit, integration (*IntegrationTest) and end-to-end (*EndToEndTest) - and give every task a verification command.

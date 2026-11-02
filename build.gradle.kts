@@ -4,6 +4,7 @@
 plugins {
     java
     alias(libs.plugins.spring.boot)
+    alias(libs.plugins.spotless)
 }
 
 group = "dev.thinkahead"
@@ -45,6 +46,17 @@ dependencies {
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.awaitility)
     testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+// Formatting: palantir-java-format (4 spaces, 120 columns). spotlessCheck runs with check, so build fails on
+// unformatted code; spotlessApply fixes it.
+spotless {
+    java {
+        palantirJavaFormat(libs.versions.palantir.java.format.get())
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
 }
 
 // No mocks in this project: keeping Mockito off the test classpath enforces it.

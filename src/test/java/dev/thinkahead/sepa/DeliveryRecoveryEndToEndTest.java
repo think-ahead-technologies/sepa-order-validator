@@ -41,12 +41,18 @@ class DeliveryRecoveryEndToEndTest {
         try {
             customer.upload("inbound", fileName, bytes(validPain001(uniqueMessageId())));
 
-            await().atMost(TIMEOUT).untilAsserted(() ->
-                    assertThat(output).contains("Cannot write SFTP outbound file " + reportPrefix));
-            assertThat(isReplied(fileName)).as("no reply while the channel is down").isFalse();
-            UUID fileId = jdbc.sql("select id from payment_file where file_name = ?").param(fileName)
-                    .query(UUID.class).single();
-            assertThat(LogLines.forFile(output, fileId)).as("delivery failure logged with the file id")
+            await().atMost(TIMEOUT)
+                    .untilAsserted(
+                            () -> assertThat(output).contains("Cannot write SFTP outbound file " + reportPrefix));
+            assertThat(isReplied(fileName))
+                    .as("no reply while the channel is down")
+                    .isFalse();
+            UUID fileId = jdbc.sql("select id from payment_file where file_name = ?")
+                    .param(fileName)
+                    .query(UUID.class)
+                    .single();
+            assertThat(LogLines.forFile(output, fileId))
+                    .as("delivery failure logged with the file id")
                     .anySatisfy(line -> {
                         assertThat(line.path("log").path("level").asString()).isEqualTo("WARN");
                         assertThat(line.path("error").path("message").asString())
@@ -56,17 +62,21 @@ class DeliveryRecoveryEndToEndTest {
             customer.chmod(".", "outbound", 0755);
         }
 
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("outbound"))
-                .filteredOn(name -> name.startsWith(reportPrefix)).hasSize(1));
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(isReplied(fileName)).isTrue());
+        await().atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(customer.list("outbound"))
+                        .filteredOn(name -> name.startsWith(reportPrefix))
+                        .hasSize(1));
+        await().atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(isReplied(fileName)).isTrue());
         assertThat(jdbc.sql("""
                         select count(*) from status_report r join payment_file f on f.id = r.file_id
-                        where f.file_name = ? and r.delivered_at is not null""")
-                .param(fileName).query(Integer.class).single()).isEqualTo(1);
+                        where f.file_name = ? and r.delivered_at is not null""").param(fileName).query(Integer.class).single()).isEqualTo(1);
     }
 
     private boolean isReplied(String fileName) {
-        return jdbc.sql("select replied_at is not null from payment_file where file_name = ?").param(fileName)
-                .query(Boolean.class).single();
+        return jdbc.sql("select replied_at is not null from payment_file where file_name = ?")
+                .param(fileName)
+                .query(Boolean.class)
+                .single();
     }
 }

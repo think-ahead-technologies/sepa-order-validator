@@ -1,5 +1,6 @@
 // ABOUTME: Masks IBANs in every string value of the structured (JSON) log output, including messages and stack traces.
-// ABOUTME: Safety net only: code must still never log names or other values taken from a payment file (spec observability).
+// ABOUTME: Safety net only: code must still never log names or other values taken from a payment file (spec
+// observability).
 package dev.thinkahead.sepa;
 
 import java.util.regex.Matcher;

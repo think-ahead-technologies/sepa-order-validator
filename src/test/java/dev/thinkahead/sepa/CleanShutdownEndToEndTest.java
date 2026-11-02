@@ -47,7 +47,10 @@ class CleanShutdownEndToEndTest {
                         .toArray(String[]::new))
                 .close();
 
-        assertThat(LogLines.of(output)).as("log lines").isNotEmpty()
-                .noneSatisfy(line -> assertThat(line.path("log").path("level").asString()).isEqualTo("ERROR"));
+        assertThat(LogLines.of(output))
+                .as("log lines")
+                .isNotEmpty()
+                .noneSatisfy(line ->
+                        assertThat(line.path("log").path("level").asString()).isEqualTo("ERROR"));
     }
 }

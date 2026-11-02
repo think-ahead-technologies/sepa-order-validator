@@ -45,21 +45,31 @@ class HungDeliveryEndToEndTest {
         var docker = DockerClientFactory.instance().client();
         docker.pauseContainerCmd(sftp.getContainerId()).exec();
         try {
-            await().atMost(TIMEOUT).untilAsserted(() -> assertThat(jdbc.sql("""
+            await().atMost(TIMEOUT)
+                    .untilAsserted(() -> assertThat(jdbc.sql("""
                             select w.last_error from work_item w join payment_file f on f.id = w.file_id
-                            where f.file_name = ? and w.step = 'DELIVER'""").param(fileName)
-                    .query(String.class).single()).contains("did not finish within"));
+                            where f.file_name = ? and w.step = 'DELIVER'""")
+                                    .param(fileName)
+                                    .query(String.class)
+                                    .single())
+                            .contains("did not finish within"));
         } finally {
             docker.unpauseContainerCmd(sftp.getContainerId()).exec();
         }
         customer.chmod(".", "outbound", 0755);
 
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("outbound"))
-                .filteredOn(name -> name.startsWith(reportPrefix)).hasSize(1));
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(jdbc.sql("""
+        await().atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(customer.list("outbound"))
+                        .filteredOn(name -> name.startsWith(reportPrefix))
+                        .hasSize(1));
+        await().atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(jdbc.sql("""
                         select w.state from work_item w join payment_file f on f.id = w.file_id
-                        where f.file_name = ? and w.step = 'DELIVER'""").param(fileName)
-                .query(String.class).single()).isEqualTo("DONE"));
+                        where f.file_name = ? and w.step = 'DELIVER'""")
+                                .param(fileName)
+                                .query(String.class)
+                                .single())
+                        .isEqualTo("DONE"));
     }
 
     private int deliverAttempts(String fileName) {

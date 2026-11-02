@@ -2,5 +2,4 @@
 // ABOUTME: Further details are any agent elements besides FinInstnId/BICFI, e.g. Othr, ClrSysMmbId or BrnchId.
 package dev.thinkahead.sepa.validation.pain001;
 
-public record Agent(String bic, String otherIdentification, boolean furtherDetails) {
-}
+public record Agent(String bic, String otherIdentification, boolean furtherDetails) {}

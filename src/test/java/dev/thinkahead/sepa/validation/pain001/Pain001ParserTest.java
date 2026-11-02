@@ -29,16 +29,27 @@ class Pain001ParserTest {
 
         // <CdtrRefInf><Tp><CdOrPrtry><Cd>SCOR</Cd></CdOrPrtry><Issr>ISO</Issr></Tp><Ref>RF18539007547034</Ref>
         // </CdtrRefInf> without whitespace between the tags is 113 characters
-        assertThat(handler.transactions).containsExactly(
-                new CreditTransferTransaction("PmtInf[1]/CdtTrfTxInf[1]", "E2E-001",
-                        new BigDecimal("100.00"), "EUR", "NL91ABNA0417164300",
-                        new Agent("ABNANL2A", null, false),
-                        new RemittanceInformation(1, 0, 0, null), "Lieferant AG"),
-                new CreditTransferTransaction("PmtInf[1]/CdtTrfTxInf[2]", "E2E-002",
-                        new BigDecimal("50.50"), "EUR", "FR1420041010050500013M02606",
-                        null,
-                        new RemittanceInformation(0, 1, 113,
-                                new CreditorReference(true, "SCOR", "RF18539007547034")), "Fournisseur SA"));
+        assertThat(handler.transactions)
+                .containsExactly(
+                        new CreditTransferTransaction(
+                                "PmtInf[1]/CdtTrfTxInf[1]",
+                                "E2E-001",
+                                new BigDecimal("100.00"),
+                                "EUR",
+                                "NL91ABNA0417164300",
+                                new Agent("ABNANL2A", null, false),
+                                new RemittanceInformation(1, 0, 0, null),
+                                "Lieferant AG"),
+                        new CreditTransferTransaction(
+                                "PmtInf[1]/CdtTrfTxInf[2]",
+                                "E2E-002",
+                                new BigDecimal("50.50"),
+                                "EUR",
+                                "FR1420041010050500013M02606",
+                                null,
+                                new RemittanceInformation(
+                                        0, 1, 113, new CreditorReference(true, "SCOR", "RF18539007547034")),
+                                "Fournisseur SA"));
     }
 
     @Test
@@ -54,10 +65,11 @@ class Pain001ParserTest {
     void emitsDebtorAndCreditorAddresses() {
         new Pain001Parser().parse(bytes(VALID_PAIN_001), handler);
 
-        assertThat(handler.postalAddresses).containsExactly(
-                new PostalAddress("PmtInf[1]/Dbtr/PstlAdr", Party.DEBTOR, 0, true, true),
-                new PostalAddress("PmtInf[1]/CdtTrfTxInf[1]/Cdtr/PstlAdr", Party.CREDITOR, 1, true, true),
-                new PostalAddress("PmtInf[1]/CdtTrfTxInf[2]/Cdtr/PstlAdr", Party.CREDITOR, 1, true, true));
+        assertThat(handler.postalAddresses)
+                .containsExactly(
+                        new PostalAddress("PmtInf[1]/Dbtr/PstlAdr", Party.DEBTOR, 0, true, true),
+                        new PostalAddress("PmtInf[1]/CdtTrfTxInf[1]/Cdtr/PstlAdr", Party.CREDITOR, 1, true, true),
+                        new PostalAddress("PmtInf[1]/CdtTrfTxInf[2]/Cdtr/PstlAdr", Party.CREDITOR, 1, true, true));
     }
 
     @Test
@@ -72,16 +84,19 @@ class Pain001ParserTest {
 
     @Test
     void ignoresAddressesOfUltimatePartiesAndAgents() {
-        var xml = VALID_PAIN_001.replace("<ChrgBr>SLEV</ChrgBr>",
+        var xml = VALID_PAIN_001.replace(
+                "<ChrgBr>SLEV</ChrgBr>",
                 "<UltmtDbtr><Nm>Muster Holding</Nm><PstlAdr><AdrLine>Postfach 1</AdrLine></PstlAdr></UltmtDbtr>"
                         + "<ChrgBr>SLEV</ChrgBr>");
 
         new Pain001Parser().parse(bytes(xml), handler);
 
-        assertThat(handler.postalAddresses).extracting(PostalAddress::path).containsExactly(
-                "PmtInf[1]/Dbtr/PstlAdr",
-                "PmtInf[1]/CdtTrfTxInf[1]/Cdtr/PstlAdr",
-                "PmtInf[1]/CdtTrfTxInf[2]/Cdtr/PstlAdr");
+        assertThat(handler.postalAddresses)
+                .extracting(PostalAddress::path)
+                .containsExactly(
+                        "PmtInf[1]/Dbtr/PstlAdr",
+                        "PmtInf[1]/CdtTrfTxInf[1]/Cdtr/PstlAdr",
+                        "PmtInf[1]/CdtTrfTxInf[2]/Cdtr/PstlAdr");
     }
 
     @Test
@@ -95,7 +110,8 @@ class Pain001ParserTest {
 
     @Test
     void countsEveryOccurrenceOfUnstructuredAndStructuredRemittanceInformation() {
-        var xml = VALID_PAIN_001.replace("<Ustrd>Rechnung 4711</Ustrd>",
+        var xml = VALID_PAIN_001.replace(
+                "<Ustrd>Rechnung 4711</Ustrd>",
                 "<Ustrd>Rechnung 4711</Ustrd><Ustrd>Rechnung 4712</Ustrd>"
                         + "<Strd><AddtlRmtInf>Teil 1</AddtlRmtInf></Strd>"
                         + "<Strd><AddtlRmtInf>Teil 2 und 3</AddtlRmtInf></Strd>");
@@ -109,7 +125,8 @@ class Pain001ParserTest {
 
     @Test
     void countsAttributesTowardsTheLengthOfStructuredRemittanceInformation() {
-        var xml = VALID_PAIN_001.replace("<Ustrd>Rechnung 4711</Ustrd>",
+        var xml = VALID_PAIN_001.replace(
+                "<Ustrd>Rechnung 4711</Ustrd>",
                 "<Strd><RfrdDocAmt><DuePyblAmt Ccy=\"EUR\">100.00</DuePyblAmt></RfrdDocAmt></Strd>");
 
         new Pain001Parser().parse(bytes(xml), handler);
@@ -131,8 +148,7 @@ class Pain001ParserTest {
 
     @Test
     void marksCreditorAgentWithDetailsBeyondTheBic() {
-        var xml = VALID_PAIN_001.replace("<BICFI>ABNANL2A</BICFI>",
-                "<ClrSysMmbId><MmbId>12345</MmbId></ClrSysMmbId>");
+        var xml = VALID_PAIN_001.replace("<BICFI>ABNANL2A</BICFI>", "<ClrSysMmbId><MmbId>12345</MmbId></ClrSysMmbId>");
 
         new Pain001Parser().parse(bytes(xml), handler);
 
@@ -145,8 +161,7 @@ class Pain001ParserTest {
 
         new Pain001Parser().parse(bytes(xml), handler);
 
-        assertThat(handler.paymentInformation.getFirst().debtorAgent())
-                .isEqualTo(new Agent(null, "NOTPROVIDED", true));
+        assertThat(handler.paymentInformation.getFirst().debtorAgent()).isEqualTo(new Agent(null, "NOTPROVIDED", true));
     }
 
     @Test
@@ -158,28 +173,30 @@ class Pain001ParserTest {
 
         new Pain001Parser().parse(bytes(xml), handler);
 
-        assertThat(handler.partyNames).containsExactly(
-                new PartyName("GrpHdr/InitgPty/Nm", "Muster GmbH"),
-                new PartyName("PmtInf[1]/Dbtr/Nm", "Muster GmbH"),
-                new PartyName("PmtInf[1]/UltmtDbtr/Nm", "Muster Holding"),
-                new PartyName("PmtInf[1]/CdtTrfTxInf[1]/Cdtr/Nm", "Lieferant AG"),
-                new PartyName("PmtInf[1]/CdtTrfTxInf[1]/UltmtCdtr/Nm", "Lieferant Holding"),
-                new PartyName("PmtInf[1]/CdtTrfTxInf[2]/UltmtDbtr/Nm", "Muster Filiale"),
-                new PartyName("PmtInf[1]/CdtTrfTxInf[2]/Cdtr/Nm", "Fournisseur SA"));
+        assertThat(handler.partyNames)
+                .containsExactly(
+                        new PartyName("GrpHdr/InitgPty/Nm", "Muster GmbH"),
+                        new PartyName("PmtInf[1]/Dbtr/Nm", "Muster GmbH"),
+                        new PartyName("PmtInf[1]/UltmtDbtr/Nm", "Muster Holding"),
+                        new PartyName("PmtInf[1]/CdtTrfTxInf[1]/Cdtr/Nm", "Lieferant AG"),
+                        new PartyName("PmtInf[1]/CdtTrfTxInf[1]/UltmtCdtr/Nm", "Lieferant Holding"),
+                        new PartyName("PmtInf[1]/CdtTrfTxInf[2]/UltmtDbtr/Nm", "Muster Filiale"),
+                        new PartyName("PmtInf[1]/CdtTrfTxInf[2]/Cdtr/Nm", "Fournisseur SA"));
     }
 
     @Test
     void emitsTheTextOfEveryLeafElementWithLocation() {
         new Pain001Parser().parse(bytes(VALID_PAIN_001), handler);
 
-        assertThat(handler.elementTexts).contains(
-                new ElementText("GrpHdr/MsgId", "MSG-2026-10-31-001"),
-                new ElementText("GrpHdr/InitgPty/Nm", "Muster GmbH"),
-                new ElementText("PmtInf[1]/PmtInfId", "PMT-001"),
-                new ElementText("PmtInf[1]/Dbtr/PstlAdr/StrtNm", "Hauptstraße"),
-                new ElementText("PmtInf[1]/CdtTrfTxInf[1]/PmtId/EndToEndId", "E2E-001"),
-                new ElementText("PmtInf[1]/CdtTrfTxInf[2]/Cdtr/Nm", "Fournisseur SA"),
-                new ElementText("PmtInf[1]/CdtTrfTxInf[2]/RmtInf/Strd/CdtrRefInf/Ref", "RF18539007547034"));
+        assertThat(handler.elementTexts)
+                .contains(
+                        new ElementText("GrpHdr/MsgId", "MSG-2026-10-31-001"),
+                        new ElementText("GrpHdr/InitgPty/Nm", "Muster GmbH"),
+                        new ElementText("PmtInf[1]/PmtInfId", "PMT-001"),
+                        new ElementText("PmtInf[1]/Dbtr/PstlAdr/StrtNm", "Hauptstraße"),
+                        new ElementText("PmtInf[1]/CdtTrfTxInf[1]/PmtId/EndToEndId", "E2E-001"),
+                        new ElementText("PmtInf[1]/CdtTrfTxInf[2]/Cdtr/Nm", "Fournisseur SA"),
+                        new ElementText("PmtInf[1]/CdtTrfTxInf[2]/RmtInf/Strd/CdtrRefInf/Ref", "RF18539007547034"));
         assertThat(handler.elementTexts)
                 .as("elements that only contain other elements carry no text")
                 .noneSatisfy(text -> assertThat(text.path()).endsWith("/Cdtr"))
@@ -198,14 +215,17 @@ class Pain001ParserTest {
 
     @Test
     void emitsPaymentTypeInformationOfEveryLevel() {
-        var xml = instant(VALID_PAIN_001).replaceFirst("(<PmtId>\\s*<EndToEndId>E2E-002</EndToEndId>\\s*</PmtId>)",
-                "$1<PmtTpInf><LclInstrm><Prtry>EXPRESS</Prtry></LclInstrm></PmtTpInf>");
+        var xml = instant(VALID_PAIN_001)
+                .replaceFirst(
+                        "(<PmtId>\\s*<EndToEndId>E2E-002</EndToEndId>\\s*</PmtId>)",
+                        "$1<PmtTpInf><LclInstrm><Prtry>EXPRESS</Prtry></LclInstrm></PmtTpInf>");
 
         new Pain001Parser().parse(bytes(xml), handler);
 
-        assertThat(handler.paymentTypes).containsExactly(
-                new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null, "SEPA"),
-                new PaymentTypeInformation("PmtInf[1]/CdtTrfTxInf[2]/PmtTpInf", null, "EXPRESS", null));
+        assertThat(handler.paymentTypes)
+                .containsExactly(
+                        new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null, "SEPA"),
+                        new PaymentTypeInformation("PmtInf[1]/CdtTrfTxInf[2]/PmtTpInf", null, "EXPRESS", null));
     }
 
     @Test
@@ -218,7 +238,8 @@ class Pain001ParserTest {
     @Test
     void classifiesPaymentInformationAsSepaInstantFromItsTransactions() {
         String instantPaymentType = "$1<PmtTpInf><LclInstrm><Cd>INST</Cd></LclInstrm></PmtTpInf>";
-        var xml = VALID_PAIN_001.replaceFirst("(?s)<PmtTpInf>.*?</PmtTpInf>", "")
+        var xml = VALID_PAIN_001
+                .replaceFirst("(?s)<PmtTpInf>.*?</PmtTpInf>", "")
                 .replaceAll("(<PmtId>\\s*<EndToEndId>E2E-00[12]</EndToEndId>\\s*</PmtId>)", instantPaymentType);
 
         new Pain001Parser().parse(bytes(xml), handler);
@@ -228,8 +249,10 @@ class Pain001ParserTest {
 
     @Test
     void classifiesPaymentInformationWithBothSchemesAsMixed() {
-        var xml = VALID_PAIN_001.replaceFirst("(?s)<PmtTpInf>.*?</PmtTpInf>", "")
-                .replaceFirst("(<PmtId>\\s*<EndToEndId>E2E-002</EndToEndId>\\s*</PmtId>)",
+        var xml = VALID_PAIN_001
+                .replaceFirst("(?s)<PmtTpInf>.*?</PmtTpInf>", "")
+                .replaceFirst(
+                        "(<PmtId>\\s*<EndToEndId>E2E-002</EndToEndId>\\s*</PmtId>)",
                         "$1<PmtTpInf><LclInstrm><Cd>INST</Cd></LclInstrm></PmtTpInf>");
 
         new Pain001Parser().parse(bytes(xml), handler);
@@ -245,9 +268,13 @@ class Pain001ParserTest {
     void emitsPaymentInformation() {
         new Pain001Parser().parse(bytes(VALID_PAIN_001), handler);
 
-        assertThat(handler.paymentInformation).containsExactly(
-                new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013000",
-                        new Agent("COBADEFFXXX", null, false), LocalDate.of(2026, 11, 2),
+        assertThat(handler.paymentInformation)
+                .containsExactly(new PaymentInformation(
+                        "PmtInf[1]",
+                        "PMT-001",
+                        "DE89370400440532013000",
+                        new Agent("COBADEFFXXX", null, false),
+                        LocalDate.of(2026, 11, 2),
                         CreditTransferScheme.SCT));
     }
 
@@ -255,9 +282,10 @@ class Pain001ParserTest {
     void emitsDeclaredAndActualTotalsForPaymentInformationAndGroup() {
         new Pain001Parser().parse(bytes(VALID_PAIN_001), handler);
 
-        assertThat(handler.totals).containsExactly(
-                new Totals("PmtInf[1]", "2", new BigDecimal("150.50"), 2, new BigDecimal("150.50")),
-                new Totals("GrpHdr", "2", new BigDecimal("150.50"), 2, new BigDecimal("150.50")));
+        assertThat(handler.totals)
+                .containsExactly(
+                        new Totals("PmtInf[1]", "2", new BigDecimal("150.50"), 2, new BigDecimal("150.50")),
+                        new Totals("GrpHdr", "2", new BigDecimal("150.50"), 2, new BigDecimal("150.50")));
     }
 
     @Test
@@ -268,9 +296,10 @@ class Pain001ParserTest {
 
         new Pain001Parser().parse(bytes(xml), handler);
 
-        assertThat(handler.totals).containsExactly(
-                new Totals("PmtInf[1]", "5", new BigDecimal("999.99"), 2, new BigDecimal("150.50")),
-                new Totals("GrpHdr", "5", new BigDecimal("999.99"), 2, new BigDecimal("150.50")));
+        assertThat(handler.totals)
+                .containsExactly(
+                        new Totals("PmtInf[1]", "5", new BigDecimal("999.99"), 2, new BigDecimal("150.50")),
+                        new Totals("GrpHdr", "5", new BigDecimal("999.99"), 2, new BigDecimal("150.50")));
     }
 
     private static final class RecordingHandler implements Pain001Handler {

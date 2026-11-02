@@ -48,7 +48,8 @@ class ClaimedFileTest {
     @Test
     void rejectsNamesWithoutAFileIdPrefix() {
         assertThat(ClaimedFile.parse("payroll.xml")).isEmpty();
-        assertThat(ClaimedFile.parse("not-a-uuid-at-all-not-a-uuid-at-all-x.xml")).isEmpty();
+        assertThat(ClaimedFile.parse("not-a-uuid-at-all-not-a-uuid-at-all-x.xml"))
+                .isEmpty();
         assertThat(ClaimedFile.parse("0f8fad5b-d9cb-469f-a165-70867728950e-")).isEmpty();
     }
 }

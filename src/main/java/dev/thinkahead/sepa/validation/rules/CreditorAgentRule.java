@@ -15,7 +15,9 @@ public class CreditorAgentRule implements ValidationRule<CreditTransferTransacti
         if (agent == null || (agent.bic() != null && !agent.furtherDetails())) {
             return List.of();
         }
-        return List.of(new Violation("RC01", transaction.path() + "/CdtrAgt",
+        return List.of(new Violation(
+                "RC01",
+                transaction.path() + "/CdtrAgt",
                 "Creditor agent may only contain BICFI; leave it out when the BIC is not known"));
     }
 }

@@ -4,5 +4,4 @@ package dev.thinkahead.sepa.intake;
 
 import java.util.UUID;
 
-record StoredPaymentFile(UUID id, Channel channel, String fileName) {
-}
+record StoredPaymentFile(UUID id, Channel channel, String fileName) {}

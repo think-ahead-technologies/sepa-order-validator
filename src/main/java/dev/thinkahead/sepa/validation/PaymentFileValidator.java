@@ -77,41 +77,55 @@ class PaymentFileValidator {
         try {
             return Optional.of(beforeDeadline(deadline, () -> containerReader.read(() -> read(content, deadline))));
         } catch (ValidationDeadlineExceeded e) {
-            return Optional.of(new ContainerReading.Fault(ValidationResult.timedOut().violations()));
+            return Optional.of(
+                    new ContainerReading.Fault(ValidationResult.timedOut().violations()));
         }
     }
 
     private ValidationResult validateBefore(byte[] content, Instant deadline, Submission submission) {
         Optional<MessageFormat> detected = formatDetector.detect(content);
         if (detected.isEmpty()) {
-            return new ValidationResult(null, null, List.of(new Violation(INVALID_FILE_FORMAT, "Document",
-                    "Unsupported or unreadable message format")));
+            return new ValidationResult(
+                    null,
+                    null,
+                    List.of(new Violation(
+                            INVALID_FILE_FORMAT, "Document", "Unsupported or unreadable message format")));
         }
         MessageFormat format = detected.get();
 
-        List<SchemaError> schemaErrors = beforeDeadline(deadline,
-                () -> schemaValidator.validate(format, read(content, deadline)));
+        List<SchemaError> schemaErrors =
+                beforeDeadline(deadline, () -> schemaValidator.validate(format, read(content, deadline)));
         if (!schemaErrors.isEmpty()) {
-            return new ValidationResult(null, format.messageNameId(), schemaErrors.stream()
-                    .map(error -> new Violation(INVALID_FILE_FORMAT,
-                            "Line " + error.line() + ", column " + error.column(), error.message()))
-                    .toList());
+            return new ValidationResult(
+                    null,
+                    format.messageNameId(),
+                    schemaErrors.stream()
+                            .map(error -> new Violation(
+                                    INVALID_FILE_FORMAT,
+                                    "Line " + error.line() + ", column " + error.column(),
+                                    error.message()))
+                            .toList());
         }
 
-        var rules = new SepaCreditTransferRules(MAX_REPORTED_VIOLATIONS, LocalDate.now(clock.withZone(BANK_ZONE)),
-                submission);
+        var rules = new SepaCreditTransferRules(
+                MAX_REPORTED_VIOLATIONS, LocalDate.now(clock.withZone(BANK_ZONE)), submission);
         GroupHeader header = beforeDeadline(deadline, () -> parser.parse(read(content, deadline), rules));
         if (!rules.violations().isEmpty()) {
             return new ValidationResult(header.messageId(), format.messageNameId(), rules.violations());
         }
 
         // Last gate (spec file-validation): a file the rules pass is accepted only if it also meets the DK subset.
-        List<SchemaError> dkSubsetErrors = beforeDeadline(deadline,
-                () -> schemaValidator.validateDkSubset(format, read(content, deadline)));
-        return new ValidationResult(header.messageId(), format.messageNameId(), dkSubsetErrors.stream()
-                .map(error -> new Violation(INVALID_FILE_FORMAT,
-                        "Line " + error.line() + ", column " + error.column(), DK_SUBSET + error.message()))
-                .toList());
+        List<SchemaError> dkSubsetErrors =
+                beforeDeadline(deadline, () -> schemaValidator.validateDkSubset(format, read(content, deadline)));
+        return new ValidationResult(
+                header.messageId(),
+                format.messageNameId(),
+                dkSubsetErrors.stream()
+                        .map(error -> new Violation(
+                                INVALID_FILE_FORMAT,
+                                "Line " + error.line() + ", column " + error.column(),
+                                DK_SUBSET + error.message()))
+                        .toList());
     }
 
     private static InputStream read(byte[] content, Instant deadline) {

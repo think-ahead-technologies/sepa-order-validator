@@ -20,11 +20,15 @@ public class SubmissionRule implements ValidationRule<PaymentInformation> {
     public List<Violation> validate(PaymentInformation paymentInformation) {
         boolean instant = paymentInformation.scheme() == CreditTransferScheme.SCT_INST;
         if (instant && submission.fromContainer()) {
-            return List.of(new Violation("AG02", paymentInformation.path(),
+            return List.of(new Violation(
+                    "AG02",
+                    paymentInformation.path(),
                     "SEPA Instant credit transfers must not be submitted in a container, only as a single message"));
         }
         if (!instant && submission.instantOrder()) {
-            return List.of(new Violation("AG02", paymentInformation.path(),
+            return List.of(new Violation(
+                    "AG02",
+                    paymentInformation.path(),
                     "The SEPA Instant inbox accepts only SEPA Instant credit transfers"));
         }
         return List.of();

@@ -22,8 +22,8 @@ class WorkItemMigrationIntegrationTest {
             + ".on(dev.thinkahead.sepa.intake.PaymentFileReceived)";
     private static final String REPORT_LISTENER = "dev.thinkahead.sepa.reporting.StatusReportListener"
             + ".on(dev.thinkahead.sepa.validation.PaymentFileValidated)";
-    private static final String AUDIT_LISTENER = "dev.thinkahead.sepa.audit.AuditLog"
-            + ".on(dev.thinkahead.sepa.intake.PaymentFileReceived)";
+    private static final String AUDIT_LISTENER =
+            "dev.thinkahead.sepa.audit.AuditLog" + ".on(dev.thinkahead.sepa.intake.PaymentFileReceived)";
 
     private final PostgreSQLContainer postgres = TestcontainersConfiguration.newPostgresContainer();
 
@@ -32,8 +32,8 @@ class WorkItemMigrationIntegrationTest {
     @BeforeEach
     void startDatabase() {
         postgres.start();
-        jdbc = JdbcClient.create(new DriverManagerDataSource(postgres.getJdbcUrl(), postgres.getUsername(),
-                postgres.getPassword()));
+        jdbc = JdbcClient.create(
+                new DriverManagerDataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword()));
     }
 
     @AfterEach
@@ -54,11 +54,19 @@ class WorkItemMigrationIntegrationTest {
         migrateTo("latest");
 
         assertThat(jdbc.sql("select file_id from work_item where step = 'DELIVER' and state = 'PENDING'")
-                .query(UUID.class).list()).containsExactly(undelivered);
+                        .query(UUID.class)
+                        .list())
+                .containsExactly(undelivered);
         assertThat(jdbc.sql("select count(*) from event_publication where completion_date is null")
-                .query(Integer.class).single()).as("orphaned delivery publications").isZero();
-        assertThat(jdbc.sql("select count(*) from event_publication").query(Integer.class).single())
-                .as("completed publications are left alone").isEqualTo(1);
+                        .query(Integer.class)
+                        .single())
+                .as("orphaned delivery publications")
+                .isZero();
+        assertThat(jdbc.sql("select count(*) from event_publication")
+                        .query(Integer.class)
+                        .single())
+                .as("completed publications are left alone")
+                .isEqualTo(1);
     }
 
     @Test
@@ -74,9 +82,13 @@ class WorkItemMigrationIntegrationTest {
         migrateTo("12");
 
         assertThat(jdbc.sql("select file_id from work_item where step = 'VALIDATE' and state = 'PENDING'")
-                .query(UUID.class).list()).containsExactly(received);
+                        .query(UUID.class)
+                        .list())
+                .containsExactly(received);
         assertThat(jdbc.sql("select listener_id from event_publication where completion_date is null")
-                .query(String.class).list()).as("only the removed validation listener's publications are dropped")
+                        .query(String.class)
+                        .list())
+                .as("only the removed validation listener's publications are dropped")
                 .containsExactly(AUDIT_LISTENER);
     }
 
@@ -91,8 +103,7 @@ class WorkItemMigrationIntegrationTest {
                         values (?, ?, 'dev.thinkahead.sepa.validation.PaymentFileValidated', ?, now(), 'FAILED')""")
                 .params(UUID.randomUUID(), REPORT_LISTENER, """
                         {"fileId":"%s","originalMessageId":"MSG-1","originalMessageNameId":"pain.001.001.09",
-                         "accepted":false,"violations":[{"reasonCode":"AC03","path":"PmtInf[1]","message":"Invalid IBAN"}]}"""
-                        .formatted(awaitingReport))
+                         "accepted":false,"violations":[{"reasonCode":"AC03","path":"PmtInf[1]","message":"Invalid IBAN"}]}""".formatted(awaitingReport))
                 .update();
 
         migrateTo("latest");
@@ -100,12 +111,17 @@ class WorkItemMigrationIntegrationTest {
         assertThat(jdbc.sql("""
                         select original_message_id || '|' || original_message_name_id || '|' || accepted || '|'
                                || (violations -> 0 ->> 'reasonCode')
-                        from validation_result where file_id = ?""").param(awaitingReport)
-                .query(String.class).single()).isEqualTo("MSG-1|pain.001.001.09|false|AC03");
+                        from validation_result where file_id = ?""").param(awaitingReport).query(String.class).single())
+                .isEqualTo("MSG-1|pain.001.001.09|false|AC03");
         assertThat(jdbc.sql("select file_id from work_item where step = 'REPORT' and state = 'PENDING'")
-                .query(UUID.class).list()).containsExactly(awaitingReport);
+                        .query(UUID.class)
+                        .list())
+                .containsExactly(awaitingReport);
         assertThat(jdbc.sql("select count(*) from event_publication where completion_date is null")
-                .query(Integer.class).single()).as("removed report listener's publications").isZero();
+                        .query(Integer.class)
+                        .single())
+                .as("removed report listener's publications")
+                .isZero();
     }
 
     @Test
@@ -122,23 +138,33 @@ class WorkItemMigrationIntegrationTest {
         migrateTo("latest");
 
         assertThat(jdbc.sql("select file_id from audit_event where event_type = 'PaymentFileReceived'")
-                .query(UUID.class).list()).containsExactlyInAnyOrder(pending, alreadyAudited);
-        assertThat(jdbc.sql("select payload ->> 'fileId' from audit_event where file_id = ?").param(pending)
-                .query(String.class).single()).isEqualTo(pending.toString());
+                        .query(UUID.class)
+                        .list())
+                .containsExactlyInAnyOrder(pending, alreadyAudited);
+        assertThat(jdbc.sql("select payload ->> 'fileId' from audit_event where file_id = ?")
+                        .param(pending)
+                        .query(String.class)
+                        .single())
+                .isEqualTo(pending.toString());
         assertThat(jdbc.sql("select count(*) from event_publication where completion_date is null")
-                .query(Integer.class).single()).as("removed audit listener's publications").isZero();
+                        .query(Integer.class)
+                        .single())
+                .as("removed audit listener's publications")
+                .isZero();
     }
 
     private void insertFile(UUID fileId, String status) {
         jdbc.sql("""
                         insert into payment_file (id, channel, submitter, file_name, size_bytes, sha256, content, status)
-                        values (?, 'SFTP', 'sftp:sepa', 'migrated.xml', 3, repeat('0', 64), ?, ?)""")
-                .params(fileId, "<x>".getBytes(), status).update();
+                        values (?, 'SFTP', 'sftp:sepa', 'migrated.xml', 3, repeat('0', 64), ?, ?)""").params(fileId, "<x>".getBytes(), status).update();
     }
 
     private void migrateTo(String version) {
-        Flyway.configure().dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
-                .target(version).load().migrate();
+        Flyway.configure()
+                .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+                .target(version)
+                .load()
+                .migrate();
     }
 
     private void insertReport(UUID fileId, boolean delivered) {
@@ -150,8 +176,8 @@ class WorkItemMigrationIntegrationTest {
     }
 
     private void insertDeliveryPublication(UUID fileId, String completionDate) {
-        insertPublication(DELIVERY_LISTENER, "dev.thinkahead.sepa.reporting.StatusReportCreated", fileId,
-                completionDate);
+        insertPublication(
+                DELIVERY_LISTENER, "dev.thinkahead.sepa.reporting.StatusReportCreated", fileId, completionDate);
     }
 
     private void insertPublication(String listenerId, String eventType, UUID fileId, String completionDate) {
@@ -159,7 +185,11 @@ class WorkItemMigrationIntegrationTest {
                         insert into event_publication (id, listener_id, event_type, serialized_event,
                                                        publication_date, completion_date, status)
                         values (?, ?, ?, ?, now(), %s, ?)""".formatted(completionDate == null ? "null" : completionDate))
-                .params(UUID.randomUUID(), listenerId, eventType, "{\"fileId\":\"" + fileId + "\"}",
+                .params(
+                        UUID.randomUUID(),
+                        listenerId,
+                        eventType,
+                        "{\"fileId\":\"" + fileId + "\"}",
                         completionDate == null ? "PROCESSING" : "COMPLETED")
                 .update();
     }

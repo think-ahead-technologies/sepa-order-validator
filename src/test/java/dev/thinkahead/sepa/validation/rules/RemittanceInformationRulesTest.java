@@ -20,8 +20,15 @@ class RemittanceInformationRulesTest {
     private final CreditorReferenceRule creditorReferenceRule = new CreditorReferenceRule();
 
     private static CreditTransferTransaction transaction(RemittanceInformation remittanceInformation) {
-        return new CreditTransferTransaction(TX, "E2E-001", new BigDecimal("100.00"), "EUR", "NL91ABNA0417164300",
-                null, remittanceInformation, "Lieferant AG");
+        return new CreditTransferTransaction(
+                TX,
+                "E2E-001",
+                new BigDecimal("100.00"),
+                "EUR",
+                "NL91ABNA0417164300",
+                null,
+                remittanceInformation,
+                "Lieferant AG");
     }
 
     private static RemittanceInformation structured(CreditorReference creditorReference) {
@@ -30,17 +37,20 @@ class RemittanceInformationRulesTest {
 
     @Test
     void acceptsNoRemittanceInformation() {
-        assertThat(remittanceRule.validate(transaction(RemittanceInformation.NONE))).isEmpty();
+        assertThat(remittanceRule.validate(transaction(RemittanceInformation.NONE)))
+                .isEmpty();
     }
 
     @Test
     void acceptsOneUnstructuredRemittanceInformation() {
-        assertThat(remittanceRule.validate(transaction(new RemittanceInformation(1, 0, 0, null)))).isEmpty();
+        assertThat(remittanceRule.validate(transaction(new RemittanceInformation(1, 0, 0, null))))
+                .isEmpty();
     }
 
     @Test
     void acceptsOneStructuredRemittanceInformationOfExactly140Characters() {
-        assertThat(remittanceRule.validate(transaction(new RemittanceInformation(0, 1, 140, null)))).isEmpty();
+        assertThat(remittanceRule.validate(transaction(new RemittanceInformation(0, 1, 140, null))))
+                .isEmpty();
     }
 
     @Test
@@ -79,7 +89,8 @@ class RemittanceInformationRulesTest {
     void acceptsAnRfCreditorReferenceWithScorType() {
         var reference = new CreditorReference(true, "SCOR", "RF18539007547034");
 
-        assertThat(creditorReferenceRule.validate(transaction(structured(reference)))).isEmpty();
+        assertThat(creditorReferenceRule.validate(transaction(structured(reference))))
+                .isEmpty();
     }
 
     @Test
@@ -87,19 +98,22 @@ class RemittanceInformationRulesTest {
         // EPC C2PSP IG 2.175: the receiving PSP is not required to validate a check digit in the reference.
         var reference = new CreditorReference(true, "SCOR", "RF19539007547034");
 
-        assertThat(creditorReferenceRule.validate(transaction(structured(reference)))).isEmpty();
+        assertThat(creditorReferenceRule.validate(transaction(structured(reference))))
+                .isEmpty();
     }
 
     @Test
     void acceptsAProprietaryCreditorReferenceType() {
         var reference = new CreditorReference(true, null, "INV-2026-0815");
 
-        assertThat(creditorReferenceRule.validate(transaction(structured(reference)))).isEmpty();
+        assertThat(creditorReferenceRule.validate(transaction(structured(reference))))
+                .isEmpty();
     }
 
     @Test
     void acceptsStructuredRemittanceInformationWithoutCreditorReference() {
-        assertThat(creditorReferenceRule.validate(transaction(structured(null)))).isEmpty();
+        assertThat(creditorReferenceRule.validate(transaction(structured(null))))
+                .isEmpty();
     }
 
     @Test

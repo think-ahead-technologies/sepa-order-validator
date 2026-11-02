@@ -88,8 +88,7 @@ public class SchemaValidator {
         return new SchemaError(e.getLineNumber(), e.getColumnNumber(), e.getMessage());
     }
 
-    private static final class ErrorCapReached extends SAXException {
-    }
+    private static final class ErrorCapReached extends SAXException {}
 
     /**
      * Collects errors as schema violations. Warnings do not make a file schema-invalid, so they are only logged.

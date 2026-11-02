@@ -24,7 +24,8 @@ class IntakeLeadership implements SmartLifecycle {
     private final LockRegistryLeaderInitiator initiator;
 
     IntakeLeadership(LockRegistry<?> locks, LeaderElectionProperties properties, ApplicationEventPublisher events) {
-        this.initiator = new LockRegistryLeaderInitiator(locks, new LoggingCandidate(UUID.randomUUID().toString()));
+        this.initiator = new LockRegistryLeaderInitiator(
+                locks, new LoggingCandidate(UUID.randomUUID().toString()));
         this.initiator.setHeartBeatMillis(properties.heartbeat().toMillis());
         this.initiator.setApplicationEventPublisher(events);
     }

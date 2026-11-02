@@ -23,11 +23,13 @@ public class CharacterSetRule implements ValidationRule<ElementText> {
         int[] codePoints = text.value().codePoints().toArray();
         for (int i = 0; i < codePoints.length; i++) {
             if (allowed.indexOf(codePoints[i]) < 0) {
-                String where = identifier
-                        ? " in identifiers, only the basic Latin set is"
-                        : ", outside the DK character set";
-                return List.of(new Violation("CH16", text.path(), "Character " + String.format("U+%04X", codePoints[i])
-                        + " at position " + (i + 1) + " is not allowed" + where));
+                String where =
+                        identifier ? " in identifiers, only the basic Latin set is" : ", outside the DK character set";
+                return List.of(new Violation(
+                        "CH16",
+                        text.path(),
+                        "Character " + String.format("U+%04X", codePoints[i]) + " at position " + (i + 1)
+                                + " is not allowed" + where));
             }
         }
         if (identifier && (text.value().startsWith("/") || text.value().endsWith("/"))) {

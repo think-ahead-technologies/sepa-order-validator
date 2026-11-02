@@ -111,8 +111,7 @@ public class Pain001Parser {
                         elements.removeLast();
                         text.setLength(0);
                     }
-                    default -> {
-                    }
+                    default -> {}
                 }
             }
             return new GroupHeader(messageId);
@@ -187,8 +186,7 @@ public class Pain001Parser {
                 }
                 case CDTR_REF_INF -> creditorReferencePresent = true;
                 case CDTR_REF_INF + "/Tp" -> creditorReferenceTypePresent = true;
-                default -> {
-                }
+                default -> {}
             }
         }
 
@@ -209,28 +207,31 @@ public class Pain001Parser {
                 case PMT_INF + "/CtrlSum" -> paymentControlSum = new BigDecimal(value);
                 case PMT_INF + "/PmtTpInf/LclInstrm/Cd", TX + "/PmtTpInf/LclInstrm/Cd" -> paymentTypeCode = value;
                 case PMT_INF + "/PmtTpInf/LclInstrm/Prtry", TX + "/PmtTpInf/LclInstrm/Prtry" ->
-                        paymentTypeProprietary = value;
+                    paymentTypeProprietary = value;
                 case PMT_INF + "/PmtTpInf/SvcLvl/Cd", TX + "/PmtTpInf/SvcLvl/Cd" -> serviceLevelCode = value;
                 case PMT_INF + "/PmtTpInf" -> {
                     paymentInformationLocalInstrument = paymentTypeCode;
-                    handler.paymentTypeInformation(new PaymentTypeInformation(paymentInformationPath + "/PmtTpInf",
-                            paymentTypeCode, paymentTypeProprietary, serviceLevelCode));
+                    handler.paymentTypeInformation(new PaymentTypeInformation(
+                            paymentInformationPath + "/PmtTpInf",
+                            paymentTypeCode,
+                            paymentTypeProprietary,
+                            serviceLevelCode));
                 }
                 case TX + "/PmtTpInf" -> {
                     transactionLocalInstrument = paymentTypeCode;
-                    handler.paymentTypeInformation(new PaymentTypeInformation(transactionPath + "/PmtTpInf",
-                            paymentTypeCode, paymentTypeProprietary, serviceLevelCode));
+                    handler.paymentTypeInformation(new PaymentTypeInformation(
+                            transactionPath + "/PmtTpInf", paymentTypeCode, paymentTypeProprietary, serviceLevelCode));
                 }
                 case PMT_INF + "/ReqdExctnDt/Dt" -> requestedExecutionDate = LocalDate.parse(value);
                 case PMT_INF + "/ReqdExctnDt/DtTm" -> requestedExecutionDate = LocalDate.parse(value.substring(0, 10));
-                case DEBTOR_ADDRESS -> handler.postalAddress(
-                        address.build(paymentInformationPath + "/Dbtr/PstlAdr", Party.DEBTOR));
-                case CREDITOR_ADDRESS -> handler.postalAddress(
-                        address.build(transactionPath + "/Cdtr/PstlAdr", Party.CREDITOR));
+                case DEBTOR_ADDRESS ->
+                    handler.postalAddress(address.build(paymentInformationPath + "/Dbtr/PstlAdr", Party.DEBTOR));
+                case CREDITOR_ADDRESS ->
+                    handler.postalAddress(address.build(transactionPath + "/Cdtr/PstlAdr", Party.CREDITOR));
                 case PMT_INF + "/Dbtr/Nm" ->
-                        handler.partyName(new PartyName(paymentInformationPath + "/Dbtr/Nm", value));
+                    handler.partyName(new PartyName(paymentInformationPath + "/Dbtr/Nm", value));
                 case PMT_INF + "/UltmtDbtr/Nm" ->
-                        handler.partyName(new PartyName(paymentInformationPath + "/UltmtDbtr/Nm", value));
+                    handler.partyName(new PartyName(paymentInformationPath + "/UltmtDbtr/Nm", value));
                 case PMT_INF + "/DbtrAcct/Id/IBAN" -> debtorIban = value;
                 case DEBTOR_AGENT + "/FinInstnId/BICFI" -> debtorAgent.bic = value;
                 case DEBTOR_AGENT + "/FinInstnId/Othr/Id" -> debtorAgent.otherIdentification = value;
@@ -250,10 +251,10 @@ public class Pain001Parser {
                 case CDTR_REF_INF + "/Ref" -> creditorReference = value;
                 case TX -> endTransaction();
                 case PMT_INF -> endPaymentInformation();
-                case ROOT -> handler.totals(new Totals("GrpHdr", groupNumberOfTransactions, groupControlSum,
-                        groupCount, groupSum));
-                default -> {
-                }
+                case ROOT ->
+                    handler.totals(
+                            new Totals("GrpHdr", groupNumberOfTransactions, groupControlSum, groupCount, groupSum));
+                default -> {}
             }
         }
 
@@ -286,26 +287,30 @@ public class Pain001Parser {
         private int startTagLength() {
             int length = reader.getLocalName().length() + "<>".length();
             for (int i = 0; i < reader.getAttributeCount(); i++) {
-                length += reader.getAttributeLocalName(i).length() + reader.getAttributeValue(i).length()
+                length += reader.getAttributeLocalName(i).length()
+                        + reader.getAttributeValue(i).length()
                         + " =\"\"".length();
             }
             return length;
         }
 
         private void endTransaction() {
-            String localInstrument = transactionHasPaymentType
-                    ? transactionLocalInstrument
-                    : paymentInformationLocalInstrument;
+            String localInstrument =
+                    transactionHasPaymentType ? transactionLocalInstrument : paymentInformationLocalInstrument;
             if ("INST".equals(localInstrument)) {
                 instantTransactions++;
             }
             CreditorReference reference = creditorReferencePresent
                     ? new CreditorReference(creditorReferenceTypePresent, creditorReferenceTypeCode, creditorReference)
                     : null;
-            handler.transaction(new CreditTransferTransaction(transactionPath, endToEndId, amount, currency,
-                    creditorIban, creditorAgent == null ? null : creditorAgent.build(),
-                    new RemittanceInformation(unstructuredCount, structuredCount, longestStructuredLength,
-                            reference),
+            handler.transaction(new CreditTransferTransaction(
+                    transactionPath,
+                    endToEndId,
+                    amount,
+                    currency,
+                    creditorIban,
+                    creditorAgent == null ? null : creditorAgent.build(),
+                    new RemittanceInformation(unstructuredCount, structuredCount, longestStructuredLength, reference),
                     creditorName));
             paymentCount++;
             groupCount++;
@@ -316,10 +321,15 @@ public class Pain001Parser {
         }
 
         private void endPaymentInformation() {
-            handler.paymentInformation(new PaymentInformation(paymentInformationPath, paymentInformationId, debtorIban,
-                    debtorAgent == null ? null : debtorAgent.build(), requestedExecutionDate, scheme()));
-            handler.totals(new Totals(paymentInformationPath, paymentNumberOfTransactions, paymentControlSum,
-                    paymentCount, paymentSum));
+            handler.paymentInformation(new PaymentInformation(
+                    paymentInformationPath,
+                    paymentInformationId,
+                    debtorIban,
+                    debtorAgent == null ? null : debtorAgent.build(),
+                    requestedExecutionDate,
+                    scheme()));
+            handler.totals(new Totals(
+                    paymentInformationPath, paymentNumberOfTransactions, paymentControlSum, paymentCount, paymentSum));
         }
     }
 

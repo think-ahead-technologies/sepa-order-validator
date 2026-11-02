@@ -10,5 +10,4 @@ public record PaymentInformation(
         String debtorIban,
         Agent debtorAgent,
         LocalDate requestedExecutionDate,
-        CreditTransferScheme scheme) {
-}
+        CreditTransferScheme scheme) {}

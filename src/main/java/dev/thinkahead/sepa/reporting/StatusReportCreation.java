@@ -23,8 +23,12 @@ class StatusReportCreation implements ProcessingStep {
     private final WorkQueue workQueue;
     private final Clock clock;
 
-    StatusReportCreation(ValidationOutcomes validationOutcomes, Pain002Writer writer,
-            StatusReportRepository repository, WorkQueue workQueue, Clock clock) {
+    StatusReportCreation(
+            ValidationOutcomes validationOutcomes,
+            Pain002Writer writer,
+            StatusReportRepository repository,
+            WorkQueue workQueue,
+            Clock clock) {
         this.validationOutcomes = validationOutcomes;
         this.writer = writer;
         this.repository = repository;

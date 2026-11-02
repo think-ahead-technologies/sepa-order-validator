@@ -58,12 +58,14 @@ class StatusReportIntegrationTest {
         assertSchemaValid(stored);
         assertThat(text(parse(stored), "GrpHdr/MsgId")).isEqualTo(delivered.reportMessageId());
         assertThat(text(parse(stored), "OrgnlGrpInfAndSts/OrgnlMsgId")).isEqualTo(messageId);
-        assertThat(customer.download("outbound", reportName(fileName, delivered.fileId()))).isEqualTo(stored);
+        assertThat(customer.download("outbound", reportName(fileName, delivered.fileId())))
+                .isEqualTo(stored);
     }
 
     @Test
     void storesAndDeliversRejectionReportWithReasons(CapturedOutput output) throws Exception {
-        StatusReportDelivered delivered = submitAndAwaitDelivery("report-rjct-" + UUID.randomUUID() + ".xml",
+        StatusReportDelivered delivered = submitAndAwaitDelivery(
+                "report-rjct-" + UUID.randomUUID() + ".xml",
                 validPain001(uniqueMessageId()).replace("NL91ABNA0417164300", "NL91ABNA0417164301"));
 
         assertThat(delivered.groupStatus()).isEqualTo(GroupStatus.RJCT);
@@ -83,12 +85,16 @@ class StatusReportIntegrationTest {
 
         await().atMost(TIMEOUT).until(() -> itemState(first.fileId(), "REPORT").equals("DONE"));
         await().during(Duration.ofSeconds(2)).atMost(TIMEOUT).untilAsserted(() -> {
-            assertThat(jdbc.sql("select count(*) from status_report where file_id = ?").param(first.fileId())
-                    .query(Integer.class).single()).isEqualTo(1);
+            assertThat(jdbc.sql("select count(*) from status_report where file_id = ?")
+                            .param(first.fileId())
+                            .query(Integer.class)
+                            .single())
+                    .isEqualTo(1);
             assertThat(deliveriesFor(first.fileId())).isEqualTo(1);
         });
         assertThat(storedReportMessageId(first.fileId())).isEqualTo(first.reportMessageId());
-        assertThat(customer.list("outbound")).filteredOn(name -> name.startsWith(fileName.replace(".xml", "")))
+        assertThat(customer.list("outbound"))
+                .filteredOn(name -> name.startsWith(fileName.replace(".xml", "")))
                 .hasSize(1);
     }
 
@@ -103,7 +109,8 @@ class StatusReportIntegrationTest {
 
         await().atMost(TIMEOUT).until(() -> deliveriesFor(first.fileId()) == 2);
         assertThat(customer.download("outbound", reportName)).isEqualTo(stored);
-        assertThat(customer.list("outbound")).filteredOn(name -> name.startsWith(fileName.replace(".xml", "")))
+        assertThat(customer.list("outbound"))
+                .filteredOn(name -> name.startsWith(fileName.replace(".xml", "")))
                 .hasSize(1);
         assertThat(storedReportMessageId(first.fileId())).isEqualTo(first.reportMessageId());
     }
@@ -117,11 +124,14 @@ class StatusReportIntegrationTest {
         try {
             fileId = upload(fileName, validPain001(uniqueMessageId()));
 
-            await().atMost(TIMEOUT).untilAsserted(() -> assertThat(jdbc.sql("""
+            await().atMost(TIMEOUT)
+                    .untilAsserted(() -> assertThat(jdbc.sql("""
                             select attempts from work_item where file_id = ? and step = 'DELIVER'
                             and state = 'PENDING' and last_error like 'Cannot write SFTP outbound file%'""")
-                    .param(fileId).query(Integer.class).optional()).hasValueSatisfying(
-                            attempts -> assertThat(attempts).isGreaterThanOrEqualTo(2)));
+                                    .param(fileId)
+                                    .query(Integer.class)
+                                    .optional())
+                            .hasValueSatisfying(attempts -> assertThat(attempts).isGreaterThanOrEqualTo(2)));
             assertThat(deliveriesFor(fileId)).isZero();
         } finally {
             customer.chmod(".", "outbound", 0755);
@@ -133,43 +143,59 @@ class StatusReportIntegrationTest {
 
     private StatusReportDelivered submitAndAwaitDelivery(String fileName, String xml) {
         UUID fileId = upload(fileName, xml);
-        return await().atMost(TIMEOUT).until(
-                () -> events.ofType(StatusReportDelivered.class).stream()
-                        .filter(e -> e.fileId().equals(fileId)).findFirst().orElse(null),
-                e -> e != null);
+        return await().atMost(TIMEOUT)
+                .until(
+                        () -> events.ofType(StatusReportDelivered.class).stream()
+                                .filter(e -> e.fileId().equals(fileId))
+                                .findFirst()
+                                .orElse(null),
+                        e -> e != null);
     }
 
     private UUID upload(String fileName, String xml) {
         customer.upload("inbound", fileName, bytes(xml));
-        return await().atMost(TIMEOUT).until(
-                () -> events.ofType(PaymentFileReceived.class).stream()
-                        .filter(e -> e.fileName().equals(fileName)).map(PaymentFileReceived::fileId)
-                        .findFirst().orElse(null),
-                id -> id != null);
+        return await().atMost(TIMEOUT)
+                .until(
+                        () -> events.ofType(PaymentFileReceived.class).stream()
+                                .filter(e -> e.fileName().equals(fileName))
+                                .map(PaymentFileReceived::fileId)
+                                .findFirst()
+                                .orElse(null),
+                        id -> id != null);
     }
 
     private void reDrive(UUID fileId, String step) {
-        jdbc.sql("select redrive_work_item(?, ?, 'test', 'integration test re-drive')").params(fileId, step)
-                .query(String.class).single();
+        jdbc.sql("select redrive_work_item(?, ?, 'test', 'integration test re-drive')")
+                .params(fileId, step)
+                .query(String.class)
+                .single();
     }
 
     private String itemState(UUID fileId, String step) {
-        return jdbc.sql("select state from work_item where file_id = ? and step = ?").params(fileId, step)
-                .query(String.class).single();
+        return jdbc.sql("select state from work_item where file_id = ? and step = ?")
+                .params(fileId, step)
+                .query(String.class)
+                .single();
     }
 
     private long deliveriesFor(UUID fileId) {
-        return events.ofType(StatusReportDelivered.class).stream().filter(e -> e.fileId().equals(fileId)).count();
+        return events.ofType(StatusReportDelivered.class).stream()
+                .filter(e -> e.fileId().equals(fileId))
+                .count();
     }
 
     private String storedReportMessageId(UUID fileId) {
-        return jdbc.sql("select message_id from status_report where file_id = ?").param(fileId)
-                .query(String.class).single();
+        return jdbc.sql("select message_id from status_report where file_id = ?")
+                .param(fileId)
+                .query(String.class)
+                .single();
     }
 
     private byte[] storedReport(UUID fileId) {
-        return jdbc.sql("select content from status_report where file_id = ?").param(fileId)
-                .query(byte[].class).single();
+        return jdbc.sql("select content from status_report where file_id = ?")
+                .param(fileId)
+                .query(byte[].class)
+                .single();
     }
 
     private static String reportName(String fileName, UUID fileId) {

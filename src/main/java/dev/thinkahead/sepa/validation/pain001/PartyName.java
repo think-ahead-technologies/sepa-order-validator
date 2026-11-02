@@ -2,5 +2,4 @@
 // ABOUTME: The path locates the name in the file, e.g. "PmtInf[1]/CdtTrfTxInf[2]/Cdtr/Nm".
 package dev.thinkahead.sepa.validation.pain001;
 
-public record PartyName(String path, String name) {
-}
+public record PartyName(String path, String name) {}

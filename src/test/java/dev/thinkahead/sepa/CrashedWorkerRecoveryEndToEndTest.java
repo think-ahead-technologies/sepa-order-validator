@@ -40,8 +40,8 @@ class CrashedWorkerRecoveryEndToEndTest {
         postgres.start();
         sftp.start();
         customer = TestcontainersConfiguration.newCustomerClient(sftp);
-        jdbc = JdbcClient.create(new DriverManagerDataSource(postgres.getJdbcUrl(), postgres.getUsername(),
-                postgres.getPassword()));
+        jdbc = JdbcClient.create(
+                new DriverManagerDataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword()));
     }
 
     @AfterEach
@@ -59,10 +59,10 @@ class CrashedWorkerRecoveryEndToEndTest {
         ConfigurableApplicationContext crashed = startInstance();
         customer.chmod(".", "outbound", 0555);
         customer.upload("inbound", fileName, bytes(validPain001(uniqueMessageId())));
-        await().atMost(TIMEOUT).until(() -> jdbc.sql("""
+        await().atMost(TIMEOUT)
+                .until(() -> jdbc.sql("""
                         select count(*) from work_item w join payment_file f on f.id = w.file_id
-                        where f.file_name = ? and w.step = 'DELIVER' and w.attempts >= 1""")
-                .param(fileName).query(Integer.class).single() == 1);
+                        where f.file_name = ? and w.step = 'DELIVER' and w.attempts >= 1""").param(fileName).query(Integer.class).single() == 1);
         crashed.close();
         customer.chmod(".", "outbound", 0755);
         // What a pod killed in the middle of the delivery leaves behind: the item leased to a worker that is gone.
@@ -73,18 +73,25 @@ class CrashedWorkerRecoveryEndToEndTest {
 
         startInstance();
 
-        await().during(Duration.ofSeconds(3)).atMost(Duration.ofSeconds(4)).untilAsserted(() ->
-                assertThat(customer.list("outbound")).as("leased item is left alone while the lease is valid")
+        await().during(Duration.ofSeconds(3))
+                .atMost(Duration.ofSeconds(4))
+                .untilAsserted(() -> assertThat(customer.list("outbound"))
+                        .as("leased item is left alone while the lease is valid")
                         .noneMatch(name -> name.startsWith(reportPrefix)));
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("outbound"))
-                .filteredOn(name -> name.startsWith(reportPrefix)).hasSize(1));
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(jdbc.sql(
-                        "select replied_at is not null from payment_file where file_name = ?")
-                .param(fileName).query(Boolean.class).single()).isTrue());
+        await().atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(customer.list("outbound"))
+                        .filteredOn(name -> name.startsWith(reportPrefix))
+                        .hasSize(1));
+        await().atMost(TIMEOUT)
+                .untilAsserted(
+                        () -> assertThat(jdbc.sql("select replied_at is not null from payment_file where file_name = ?")
+                                        .param(fileName)
+                                        .query(Boolean.class)
+                                        .single())
+                                .isTrue());
         assertThat(jdbc.sql("""
                         select count(*) from audit_event a join payment_file f on f.id = a.file_id
-                        where f.file_name = ? and a.event_type = 'StatusReportDelivered'""")
-                .param(fileName).query(Integer.class).single()).isEqualTo(1);
+                        where f.file_name = ? and a.event_type = 'StatusReportDelivered'""").param(fileName).query(Integer.class).single()).isEqualTo(1);
     }
 
     private ConfigurableApplicationContext startInstance() {

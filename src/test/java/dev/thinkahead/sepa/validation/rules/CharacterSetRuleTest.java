@@ -17,11 +17,13 @@ class CharacterSetRuleTest {
     private final CharacterSetRule rule = new CharacterSetRule();
 
     @ParameterizedTest
-    @ValueSource(strings = {
-            "Muster GmbH",
-            "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 /-?:().,'+",
-            "Bäckerei Müller & Söhne, Großhandel",
-            "ÄÖÜ äöü ß & * $ %"})
+    @ValueSource(
+            strings = {
+                "Muster GmbH",
+                "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 /-?:().,'+",
+                "Bäckerei Müller & Söhne, Großhandel",
+                "ÄÖÜ äöü ß & * $ %"
+            })
     void acceptsTheDkCharacterSetInText(String text) {
         assertThat(rule.validate(new ElementText(CREDITOR_NAME, text))).isEmpty();
     }
@@ -33,13 +35,15 @@ class CharacterSetRuleTest {
                 .satisfies(v -> {
                     assertThat(v.reasonCode()).isEqualTo("CH16");
                     assertThat(v.path()).isEqualTo(CREDITOR_NAME);
-                    assertThat(v.message()).contains("U+00E9").contains("position 5").doesNotContain("Soci");
+                    assertThat(v.message())
+                            .contains("U+00E9")
+                            .contains("position 5")
+                            .doesNotContain("Soci");
                 });
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {
-            "Wrocław", "Euro €", "50 @ Lager", "A_B", "Kunde \"Nord\"", "x<y", "Zeile\tzwei", "😀"})
+    @ValueSource(strings = {"Wrocław", "Euro €", "50 @ Lager", "A_B", "Kunde \"Nord\"", "x<y", "Zeile\tzwei", "😀"})
     void reportsCh16ForOtherCharacters(String text) {
         assertThat(rule.validate(new ElementText(CREDITOR_NAME, text)))
                 .singleElement()
@@ -60,11 +64,13 @@ class CharacterSetRuleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {
-            "GrpHdr/MsgId",
-            "PmtInf[1]/PmtInfId",
-            "PmtInf[1]/CdtTrfTxInf[2]/PmtId/InstrId",
-            "PmtInf[1]/CdtTrfTxInf[2]/PmtId/EndToEndId"})
+    @ValueSource(
+            strings = {
+                "GrpHdr/MsgId",
+                "PmtInf[1]/PmtInfId",
+                "PmtInf[1]/CdtTrfTxInf[2]/PmtId/InstrId",
+                "PmtInf[1]/CdtTrfTxInf[2]/PmtId/EndToEndId"
+            })
     void reportsCh16ForDkAdditionalCharactersInIdentifiers(String path) {
         assertThat(rule.validate(new ElementText(path, "Rechnung-Müller")))
                 .singleElement()

@@ -65,7 +65,8 @@ class ContainerReaderTest {
         assertThat(messages).hasSize(2);
         assertThat(messages).allSatisfy(message -> {
             assertThat(new FormatDetector().detect(message)).contains(MessageFormat.PAIN_001_001_09);
-            assertThat(new SchemaValidator(10).validate(MessageFormat.PAIN_001_001_09, message)).isEmpty();
+            assertThat(new SchemaValidator(10).validate(MessageFormat.PAIN_001_001_09, message))
+                    .isEmpty();
             assertThat(new String(message, StandardCharsets.UTF_8)).startsWith("<Document ");
         });
         assertThat(messages).extracting(ContainerReaderTest::messageId).containsExactly("MSG-A", "MSG-B");
@@ -76,7 +77,8 @@ class ContainerReaderTest {
         List<byte[]> messages = messagesOf(read(CONTAINER_WITH_HASH));
 
         assertThat(messages).hasSize(2);
-        assertThat(HexFormat.of().withUpperCase().formatHex(sha256(messages.getFirst()))).isEqualTo(CONTAINER_HASH);
+        assertThat(HexFormat.of().withUpperCase().formatHex(sha256(messages.getFirst())))
+                .isEqualTo(CONTAINER_HASH);
     }
 
     @Test
@@ -90,13 +92,11 @@ class ContainerReaderTest {
     void rejectsAContainerWhoseMessageDoesNotMatchItsHashWithFf01() {
         String tampered = CONTAINER_WITH_HASH.replaceFirst("<Nm>Lieferant AG</Nm>", "<Nm>Lieferant GmbH</Nm>");
 
-        assertThat(faultsOf(read(tampered)))
-                .singleElement()
-                .satisfies(violation -> {
-                    assertThat(violation.reasonCode()).isEqualTo("FF01");
-                    assertThat(violation.path()).isEqualTo("MsgPain001[1]/HashValue");
-                    assertThat(violation.message()).contains("does not match");
-                });
+        assertThat(faultsOf(read(tampered))).singleElement().satisfies(violation -> {
+            assertThat(violation.reasonCode()).isEqualTo("FF01");
+            assertThat(violation.path()).isEqualTo("MsgPain001[1]/HashValue");
+            assertThat(violation.message()).contains("does not match");
+        });
     }
 
     @Test
@@ -112,10 +112,11 @@ class ContainerReaderTest {
 
     @Test
     void declaresNamespacesThatTheMessageInheritsFromTheContainer() {
-        String message = validPain001("MSG-A").replace(
-                "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.09\">",
-                "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.09\" "
-                        + "xsi:schemaLocation=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.09 pain.001.001.09.xsd\">");
+        String message = validPain001("MSG-A")
+                .replace(
+                        "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.09\">",
+                        "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.09\" "
+                                + "xsi:schemaLocation=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.09 pain.001.001.09.xsd\">");
 
         byte[] split = messagesOf(read(container(message))).getFirst();
 
@@ -133,8 +134,8 @@ class ContainerReaderTest {
 
     @Test
     void rejectsASchemaInvalidContainerWithFf01() {
-        String withoutContainerId = container(validPain001("MSG-A"))
-                .replaceFirst("(?s)<ContainerId>.*?</ContainerId>", "");
+        String withoutContainerId =
+                container(validPain001("MSG-A")).replaceFirst("(?s)<ContainerId>.*?</ContainerId>", "");
 
         assertThat(faultsOf(read(withoutContainerId)))
                 .isNotEmpty()
@@ -147,28 +148,25 @@ class ContainerReaderTest {
                 .replace("MsgPain001", "MsgPain008")
                 .replace("pain.001.001.09", "pain.008.001.08");
 
-        assertThat(faultsOf(read(directDebits)))
-                .singleElement()
-                .satisfies(violation -> {
-                    assertThat(violation.reasonCode()).isEqualTo("FF01");
-                    assertThat(violation.message()).contains("MsgPain001");
-                });
+        assertThat(faultsOf(read(directDebits))).singleElement().satisfies(violation -> {
+            assertThat(violation.reasonCode()).isEqualTo("FF01");
+            assertThat(violation.message()).contains("MsgPain001");
+        });
     }
 
     @Test
     void rejectsAnEmbeddedMessageWithANamespacePrefixWithFf01() {
         String prefixed = container(validPain001("MSG-A")
-                .replace("<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.09\">",
+                .replace(
+                        "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.09\">",
                         "<p:Document xmlns:p=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.09\" "
                                 + "xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.09\">")
                 .replace("</Document>", "</p:Document>"));
 
-        assertThat(faultsOf(read(prefixed)))
-                .singleElement()
-                .satisfies(violation -> {
-                    assertThat(violation.reasonCode()).isEqualTo("FF01");
-                    assertThat(violation.message()).contains("prefix");
-                });
+        assertThat(faultsOf(read(prefixed))).singleElement().satisfies(violation -> {
+            assertThat(violation.reasonCode()).isEqualTo("FF01");
+            assertThat(violation.message()).contains("prefix");
+        });
     }
 
     @Test
@@ -209,24 +207,19 @@ class ContainerReaderTest {
         final List<ElementText> texts = new ArrayList<>();
 
         @Override
-        public void paymentInformation(PaymentInformation paymentInformation) {
-        }
+        public void paymentInformation(PaymentInformation paymentInformation) {}
 
         @Override
-        public void transaction(CreditTransferTransaction transaction) {
-        }
+        public void transaction(CreditTransferTransaction transaction) {}
 
         @Override
-        public void totals(Totals totals) {
-        }
+        public void totals(Totals totals) {}
 
         @Override
-        public void partyName(PartyName partyName) {
-        }
+        public void partyName(PartyName partyName) {}
 
         @Override
-        public void postalAddress(PostalAddress postalAddress) {
-        }
+        public void postalAddress(PostalAddress postalAddress) {}
 
         @Override
         public void elementText(ElementText elementText) {
@@ -234,7 +227,6 @@ class ContainerReaderTest {
         }
 
         @Override
-        public void paymentTypeInformation(PaymentTypeInformation paymentTypeInformation) {
-        }
+        public void paymentTypeInformation(PaymentTypeInformation paymentTypeInformation) {}
     }
 }

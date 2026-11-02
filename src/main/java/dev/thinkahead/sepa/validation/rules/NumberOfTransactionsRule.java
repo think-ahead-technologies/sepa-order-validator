@@ -14,7 +14,9 @@ public class NumberOfTransactionsRule implements ValidationRule<Totals> {
         if (declared == null || Long.parseLong(declared) == totals.actualNumberOfTransactions()) {
             return List.of();
         }
-        return List.of(new Violation("AM18", totals.path() + "/NbOfTxs",
+        return List.of(new Violation(
+                "AM18",
+                totals.path() + "/NbOfTxs",
                 "Declared " + declared + " transactions, found " + totals.actualNumberOfTransactions()));
     }
 }

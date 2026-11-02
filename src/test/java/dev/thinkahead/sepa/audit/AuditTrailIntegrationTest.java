@@ -30,8 +30,7 @@ class AuditTrailIntegrationTest {
     @Autowired
     JdbcClient jdbc;
 
-    record FileArchived(UUID fileId, String archive) {
-    }
+    record FileArchived(UUID fileId, String archive) {}
 
     @Test
     void recordsAnEntryWithTheEventAsJsonInTheCallersTransaction() {
@@ -40,8 +39,11 @@ class AuditTrailIntegrationTest {
         transaction.executeWithoutResult(status -> auditTrail.record(fileId, new FileArchived(fileId, "A-1")));
 
         assertThat(eventTypes(fileId)).containsExactly("FileArchived");
-        assertThat(jdbc.sql("select payload ->> 'archive' from audit_event where file_id = ?").param(fileId)
-                .query(String.class).single()).isEqualTo("A-1");
+        assertThat(jdbc.sql("select payload ->> 'archive' from audit_event where file_id = ?")
+                        .param(fileId)
+                        .query(String.class)
+                        .single())
+                .isEqualTo("A-1");
     }
 
     @Test
@@ -71,10 +73,13 @@ class AuditTrailIntegrationTest {
         transaction.executeWithoutResult(status -> auditTrail.record(fileId, new FileArchived(fileId, "A-4")));
 
         assertThatThrownBy(() -> jdbc.sql("update audit_event set event_type = 'tampered' where file_id = ?")
-                .param(fileId).update())
+                        .param(fileId)
+                        .update())
                 .isInstanceOf(DataAccessException.class)
                 .hasMessageContaining("append-only");
-        assertThatThrownBy(() -> jdbc.sql("delete from audit_event where file_id = ?").param(fileId).update())
+        assertThatThrownBy(() -> jdbc.sql("delete from audit_event where file_id = ?")
+                        .param(fileId)
+                        .update())
                 .isInstanceOf(DataAccessException.class)
                 .hasMessageContaining("append-only");
         assertThatThrownBy(() -> jdbc.sql("truncate audit_event").update())
@@ -84,7 +89,9 @@ class AuditTrailIntegrationTest {
     }
 
     private List<String> eventTypes(UUID fileId) {
-        return jdbc.sql("select event_type from audit_event where file_id = ?").param(fileId)
-                .query(String.class).list();
+        return jdbc.sql("select event_type from audit_event where file_id = ?")
+                .param(fileId)
+                .query(String.class)
+                .list();
     }
 }

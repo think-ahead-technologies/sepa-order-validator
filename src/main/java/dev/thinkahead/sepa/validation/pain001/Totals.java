@@ -9,5 +9,4 @@ public record Totals(
         String declaredNumberOfTransactions,
         BigDecimal declaredControlSum,
         long actualNumberOfTransactions,
-        BigDecimal actualControlSum) {
-}
+        BigDecimal actualControlSum) {}

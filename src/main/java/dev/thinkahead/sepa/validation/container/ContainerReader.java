@@ -98,8 +98,10 @@ public class ContainerReader {
         List<SchemaError> errors = schemaValidator.validate(schema, content.get());
         if (!errors.isEmpty()) {
             return new ContainerReading.Fault(errors.stream()
-                    .map(error -> new Violation(INVALID_FILE_FORMAT,
-                            "Line " + error.line() + ", column " + error.column(), "Container: " + error.message()))
+                    .map(error -> new Violation(
+                            INVALID_FILE_FORMAT,
+                            "Line " + error.line() + ", column " + error.column(),
+                            "Container: " + error.message()))
                     .toList());
         }
         try {
@@ -136,7 +138,8 @@ public class ContainerReader {
                     inherit(element, containerNamespaces);
                 } else if (depth == MESSAGE_DEPTH && name.startsWith(MESSAGE_PREFIX)) {
                     if (!name.equals(CREDIT_TRANSFER_MESSAGE)) {
-                        return fault("Container",
+                        return fault(
+                                "Container",
                                 "Only credit transfer containers (" + CREDIT_TRANSFER_MESSAGE + ") are supported");
                     }
                     messageNamespaces = new HashMap<>(containerNamespaces);
@@ -153,7 +156,8 @@ public class ContainerReader {
                         return fault(path + "/Document", "Embedded messages must not use a namespace prefix");
                     }
                     if (hashValue != null && !hashValue.equalsIgnoreCase(sha256(message))) {
-                        return fault(path + "/HashValue",
+                        return fault(
+                                path + "/HashValue",
                                 "Hash value does not match the content of the message (SHA-256 over its C14N form)");
                     }
                     messages.add(message);
@@ -172,8 +176,9 @@ public class ContainerReader {
      *
      * @return the message, or null if an element of the message uses a namespace prefix
      */
-    private static byte[] canonicalMessage(StartElement document, XMLEventReader events,
-            Map<String, String> inheritedNamespaces) throws XMLStreamException {
+    private static byte[] canonicalMessage(
+            StartElement document, XMLEventReader events, Map<String, String> inheritedNamespaces)
+            throws XMLStreamException {
         var out = new ByteArrayOutputStream();
         var canonical = new CanonicalXml(out);
         canonical.root(document, inheritedNamespaces);
@@ -185,7 +190,8 @@ public class ContainerReader {
             if (event.isStartElement()) {
                 depth++;
                 QName name = event.asStartElement().getName();
-                prefixed |= name.getNamespaceURI().equals(messageNamespace) && !name.getPrefix().isEmpty();
+                prefixed |= name.getNamespaceURI().equals(messageNamespace)
+                        && !name.getPrefix().isEmpty();
             } else if (event.isEndElement()) {
                 depth--;
             }

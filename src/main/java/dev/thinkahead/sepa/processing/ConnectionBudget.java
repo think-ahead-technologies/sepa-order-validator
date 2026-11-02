@@ -12,8 +12,7 @@ final class ConnectionBudget {
      */
     static final int HEADROOM = 4;
 
-    private ConnectionBudget() {
-    }
+    private ConnectionBudget() {}
 
     static void check(int poolSize, Collection<StepSettings> steps) {
         int needed = steps.stream().mapToInt(StepSettings::workers).sum() + HEADROOM;

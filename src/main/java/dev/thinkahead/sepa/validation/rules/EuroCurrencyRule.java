@@ -13,7 +13,9 @@ public class EuroCurrencyRule implements ValidationRule<CreditTransferTransactio
         if ("EUR".equals(transaction.currency())) {
             return List.of();
         }
-        return List.of(new Violation("AM03", transaction.path() + "/Amt/InstdAmt/@Ccy",
+        return List.of(new Violation(
+                "AM03",
+                transaction.path() + "/Amt/InstdAmt/@Ccy",
                 "Currency " + transaction.currency() + " is not allowed, SEPA requires EUR"));
     }
 }

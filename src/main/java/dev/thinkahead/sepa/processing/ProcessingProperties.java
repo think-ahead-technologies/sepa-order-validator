@@ -10,7 +10,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param retention            how long DONE work items are kept
  * @param housekeepingInterval how often DONE work items past the retention are deleted
  */
-record ProcessingProperties(StepSettings validate, StepSettings report, StepSettings deliver, Duration retention,
+record ProcessingProperties(
+        StepSettings validate,
+        StepSettings report,
+        StepSettings deliver,
+        Duration retention,
         Duration housekeepingInterval) {
 
     ProcessingProperties {

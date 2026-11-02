@@ -17,7 +17,9 @@ public class UniquePaymentInformationIdRule implements ValidationRule<PaymentInf
         if (seen.add(paymentInformation.paymentInformationId())) {
             return List.of();
         }
-        return List.of(new Violation("DU02", paymentInformation.path() + "/PmtInfId",
+        return List.of(new Violation(
+                "DU02",
+                paymentInformation.path() + "/PmtInfId",
                 "Payment information id " + paymentInformation.paymentInformationId() + " occurs more than once"));
     }
 }

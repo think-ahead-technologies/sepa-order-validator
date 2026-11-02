@@ -15,7 +15,9 @@ public class DebtorAgentRule implements ValidationRule<PaymentInformation> {
         if (agent == null || agent.bic() != null || agent.otherIdentification() != null) {
             return List.of();
         }
-        return List.of(new Violation("RC01", paymentInformation.path() + "/DbtrAgt/FinInstnId",
+        return List.of(new Violation(
+                "RC01",
+                paymentInformation.path() + "/DbtrAgt/FinInstnId",
                 "Debtor agent must be identified by BICFI or Othr/Id"));
     }
 }

@@ -16,21 +16,27 @@ class ConnectionBudgetTest {
 
     @Test
     void acceptsAPoolThatCoversAllWorkersAndTheHeadroom() {
-        assertThatNoException().isThrownBy(() -> ConnectionBudget.check(6 + ConnectionBudget.HEADROOM,
-                THREE_STEPS_WITH_TWO_WORKERS));
+        assertThatNoException()
+                .isThrownBy(() -> ConnectionBudget.check(6 + ConnectionBudget.HEADROOM, THREE_STEPS_WITH_TWO_WORKERS));
     }
 
     @Test
     void rejectsAPoolSmallerThanAllWorkersPlusHeadroom() {
         assertThatIllegalStateException()
-                .isThrownBy(() -> ConnectionBudget.check(6 + ConnectionBudget.HEADROOM - 1,
-                        THREE_STEPS_WITH_TWO_WORKERS))
+                .isThrownBy(
+                        () -> ConnectionBudget.check(6 + ConnectionBudget.HEADROOM - 1, THREE_STEPS_WITH_TWO_WORKERS))
                 .withMessageContaining("spring.datasource.hikari.maximum-pool-size")
                 .withMessageContaining(String.valueOf(6 + ConnectionBudget.HEADROOM));
     }
 
     private static StepSettings settings(int workers) {
-        return new StepSettings(workers, Duration.ofMinutes(2), Duration.ofMinutes(1), 10, Duration.ofSeconds(1),
-                Duration.ofSeconds(10), Duration.ofMinutes(10));
+        return new StepSettings(
+                workers,
+                Duration.ofMinutes(2),
+                Duration.ofMinutes(1),
+                10,
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(10),
+                Duration.ofMinutes(10));
     }
 }

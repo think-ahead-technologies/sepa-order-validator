@@ -12,5 +12,4 @@ record StatusReport(
         String originalMessageId,
         String originalMessageNameId,
         GroupStatus groupStatus,
-        List<Violation> reasons) {
-}
+        List<Violation> reasons) {}

@@ -2,5 +2,4 @@
 // ABOUTME: Line and column are 0 when the parser could not determine a position.
 package dev.thinkahead.sepa.validation.xml;
 
-public record SchemaError(int line, int column, String message) {
-}
+public record SchemaError(int line, int column, String message) {}

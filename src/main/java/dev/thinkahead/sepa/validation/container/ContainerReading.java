@@ -1,5 +1,6 @@
 // ABOUTME: Result of reading a DK XML container: either container-level faults or the messages it holds.
-// ABOUTME: Each message is a standalone pain.001 document that is validated and answered on its own (spec container-split).
+// ABOUTME: Each message is a standalone pain.001 document that is validated and answered on its own (spec
+// container-split).
 package dev.thinkahead.sepa.validation.container;
 
 import dev.thinkahead.sepa.validation.Violation;

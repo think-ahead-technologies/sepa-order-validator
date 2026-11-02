@@ -24,9 +24,9 @@ import java.util.concurrent.Future;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -73,8 +73,9 @@ class PaymentFileValidationIntegrationTest {
                         where file_id = ? and step = 'VALIDATE'""").param(first.fileId()).update();
 
         await().atMost(TIMEOUT).until(() -> validateItemState(first.fileId()).equals("DONE"));
-        await().during(Duration.ofSeconds(2)).atMost(TIMEOUT).untilAsserted(() ->
-                assertThat(events.ofType(PaymentFileValidated.class))
+        await().during(Duration.ofSeconds(2))
+                .atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(events.ofType(PaymentFileValidated.class))
                         .filteredOn(e -> e.fileId().equals(first.fileId()))
                         .singleElement()
                         .satisfies(e -> assertThat(e.accepted()).isTrue()));
@@ -95,19 +96,25 @@ class PaymentFileValidationIntegrationTest {
             assertThat(validated.accepted()).isFalse();
             assertThat(validated.violations()).singleElement().satisfies(violation -> {
                 assertThat(violation.reasonCode()).isEqualTo("FF01");
-                assertThat(violation.message()).contains("technical error").contains(validated.fileId().toString());
+                assertThat(violation.message())
+                        .contains("technical error")
+                        .contains(validated.fileId().toString());
             });
             assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
             assertThat(validateItemState(validated.fileId())).isEqualTo("DONE");
             assertThat(validateItemAttempts(validated.fileId())).isEqualTo(MAX_VALIDATE_ATTEMPTS);
             assertThat(jdbc.sql("""
                             select count(*) from audit_event where file_id = ? and event_type = 'PaymentFileValidated'""")
-                    .param(validated.fileId()).query(Integer.class).single())
-                    .as("failed attempts leave no audit entry").isEqualTo(1);
+                            .param(validated.fileId())
+                            .query(Integer.class)
+                            .single())
+                    .as("failed attempts leave no audit entry")
+                    .isEqualTo(1);
             assertThat(LogLines.messagesForFile(output, validated.fileId()))
                     .anySatisfy(message -> assertThat(message).startsWith("VALIDATE gave up after"));
         } finally {
-            jdbc.sql("drop trigger block_message_registration on accepted_message").update();
+            jdbc.sql("drop trigger block_message_registration on accepted_message")
+                    .update();
         }
     }
 
@@ -118,18 +125,19 @@ class PaymentFileValidationIntegrationTest {
         transaction.executeWithoutResult(status -> {
             jdbc.sql("""
                             insert into payment_file (id, channel, submitter, file_name, size_bytes, sha256, content, status)
-                            values (?, 'SFTP', 'sftp:sepa', 'crash-loop.xml', 3, repeat('0', 64), ?, 'RECEIVED')""")
-                    .params(fileId, "<x>".getBytes()).update();
+                            values (?, 'SFTP', 'sftp:sepa', 'crash-loop.xml', 3, repeat('0', 64), ?, 'RECEIVED')""").params(fileId, "<x>".getBytes()).update();
             jdbc.sql("""
                             insert into work_item (file_id, step, attempts, lease_token, locked_until)
-                            values (?, 'VALIDATE', ?, gen_random_uuid(), now() - interval '1 second')""")
-                    .params(fileId, MAX_VALIDATE_ATTEMPTS).update();
+                            values (?, 'VALIDATE', ?, gen_random_uuid(), now() - interval '1 second')""").params(fileId, MAX_VALIDATE_ATTEMPTS).update();
         });
 
-        PaymentFileValidated validated = await().atMost(TIMEOUT).until(
-                () -> events.ofType(PaymentFileValidated.class).stream()
-                        .filter(e -> e.fileId().equals(fileId)).findFirst().orElse(null),
-                e -> e != null);
+        PaymentFileValidated validated = await().atMost(TIMEOUT)
+                .until(
+                        () -> events.ofType(PaymentFileValidated.class).stream()
+                                .filter(e -> e.fileId().equals(fileId))
+                                .findFirst()
+                                .orElse(null),
+                        e -> e != null);
 
         assertThat(validated.violations()).extracting(Violation::reasonCode).containsExactly("FF01");
         assertThat(validated.violations().getFirst().message()).contains("technical error");
@@ -144,13 +152,11 @@ class PaymentFileValidationIntegrationTest {
                 dev.thinkahead.sepa.Fixtures.paddedTo(validPain001(uniqueMessageId()), 1_100_000));
 
         assertThat(validated.accepted()).isFalse();
-        assertThat(validated.violations())
-                .singleElement()
-                .satisfies(v -> {
-                    assertThat(v.reasonCode()).isEqualTo("FF01");
-                    assertThat(v.path()).isEqualTo("Document");
-                    assertThat(v.message()).contains("maximum size");
-                });
+        assertThat(validated.violations()).singleElement().satisfies(v -> {
+            assertThat(v.reasonCode()).isEqualTo("FF01");
+            assertThat(v.path()).isEqualTo("Document");
+            assertThat(v.message()).contains("maximum size");
+        });
         assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
     }
 
@@ -164,9 +170,15 @@ class PaymentFileValidationIntegrationTest {
         assertThat(validated.originalMessageId()).isEqualTo(messageId);
         assertThat(validated.violations()).isEmpty();
         assertThat(statusOf(validated.fileId())).isEqualTo("ACCEPTED");
-        assertThat(validationOutcomes.find(validated.fileId())).as("stored outcome").isEqualTo(validated);
+        assertThat(validationOutcomes.find(validated.fileId()))
+                .as("stored outcome")
+                .isEqualTo(validated);
         assertThat(jdbc.sql("select state from work_item where file_id = ? and step = 'REPORT'")
-                .param(validated.fileId()).query(String.class).single()).as("report scheduled").isEqualTo("PENDING");
+                        .param(validated.fileId())
+                        .query(String.class)
+                        .single())
+                .as("report scheduled")
+                .isEqualTo("PENDING");
     }
 
     @Test
@@ -177,7 +189,8 @@ class PaymentFileValidationIntegrationTest {
         assertThat(validated.accepted()).isFalse();
         assertThat(validated.violations()).extracting(Violation::reasonCode).containsExactly("AC03");
         assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
-        assertThat(validationOutcomes.find(validated.fileId())).as("stored outcome with violations")
+        assertThat(validationOutcomes.find(validated.fileId()))
+                .as("stored outcome with violations")
                 .isEqualTo(validated);
         assertThat(LogLines.messagesForFile(output, validated.fileId()))
                 .contains("Validated payment file: rejected with reason codes [AC03]");
@@ -186,14 +199,16 @@ class PaymentFileValidationIntegrationTest {
 
     @Test
     void rejectsSepaFieldRuleViolationsWithoutLoggingPaymentContent(CapturedOutput output) {
-        PaymentFileValidated validated = uploadAndAwaitValidation(
-                dev.thinkahead.sepa.Fixtures.withSepaFieldRuleViolations(uniqueMessageId()));
+        PaymentFileValidated validated =
+                uploadAndAwaitValidation(dev.thinkahead.sepa.Fixtures.withSepaFieldRuleViolations(uniqueMessageId()));
 
         assertThat(validated.accepted()).isFalse();
-        assertThat(validated.violations()).extracting(Violation::reasonCode)
+        assertThat(validated.violations())
+                .extracting(Violation::reasonCode)
                 .containsExactlyInAnyOrder("AM01", "RC01", "AM12", "FF01", "FF01");
         assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
-        assertThat(validationOutcomes.find(validated.fileId())).as("stored outcome with violations")
+        assertThat(validationOutcomes.find(validated.fileId()))
+                .as("stored outcome with violations")
                 .isEqualTo(validated);
         assertThat(output).doesNotContain("Informationstechnologie").doesNotContain("50.505");
     }
@@ -211,13 +226,14 @@ class PaymentFileValidationIntegrationTest {
 
     @Test
     void rejectsCharactersOutsideTheDkCharacterSetWithoutLoggingThem(CapturedOutput output) {
-        PaymentFileValidated validated = uploadAndAwaitValidation(
-                dev.thinkahead.sepa.Fixtures.withCharacterSetViolations(uniqueMessageId()));
+        PaymentFileValidated validated =
+                uploadAndAwaitValidation(dev.thinkahead.sepa.Fixtures.withCharacterSetViolations(uniqueMessageId()));
 
         assertThat(validated.accepted()).isFalse();
         assertThat(validated.violations()).extracting(Violation::reasonCode).containsExactly("CH16", "CH16");
         assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
-        assertThat(output).doesNotContain(dev.thinkahead.sepa.Fixtures.FRENCH_CREDITOR_NAME)
+        assertThat(output)
+                .doesNotContain(dev.thinkahead.sepa.Fixtures.FRENCH_CREDITOR_NAME)
                 .doesNotContain("E2E-Müller-001");
     }
 
@@ -228,43 +244,59 @@ class PaymentFileValidationIntegrationTest {
         UUID containerId = uploadAndAwaitReceipt(dev.thinkahead.sepa.Fixtures.container(
                 validPain001(acceptedMessageId),
                 validPain001(rejectedMessageId).replace("NL91ABNA0417164300", "NL91ABNA0417164301")));
-        String containerName = jdbc.sql("select file_name from payment_file where id = ?").param(containerId)
-                .query(String.class).single();
+        String containerName = jdbc.sql("select file_name from payment_file where id = ?")
+                .param(containerId)
+                .query(String.class)
+                .single();
 
-        List<java.util.Map<String, Object>> messages = await().atMost(TIMEOUT).until(
-                () -> jdbc.sql("""
+        List<java.util.Map<String, Object>> messages = await().atMost(TIMEOUT)
+                .until(
+                        () -> jdbc.sql("""
                                 select id, file_name, container_index, status from payment_file
-                                where container_file_id = ? order by container_index""")
-                        .param(containerId).query().listOfRows(),
-                rows -> rows.size() == 2 && rows.stream().noneMatch(row -> row.get("status").equals("RECEIVED")));
+                                where container_file_id = ? order by container_index""").param(containerId).query().listOfRows(),
+                        rows -> rows.size() == 2
+                                && rows.stream()
+                                        .noneMatch(row -> row.get("status").equals("RECEIVED")));
 
         assertThat(statusOf(containerId)).isEqualTo("SPLIT");
         String baseName = containerName.replace(".xml", "");
-        assertThat(messages).extracting(row -> row.get("file_name"), row -> row.get("status")).containsExactly(
-                org.assertj.core.groups.Tuple.tuple(baseName + "-msg1.xml", "ACCEPTED"),
-                org.assertj.core.groups.Tuple.tuple(baseName + "-msg2.xml", "REJECTED"));
-        PaymentFileValidated rejected = validationOutcomes.find((UUID) messages.get(1).get("id"));
+        assertThat(messages)
+                .extracting(row -> row.get("file_name"), row -> row.get("status"))
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(baseName + "-msg1.xml", "ACCEPTED"),
+                        org.assertj.core.groups.Tuple.tuple(baseName + "-msg2.xml", "REJECTED"));
+        PaymentFileValidated rejected =
+                validationOutcomes.find((UUID) messages.get(1).get("id"));
         assertThat(rejected.originalMessageId()).isEqualTo(rejectedMessageId);
         assertThat(rejected.violations()).extracting(Violation::reasonCode).containsExactly("AC03");
         assertThat(jdbc.sql("select count(*) from work_item where file_id = ? and step = 'REPORT'")
-                .param(containerId).query(Integer.class).single()).as("no report for the container").isZero();
-        assertThat(jdbc.sql("select event_type from audit_event where file_id = ?").param(containerId)
-                .query(String.class).list()).containsExactlyInAnyOrder("PaymentFileReceived", "PaymentFileSplit");
+                        .param(containerId)
+                        .query(Integer.class)
+                        .single())
+                .as("no report for the container")
+                .isZero();
+        assertThat(jdbc.sql("select event_type from audit_event where file_id = ?")
+                        .param(containerId)
+                        .query(String.class)
+                        .list())
+                .containsExactlyInAnyOrder("PaymentFileReceived", "PaymentFileSplit");
     }
 
     @Test
     void rejectsSepaInstantFromAContainerWithAg02AndKeepsTheOtherMessages() {
         UUID containerId = uploadAndAwaitReceipt(dev.thinkahead.sepa.Fixtures.container(
                 validPain001(uniqueMessageId()),
-                dev.thinkahead.sepa.Fixtures.validInstantPain001(uniqueMessageId(),
-                        dev.thinkahead.sepa.Fixtures.futureExecutionDate())));
+                dev.thinkahead.sepa.Fixtures.validInstantPain001(
+                        uniqueMessageId(), dev.thinkahead.sepa.Fixtures.futureExecutionDate())));
 
-        List<java.util.Map<String, Object>> messages = await().atMost(TIMEOUT).until(
-                () -> jdbc.sql("""
+        List<java.util.Map<String, Object>> messages = await().atMost(TIMEOUT)
+                .until(
+                        () -> jdbc.sql("""
                                 select id, status from payment_file
-                                where container_file_id = ? order by container_index""")
-                        .param(containerId).query().listOfRows(),
-                rows -> rows.size() == 2 && rows.stream().noneMatch(row -> row.get("status").equals("RECEIVED")));
+                                where container_file_id = ? order by container_index""").param(containerId).query().listOfRows(),
+                        rows -> rows.size() == 2
+                                && rows.stream()
+                                        .noneMatch(row -> row.get("status").equals("RECEIVED")));
 
         assertThat(messages).extracting(row -> row.get("status")).containsExactly("ACCEPTED", "REJECTED");
         assertThat(validationOutcomes.find((UUID) messages.get(1).get("id")).violations())
@@ -274,34 +306,44 @@ class PaymentFileValidationIntegrationTest {
 
     @Test
     void rejectsAContainerWhoseMessageDoesNotMatchItsHashAsAWhole() {
-        PaymentFileValidated validated = uploadAndAwaitValidation(dev.thinkahead.sepa.Fixtures.CONTAINER_WITH_HASH
-                .replaceFirst("<Nm>Lieferant AG</Nm>", "<Nm>Lieferant GmbH</Nm>"));
+        PaymentFileValidated validated =
+                uploadAndAwaitValidation(dev.thinkahead.sepa.Fixtures.CONTAINER_WITH_HASH.replaceFirst(
+                        "<Nm>Lieferant AG</Nm>", "<Nm>Lieferant GmbH</Nm>"));
 
         assertThat(validated.violations())
                 .extracting(Violation::reasonCode, Violation::path)
                 .containsExactly(org.assertj.core.groups.Tuple.tuple("FF01", "MsgPain001[1]/HashValue"));
         assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
         assertThat(jdbc.sql("select count(*) from payment_file where container_file_id = ?")
-                .param(validated.fileId()).query(Integer.class).single()).isZero();
+                        .param(validated.fileId())
+                        .query(Integer.class)
+                        .single())
+                .isZero();
     }
 
     @Test
     void rejectsABrokenContainerAsAWholeWithFf01() {
-        PaymentFileValidated validated = uploadAndAwaitValidation(
-                dev.thinkahead.sepa.Fixtures.container(validPain001(uniqueMessageId()))
+        PaymentFileValidated validated =
+                uploadAndAwaitValidation(dev.thinkahead.sepa.Fixtures.container(validPain001(uniqueMessageId()))
                         .replaceFirst("(?s)<ContainerId>.*?</ContainerId>", ""));
 
         assertThat(validated.accepted()).isFalse();
-        assertThat(validated.violations()).isNotEmpty().extracting(Violation::reasonCode).containsOnly("FF01");
+        assertThat(validated.violations())
+                .isNotEmpty()
+                .extracting(Violation::reasonCode)
+                .containsOnly("FF01");
         assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
         assertThat(jdbc.sql("select count(*) from payment_file where container_file_id = ?")
-                .param(validated.fileId()).query(Integer.class).single()).isZero();
+                        .param(validated.fileId())
+                        .query(Integer.class)
+                        .single())
+                .isZero();
     }
 
     @Test
     void rejectsAFileMixingSepaInstantAndSepaCreditTransfersWithAg02() {
-        PaymentFileValidated validated = uploadAndAwaitValidation(
-                dev.thinkahead.sepa.Fixtures.withMixedSchemes(uniqueMessageId()));
+        PaymentFileValidated validated =
+                uploadAndAwaitValidation(dev.thinkahead.sepa.Fixtures.withMixedSchemes(uniqueMessageId()));
 
         assertThat(validated.accepted()).isFalse();
         assertThat(validated.violations())
@@ -312,23 +354,21 @@ class PaymentFileValidationIntegrationTest {
 
     @Test
     void rejectsAnExecutionDateInThePastWithDt01() {
-        PaymentFileValidated validated = uploadAndAwaitValidation(
-                validPain001(uniqueMessageId(), java.time.LocalDate.of(2026, 10, 1)));
+        PaymentFileValidated validated =
+                uploadAndAwaitValidation(validPain001(uniqueMessageId(), java.time.LocalDate.of(2026, 10, 1)));
 
         assertThat(validated.accepted()).isFalse();
-        assertThat(validated.violations())
-                .singleElement()
-                .satisfies(v -> {
-                    assertThat(v.reasonCode()).isEqualTo("DT01");
-                    assertThat(v.path()).isEqualTo("PmtInf[1]/ReqdExctnDt");
-                });
+        assertThat(validated.violations()).singleElement().satisfies(v -> {
+            assertThat(v.reasonCode()).isEqualTo("DT01");
+            assertThat(v.path()).isEqualTo("PmtInf[1]/ReqdExctnDt");
+        });
         assertThat(statusOf(validated.fileId())).isEqualTo("REJECTED");
     }
 
     @Test
     void rejectsAChequeOrderAgainstTheDkSchemaWithFf01() {
-        PaymentFileValidated validated = uploadAndAwaitValidation(validPain001(uniqueMessageId())
-                .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>CHK</PmtMtd>"));
+        PaymentFileValidated validated = uploadAndAwaitValidation(
+                validPain001(uniqueMessageId()).replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>CHK</PmtMtd>"));
 
         assertThat(validated.accepted()).isFalse();
         assertThat(validated.violations()).extracting(Violation::reasonCode).containsOnly("FF01");
@@ -337,8 +377,8 @@ class PaymentFileValidationIntegrationTest {
 
     @Test
     void rejectsAServiceLevelOtherThanSepaWithAg02() {
-        PaymentFileValidated validated = uploadAndAwaitValidation(validPain001(uniqueMessageId())
-                .replaceFirst("(<SvcLvl>\\s*<Cd>)SEPA(</Cd>)", "$1URGP$2"));
+        PaymentFileValidated validated = uploadAndAwaitValidation(
+                validPain001(uniqueMessageId()).replaceFirst("(<SvcLvl>\\s*<Cd>)SEPA(</Cd>)", "$1URGP$2"));
 
         assertThat(validated.accepted()).isFalse();
         assertThat(validated.violations())
@@ -375,20 +415,18 @@ class PaymentFileValidationIntegrationTest {
 
         assertThat(first.accepted()).isTrue();
         assertThat(resubmission.accepted()).isFalse();
-        assertThat(resubmission.violations())
-                .singleElement()
-                .satisfies(v -> {
-                    assertThat(v.reasonCode()).isEqualTo("DU01");
-                    assertThat(v.path()).isEqualTo("GrpHdr/MsgId");
-                });
+        assertThat(resubmission.violations()).singleElement().satisfies(v -> {
+            assertThat(v.reasonCode()).isEqualTo("DU01");
+            assertThat(v.path()).isEqualTo("GrpHdr/MsgId");
+        });
         assertThat(statusOf(resubmission.fileId())).isEqualTo("REJECTED");
     }
 
     @Test
     void acceptsCorrectedResubmissionAfterARejection() {
         String messageId = uniqueMessageId();
-        PaymentFileValidated rejected = uploadAndAwaitValidation(
-                validPain001(messageId).replace("NL91ABNA0417164300", "NL91ABNA0417164301"));
+        PaymentFileValidated rejected =
+                uploadAndAwaitValidation(validPain001(messageId).replace("NL91ABNA0417164300", "NL91ABNA0417164301"));
 
         PaymentFileValidated corrected = uploadAndAwaitValidation(validPain001(messageId));
 
@@ -400,9 +438,12 @@ class PaymentFileValidationIntegrationTest {
     void scopesMessageIdsPerSubmitter() {
         String messageId = uniqueMessageId();
 
-        assertThat(acceptedMessages.register("sftp:customer-a", messageId, UUID.randomUUID())).isTrue();
-        assertThat(acceptedMessages.register("sftp:customer-b", messageId, UUID.randomUUID())).isTrue();
-        assertThat(acceptedMessages.register("sftp:customer-a", messageId, UUID.randomUUID())).isFalse();
+        assertThat(acceptedMessages.register("sftp:customer-a", messageId, UUID.randomUUID()))
+                .isTrue();
+        assertThat(acceptedMessages.register("sftp:customer-b", messageId, UUID.randomUUID()))
+                .isTrue();
+        assertThat(acceptedMessages.register("sftp:customer-a", messageId, UUID.randomUUID()))
+                .isFalse();
     }
 
     @Test
@@ -417,7 +458,8 @@ class PaymentFileValidationIntegrationTest {
 
         try (var executor = Executors.newFixedThreadPool(contenders)) {
             List<Future<Boolean>> results = IntStream.range(0, contenders)
-                    .mapToObj(i -> executor.submit(register)).toList();
+                    .mapToObj(i -> executor.submit(register))
+                    .toList();
             start.countDown();
 
             long winners = 0;
@@ -431,37 +473,50 @@ class PaymentFileValidationIntegrationTest {
     private PaymentFileValidated uploadAndAwaitValidation(String xml) {
         UUID fileId = uploadAndAwaitReceipt(xml);
 
-        return await().atMost(TIMEOUT).until(
-                () -> events.ofType(PaymentFileValidated.class).stream()
-                        .filter(e -> e.fileId().equals(fileId)).findFirst().orElse(null),
-                e -> e != null);
+        return await().atMost(TIMEOUT)
+                .until(
+                        () -> events.ofType(PaymentFileValidated.class).stream()
+                                .filter(e -> e.fileId().equals(fileId))
+                                .findFirst()
+                                .orElse(null),
+                        e -> e != null);
     }
 
     private UUID uploadAndAwaitReceipt(String xml) {
         String fileName = "validation-" + UUID.randomUUID() + ".xml";
         customer.upload("inbound", fileName, bytes(xml));
 
-        return await().atMost(TIMEOUT).until(
-                () -> events.ofType(PaymentFileReceived.class).stream()
-                        .filter(e -> e.fileName().equals(fileName)).map(PaymentFileReceived::fileId)
-                        .findFirst().orElse(null),
-                id -> id != null);
+        return await().atMost(TIMEOUT)
+                .until(
+                        () -> events.ofType(PaymentFileReceived.class).stream()
+                                .filter(e -> e.fileName().equals(fileName))
+                                .map(PaymentFileReceived::fileId)
+                                .findFirst()
+                                .orElse(null),
+                        id -> id != null);
     }
 
     private String validateItemState(UUID fileId) {
-        return jdbc.sql("select state from work_item where file_id = ? and step = 'VALIDATE'").param(fileId)
-                .query(String.class).single();
+        return jdbc.sql("select state from work_item where file_id = ? and step = 'VALIDATE'")
+                .param(fileId)
+                .query(String.class)
+                .single();
     }
 
     private int validateItemAttempts(UUID fileId) {
-        return jdbc.sql("select attempts from work_item where file_id = ? and step = 'VALIDATE'").param(fileId)
-                .query(Integer.class).single();
+        return jdbc.sql("select attempts from work_item where file_id = ? and step = 'VALIDATE'")
+                .param(fileId)
+                .query(Integer.class)
+                .single();
     }
 
     private String statusOf(UUID fileId) {
-        return await().atMost(TIMEOUT).until(
-                () -> jdbc.sql("select status from payment_file where id = ?").param(fileId)
-                        .query(String.class).single(),
-                status -> !status.equals("RECEIVED"));
+        return await().atMost(TIMEOUT)
+                .until(
+                        () -> jdbc.sql("select status from payment_file where id = ?")
+                                .param(fileId)
+                                .query(String.class)
+                                .single(),
+                        status -> !status.equals("RECEIVED"));
     }
 }

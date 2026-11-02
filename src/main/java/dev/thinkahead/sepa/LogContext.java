@@ -9,8 +9,7 @@ public final class LogContext {
 
     public static final String FILE_ID = "fileId";
 
-    private LogContext() {
-    }
+    private LogContext() {}
 
     /**
      * For a block on a thread that handles several files in turn, e.g. a poller; close it when the block ends.

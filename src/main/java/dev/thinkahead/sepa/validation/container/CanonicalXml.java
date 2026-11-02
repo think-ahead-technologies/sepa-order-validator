@@ -24,8 +24,8 @@ import javax.xml.stream.events.XMLEvent;
 
 final class CanonicalXml {
 
-    private static final Comparator<Attribute> ATTRIBUTE_ORDER = Comparator
-            .comparing((Attribute attribute) -> attribute.getName().getNamespaceURI())
+    private static final Comparator<Attribute> ATTRIBUTE_ORDER = Comparator.comparing(
+                    (Attribute attribute) -> attribute.getName().getNamespaceURI())
             .thenComparing(attribute -> attribute.getName().getLocalPart());
 
     private final OutputStream out;
@@ -59,14 +59,16 @@ final class CanonicalXml {
                 write("</" + qualified(event.asEndElement().getName()) + ">");
                 scopes.pop();
             }
-            case XMLEvent.CHARACTERS, XMLEvent.CDATA, XMLEvent.SPACE -> write(escapeText(event.asCharacters().getData()));
+            case XMLEvent.CHARACTERS, XMLEvent.CDATA, XMLEvent.SPACE ->
+                write(escapeText(event.asCharacters().getData()));
             case XMLEvent.PROCESSING_INSTRUCTION -> {
                 var instruction = (ProcessingInstruction) event;
-                String data = instruction.getData() == null ? "" : instruction.getData().strip();
+                String data = instruction.getData() == null
+                        ? ""
+                        : instruction.getData().strip();
                 write("<?" + instruction.getTarget() + (data.isEmpty() ? "" : " " + data) + "?>");
             }
-            default -> {
-            }
+            default -> {}
         }
     }
 
@@ -88,13 +90,18 @@ final class CanonicalXml {
         scopes.push(scope);
         var tag = new StringBuilder("<").append(qualified(element.getName()));
         renderedNamespaces.forEach((prefix, uri) -> tag.append(prefix.isEmpty() ? " xmlns" : " xmlns:" + prefix)
-                .append("=\"").append(escapeAttribute(uri)).append('"'));
+                .append("=\"")
+                .append(escapeAttribute(uri))
+                .append('"'));
         List<Attribute> attributes = new ArrayList<>();
         element.getAttributes().forEachRemaining(attributes::add);
         attributes.sort(ATTRIBUTE_ORDER);
         for (Attribute attribute : attributes) {
-            tag.append(' ').append(qualified(attribute.getName()))
-                    .append("=\"").append(escapeAttribute(attribute.getValue())).append('"');
+            tag.append(' ')
+                    .append(qualified(attribute.getName()))
+                    .append("=\"")
+                    .append(escapeAttribute(attribute.getValue()))
+                    .append('"');
         }
         write(tag.append('>').toString());
     }
@@ -114,12 +121,19 @@ final class CanonicalXml {
     }
 
     private static String escapeText(String text) {
-        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\r", "&#xD;");
+        return text.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\r", "&#xD;");
     }
 
     private static String escapeAttribute(String value) {
-        return value.replace("&", "&amp;").replace("<", "&lt;").replace("\"", "&quot;")
-                .replace("\t", "&#x9;").replace("\n", "&#xA;").replace("\r", "&#xD;");
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace("\"", "&quot;")
+                .replace("\t", "&#x9;")
+                .replace("\n", "&#xA;")
+                .replace("\r", "&#xD;");
     }
 
     private void write(String text) {

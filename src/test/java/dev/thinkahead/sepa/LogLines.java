@@ -12,14 +12,14 @@ public final class LogLines {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
-    private LogLines() {
-    }
+    private LogLines() {}
 
     /**
      * Every JSON log line in the captured output; other output (e.g. from before logging was set up) is skipped.
      */
     public static List<JsonNode> of(CapturedOutput output) {
-        return output.getAll().lines()
+        return output.getAll()
+                .lines()
                 .filter(line -> line.startsWith("{"))
                 .map(JSON::readTree)
                 .toList();
@@ -32,6 +32,8 @@ public final class LogLines {
     }
 
     public static List<String> messagesForFile(CapturedOutput output, UUID fileId) {
-        return forFile(output, fileId).stream().map(line -> line.path("message").asString()).toList();
+        return forFile(output, fileId).stream()
+                .map(line -> line.path("message").asString())
+                .toList();
     }
 }

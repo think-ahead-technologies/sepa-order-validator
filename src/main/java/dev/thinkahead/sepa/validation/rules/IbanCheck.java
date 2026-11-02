@@ -15,20 +15,50 @@ public final class IbanCheck {
     // IBAN country codes of the SEPA scheme countries per EPC409-09 v8.0 (24 December 2025), with lengths from the
     // SWIFT IBAN registry. Territories use the codes listed there (e.g. FR, FI, GB). Verify on each EPC409 update.
     private static final Map<String, Integer> SEPA_IBAN_LENGTHS = Map.ofEntries(
-            Map.entry("AD", 24), Map.entry("AL", 28), Map.entry("AT", 20), Map.entry("BE", 16),
-            Map.entry("BG", 22), Map.entry("CH", 21), Map.entry("CY", 28), Map.entry("CZ", 24),
-            Map.entry("DE", 22), Map.entry("DK", 18), Map.entry("EE", 20), Map.entry("ES", 24),
-            Map.entry("FI", 18), Map.entry("FR", 27), Map.entry("GB", 22), Map.entry("GI", 23),
-            Map.entry("GR", 27), Map.entry("HR", 21), Map.entry("HU", 28), Map.entry("IE", 22),
-            Map.entry("IS", 26), Map.entry("IT", 27), Map.entry("LI", 21), Map.entry("LT", 20),
-            Map.entry("LU", 20), Map.entry("LV", 21), Map.entry("MC", 27), Map.entry("MD", 24),
-            Map.entry("ME", 22), Map.entry("MK", 19), Map.entry("MT", 31), Map.entry("NL", 18),
-            Map.entry("NO", 15), Map.entry("PL", 28), Map.entry("PT", 25), Map.entry("RO", 24),
-            Map.entry("RS", 22), Map.entry("SE", 24), Map.entry("SI", 19), Map.entry("SK", 24),
-            Map.entry("SM", 27), Map.entry("VA", 22));
+            Map.entry("AD", 24),
+            Map.entry("AL", 28),
+            Map.entry("AT", 20),
+            Map.entry("BE", 16),
+            Map.entry("BG", 22),
+            Map.entry("CH", 21),
+            Map.entry("CY", 28),
+            Map.entry("CZ", 24),
+            Map.entry("DE", 22),
+            Map.entry("DK", 18),
+            Map.entry("EE", 20),
+            Map.entry("ES", 24),
+            Map.entry("FI", 18),
+            Map.entry("FR", 27),
+            Map.entry("GB", 22),
+            Map.entry("GI", 23),
+            Map.entry("GR", 27),
+            Map.entry("HR", 21),
+            Map.entry("HU", 28),
+            Map.entry("IE", 22),
+            Map.entry("IS", 26),
+            Map.entry("IT", 27),
+            Map.entry("LI", 21),
+            Map.entry("LT", 20),
+            Map.entry("LU", 20),
+            Map.entry("LV", 21),
+            Map.entry("MC", 27),
+            Map.entry("MD", 24),
+            Map.entry("ME", 22),
+            Map.entry("MK", 19),
+            Map.entry("MT", 31),
+            Map.entry("NL", 18),
+            Map.entry("NO", 15),
+            Map.entry("PL", 28),
+            Map.entry("PT", 25),
+            Map.entry("RO", 24),
+            Map.entry("RS", 22),
+            Map.entry("SE", 24),
+            Map.entry("SI", 19),
+            Map.entry("SK", 24),
+            Map.entry("SM", 27),
+            Map.entry("VA", 22));
 
-    private IbanCheck() {
-    }
+    private IbanCheck() {}
 
     public static boolean isValid(String iban) {
         if (iban == null || !ELECTRONIC_FORMAT.matcher(iban).matches()) {

@@ -23,10 +23,10 @@ public final class Fixtures {
      * the second has no hash. Use it once per test run, so its MsgIds are not rejected as duplicates.
      */
     public static final String CONTAINER_WITH_HASH = load("/fixtures/container-with-hash.xml");
+
     public static final String CONTAINER_HASH = "EC12F3500C2EE1CA21877AFA5299E151405CE0419D235253C08017F311D3E521";
 
-    private Fixtures() {
-    }
+    private Fixtures() {}
 
     /**
      * A fresh MsgId (33 characters, within ISO Max35Text), so uploads are never rejected as duplicates by accident.
@@ -78,10 +78,12 @@ public final class Fixtures {
                 .replace("NL91ABNA0417164300", "NL91ABNA0417164301");
         var body = new StringBuilder();
         for (int i = 1; i <= transactions; i++) {
-            body.append(transaction.replace("<EndToEndId>E2E-001</EndToEndId>", "<EndToEndId>E2E-" + i + "</EndToEndId>"))
+            body.append(transaction.replace(
+                            "<EndToEndId>E2E-001</EndToEndId>", "<EndToEndId>E2E-" + i + "</EndToEndId>"))
                     .append('\n');
         }
-        String sum = new java.math.BigDecimal("100.00").multiply(java.math.BigDecimal.valueOf(transactions))
+        String sum = new java.math.BigDecimal("100.00")
+                .multiply(java.math.BigDecimal.valueOf(transactions))
                 .toPlainString();
         return (xml.substring(0, firstTransaction) + body + xml.substring(xml.indexOf("</PmtInf>")))
                 .replace("<NbOfTxs>2</NbOfTxs>", "<NbOfTxs>" + transactions + "</NbOfTxs>")
@@ -119,9 +121,9 @@ public final class Fixtures {
      * no TwnNm (RR03 at any execution date).
      */
     public static String withUnstructuredCreditorAddress(String pain001) {
-        return pain001
-                .replace("<TwnNm>Paris</TwnNm>", "")
-                .replace("<AdrLine>12 Rue de la Paix</AdrLine>",
+        return pain001.replace("<TwnNm>Paris</TwnNm>", "")
+                .replace(
+                        "<AdrLine>12 Rue de la Paix</AdrLine>",
                         "<AdrLine>12 Rue de la Paix</AdrLine><AdrLine>75002 Paris</AdrLine>");
     }
 
@@ -149,8 +151,8 @@ public final class Fixtures {
      * The valid sample as SEPA Instant credit transfer: local instrument INST on payment information level.
      */
     public static String validInstantPain001(String messageId, LocalDate executionDate) {
-        return validPain001(messageId, executionDate).replace("</SvcLvl>",
-                "</SvcLvl>\n        <LclInstrm>\n          <Cd>INST</Cd>\n        </LclInstrm>");
+        return validPain001(messageId, executionDate)
+                .replace("</SvcLvl>", "</SvcLvl>\n        <LclInstrm>\n          <Cd>INST</Cd>\n        </LclInstrm>");
     }
 
     /**
@@ -161,11 +163,11 @@ public final class Fixtures {
         String instant = validInstantPain001(messageId, futureExecutionDate());
         String sct = validPain001(messageId);
         String instantBlock = paymentInformationBlock(instant);
-        String sctBlock = paymentInformationBlock(sct).replace("<PmtInfId>PMT-001</PmtInfId>",
-                "<PmtInfId>PMT-002</PmtInfId>");
-        return instant
-                .replace(instantBlock, instantBlock + "\n    " + sctBlock)
-                .replace("<NbOfTxs>2</NbOfTxs>\n      <CtrlSum>150.50</CtrlSum>\n      <InitgPty>",
+        String sctBlock =
+                paymentInformationBlock(sct).replace("<PmtInfId>PMT-001</PmtInfId>", "<PmtInfId>PMT-002</PmtInfId>");
+        return instant.replace(instantBlock, instantBlock + "\n    " + sctBlock)
+                .replace(
+                        "<NbOfTxs>2</NbOfTxs>\n      <CtrlSum>150.50</CtrlSum>\n      <InitgPty>",
                         "<NbOfTxs>4</NbOfTxs>\n      <CtrlSum>301.00</CtrlSum>\n      <InitgPty>");
     }
 

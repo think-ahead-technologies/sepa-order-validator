@@ -19,14 +19,20 @@ class StepWorkers implements SmartLifecycle {
 
     private final List<StepWorker> workers;
 
-    StepWorkers(List<ProcessingStep> steps, ProcessingProperties properties, WorkItemRepository workItems,
-            TransactionTemplate transactions, DataSource dataSource) {
-        ConnectionBudget.check(maximumPoolSize(dataSource),
+    StepWorkers(
+            List<ProcessingStep> steps,
+            ProcessingProperties properties,
+            WorkItemRepository workItems,
+            TransactionTemplate transactions,
+            DataSource dataSource) {
+        ConnectionBudget.check(
+                maximumPoolSize(dataSource),
                 Stream.of(Step.values()).map(properties::settings).toList());
-        Map<Step, ProcessingStep> byStep = steps.stream().collect(Collectors.toMap(ProcessingStep::step,
-                Function.identity(), (first, second) -> {
+        Map<Step, ProcessingStep> byStep = steps.stream()
+                .collect(Collectors.toMap(ProcessingStep::step, Function.identity(), (first, second) -> {
                     throw new IllegalStateException("Two implementations of step " + first.step() + ": "
-                            + first.getClass().getName() + " and " + second.getClass().getName());
+                            + first.getClass().getName() + " and "
+                            + second.getClass().getName());
                 }));
         this.workers = byStep.values().stream()
                 .map(step -> new StepWorker(step, properties.settings(step.step()), workItems, transactions))

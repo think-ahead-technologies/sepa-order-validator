@@ -40,14 +40,15 @@ class LogMaskingTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {
-            "Received payment file e2e-6f1c1f0e-8a39-4d6b-9a52-2b3c4d5e6f70.xml from sftp:sepa",
-            "sha256 5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
-            "Validated payment file: rejected with reason codes [AC03, AM03]",
-            "Message id MSG-2026-10-31-001 accepted",
-            "Instance 6da27fae-c9e0-414f-922c-739cfcdb295b became leader for sftp-intake",
-            "at dev.thinkahead.sepa.intake.SftpChannel.writeOutbound(SftpChannel.java:113)"
-    })
+    @ValueSource(
+            strings = {
+                "Received payment file e2e-6f1c1f0e-8a39-4d6b-9a52-2b3c4d5e6f70.xml from sftp:sepa",
+                "sha256 5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+                "Validated payment file: rejected with reason codes [AC03, AM03]",
+                "Message id MSG-2026-10-31-001 accepted",
+                "Instance 6da27fae-c9e0-414f-922c-739cfcdb295b became leader for sftp-intake",
+                "at dev.thinkahead.sepa.intake.SftpChannel.writeOutbound(SftpChannel.java:113)"
+            })
     void leavesValuesWithoutIbansUntouched(String value) {
         assertThat(LogMasking.mask(value)).isEqualTo(value);
     }

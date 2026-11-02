@@ -25,7 +25,10 @@ class StatusReportDelivery implements ProcessingStep {
     private final AuditTrail auditTrail;
     private final ApplicationEventPublisher events;
 
-    StatusReportDelivery(StatusReportRepository repository, PaymentFiles paymentFiles, AuditTrail auditTrail,
+    StatusReportDelivery(
+            StatusReportRepository repository,
+            PaymentFiles paymentFiles,
+            AuditTrail auditTrail,
             ApplicationEventPublisher events) {
         this.repository = repository;
         this.paymentFiles = paymentFiles;

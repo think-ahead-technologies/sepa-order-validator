@@ -31,7 +31,8 @@ Behaviour: OpenSpec capability specs in `openspec/specs/`; project context in `o
 ## Conventions
 
 - Test first. Every feature has unit, integration (`*IntegrationTest`) and end-to-end (`*EndToEndTest`) tests. No mocks; use real PostgreSQL and SFTP containers and real-world payment data.
-- Every source file starts with two `// ABOUTME:` comment lines.
+- Every source file starts with two `// ABOUTME:` comment lines, each at most 120 characters: the formatter wraps longer comments.
+- Formatting is palantir-java-format via Spotless; `build` fails on unformatted code, `mise exec -- ./gradlew spotlessApply` fixes it.
 - Violations carry ISO 20022 external status reason codes (e.g. `AC03`, `AM03`, `FF01`).
 - Logs are ECS JSON. Never log values from a payment file (names, IBANs, amounts, violation or parser messages); log ids, reason codes and positions. Processing steps get the file id from their worker (spec `observability`).
 - Conventional commits, imperative mood. Never use `--no-verify`.

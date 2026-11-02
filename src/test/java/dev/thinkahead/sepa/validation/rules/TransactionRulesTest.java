@@ -5,8 +5,8 @@ package dev.thinkahead.sepa.validation.rules;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.thinkahead.sepa.validation.Violation;
-import dev.thinkahead.sepa.validation.pain001.CreditTransferTransaction;
 import dev.thinkahead.sepa.validation.pain001.CreditTransferScheme;
+import dev.thinkahead.sepa.validation.pain001.CreditTransferTransaction;
 import dev.thinkahead.sepa.validation.pain001.PaymentInformation;
 import dev.thinkahead.sepa.validation.pain001.RemittanceInformation;
 import java.math.BigDecimal;
@@ -16,14 +16,21 @@ import org.junit.jupiter.api.Test;
 class TransactionRulesTest {
 
     private static CreditTransferTransaction transaction(String currency, String creditorIban) {
-        return new CreditTransferTransaction("PmtInf[1]/CdtTrfTxInf[2]", "E2E-002",
-                new BigDecimal("50.50"), currency, creditorIban, null, RemittanceInformation.NONE,
+        return new CreditTransferTransaction(
+                "PmtInf[1]/CdtTrfTxInf[2]",
+                "E2E-002",
+                new BigDecimal("50.50"),
+                currency,
+                creditorIban,
+                null,
+                RemittanceInformation.NONE,
                 "Lieferant AG");
     }
 
     @Test
     void creditorIbanRuleAcceptsValidIban() {
-        assertThat(new CreditorIbanRule().validate(transaction("EUR", "NL91ABNA0417164300"))).isEmpty();
+        assertThat(new CreditorIbanRule().validate(transaction("EUR", "NL91ABNA0417164300")))
+                .isEmpty();
     }
 
     @Test
@@ -46,28 +53,37 @@ class TransactionRulesTest {
 
     @Test
     void debtorIbanRuleReportsAc02WithLocation() {
-        var pmtInf = new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013001", null,
-                LocalDate.of(2026, 11, 2), CreditTransferScheme.SCT);
+        var pmtInf = new PaymentInformation(
+                "PmtInf[1]",
+                "PMT-001",
+                "DE89370400440532013001",
+                null,
+                LocalDate.of(2026, 11, 2),
+                CreditTransferScheme.SCT);
 
-        assertThat(new DebtorIbanRule().validate(pmtInf))
-                .singleElement()
-                .satisfies(v -> {
-                    assertThat(v.reasonCode()).isEqualTo("AC02");
-                    assertThat(v.path()).isEqualTo("PmtInf[1]/DbtrAcct/Id/IBAN");
-                });
+        assertThat(new DebtorIbanRule().validate(pmtInf)).singleElement().satisfies(v -> {
+            assertThat(v.reasonCode()).isEqualTo("AC02");
+            assertThat(v.path()).isEqualTo("PmtInf[1]/DbtrAcct/Id/IBAN");
+        });
     }
 
     @Test
     void debtorIbanRuleAcceptsValidIban() {
-        var pmtInf = new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013000", null,
-                LocalDate.of(2026, 11, 2), CreditTransferScheme.SCT);
+        var pmtInf = new PaymentInformation(
+                "PmtInf[1]",
+                "PMT-001",
+                "DE89370400440532013000",
+                null,
+                LocalDate.of(2026, 11, 2),
+                CreditTransferScheme.SCT);
 
         assertThat(new DebtorIbanRule().validate(pmtInf)).isEmpty();
     }
 
     @Test
     void euroCurrencyRuleAcceptsEur() {
-        assertThat(new EuroCurrencyRule().validate(transaction("EUR", "NL91ABNA0417164300"))).isEmpty();
+        assertThat(new EuroCurrencyRule().validate(transaction("EUR", "NL91ABNA0417164300")))
+                .isEmpty();
     }
 
     @Test

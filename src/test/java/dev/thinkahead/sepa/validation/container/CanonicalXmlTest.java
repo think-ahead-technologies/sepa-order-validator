@@ -1,5 +1,6 @@
 // ABOUTME: Unit tests for the streaming C14N 1.0 writer, checked byte for byte against libxml2 (xmllint --c14n).
-// ABOUTME: Covers attribute and namespace order, escaping, empty elements, PIs, CDATA, comments and inherited namespaces.
+// ABOUTME: Covers attribute and namespace order, escaping, empty elements, PIs, CDATA, comments and inherited
+// namespaces.
 package dev.thinkahead.sepa.validation.container;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,8 +22,7 @@ class CanonicalXmlTest {
 
     @Test
     void writesTheSameCanonicalFormAsLibxml2() throws Exception {
-        assertThat(canonical(resource("/c14n/sample.xml"), Map.of()))
-                .isEqualTo(resource("/c14n/sample.canonical.xml"));
+        assertThat(canonical(resource("/c14n/sample.xml"), Map.of())).isEqualTo(resource("/c14n/sample.canonical.xml"));
     }
 
     @Test

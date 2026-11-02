@@ -13,8 +13,14 @@ import java.time.Duration;
  * @param initialBackoff delay before retrying after the first failed attempt
  * @param maxBackoff     upper bound of the retry delay
  */
-record StepSettings(int workers, Duration lease, Duration timeout, int maxAttempts, Duration pollInterval,
-        Duration initialBackoff, Duration maxBackoff) {
+record StepSettings(
+        int workers,
+        Duration lease,
+        Duration timeout,
+        int maxAttempts,
+        Duration pollInterval,
+        Duration initialBackoff,
+        Duration maxBackoff) {
 
     StepSettings {
         if (workers < 1) {

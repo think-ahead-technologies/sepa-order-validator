@@ -65,8 +65,8 @@ class SftpIntakeIntegrationTest {
 
     @Test
     void anUnreadableFileDoesNotBlockTheFilesBehindIt(CapturedOutput output) {
-        var poison = new ClaimedFile(UUID.fromString("00000000-0000-0000-0000-000000000000"),
-                "poison-" + UUID.randomUUID() + ".xml");
+        var poison = new ClaimedFile(
+                UUID.fromString("00000000-0000-0000-0000-000000000000"), "poison-" + UUID.randomUUID() + ".xml");
         customer.upload("processing", poison.claimedName(), bytes(VALID_PAIN_001));
         customer.chmod("processing", poison.claimedName(), 0);
         try {
@@ -74,8 +74,9 @@ class SftpIntakeIntegrationTest {
 
             customer.upload("inbound", behind, bytes(VALID_PAIN_001));
 
-            await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("processed"))
-                    .anySatisfy(name -> assertThat(name).endsWith(behind)));
+            await().atMost(TIMEOUT)
+                    .untilAsserted(() -> assertThat(customer.list("processed"))
+                            .anySatisfy(name -> assertThat(name).endsWith(behind)));
             assertThat(customer.list("processing")).contains(poison.claimedName());
             assertThat(output).contains("Could not take in claimed file " + poison.claimedName());
             assertThat(LogLines.messagesForFile(output, poison.fileId()))
@@ -83,8 +84,8 @@ class SftpIntakeIntegrationTest {
         } finally {
             customer.chmod("processing", poison.claimedName(), 0644);
         }
-        await().atMost(TIMEOUT).untilAsserted(() ->
-                assertThat(customer.list("processed")).contains(poison.claimedName()));
+        await().atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(customer.list("processed")).contains(poison.claimedName()));
     }
 
     @Test
@@ -104,10 +105,13 @@ class SftpIntakeIntegrationTest {
                 .containsEntry("submitter", "sftp:sepa")
                 .containsEntry("container_file_id", containerId)
                 .containsEntry("container_index", 1);
-        assertThat(jdbc.sql("select count(*) from work_item where file_id = ? and step = 'VALIDATE'").param(message)
-                .query(Integer.class).single()).isEqualTo(1);
-        assertThat(paymentFiles.content(message)).hasValueSatisfying(
-                content -> assertThat(content).isEqualTo(bytes(VALID_PAIN_001)));
+        assertThat(jdbc.sql("select count(*) from work_item where file_id = ? and step = 'VALIDATE'")
+                        .param(message)
+                        .query(Integer.class)
+                        .single())
+                .isEqualTo(1);
+        assertThat(paymentFiles.content(message))
+                .hasValueSatisfying(content -> assertThat(content).isEqualTo(bytes(VALID_PAIN_001)));
     }
 
     @Test
@@ -116,21 +120,31 @@ class SftpIntakeIntegrationTest {
 
         customer.upload("inbound-instant", fileName, bytes(VALID_PAIN_001));
 
-        UUID fileId = await().atMost(TIMEOUT).until(() -> jdbc.sql("select id from payment_file where file_name = ?")
-                .param(fileName).query(UUID.class).optional().orElse(null), id -> id != null);
+        UUID fileId = await().atMost(TIMEOUT)
+                .until(
+                        () -> jdbc.sql("select id from payment_file where file_name = ?")
+                                .param(fileName)
+                                .query(UUID.class)
+                                .optional()
+                                .orElse(null),
+                        id -> id != null);
         assertThat(paymentFiles.submission(fileId)).isEqualTo(new Submission(true, false));
-        assertThat(jdbc.sql("select priority from work_item where file_id = ? and step = 'VALIDATE'").param(fileId)
-                .query(Integer.class).single()).isEqualTo(dev.thinkahead.sepa.processing.Priority.HIGH.value());
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("processed"))
-                .anySatisfy(name -> assertThat(name).endsWith(".instant-" + fileName)));
+        assertThat(jdbc.sql("select priority from work_item where file_id = ? and step = 'VALIDATE'")
+                        .param(fileId)
+                        .query(Integer.class)
+                        .single())
+                .isEqualTo(dev.thinkahead.sepa.processing.Priority.HIGH.value());
+        await().atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(customer.list("processed"))
+                        .anySatisfy(name -> assertThat(name).endsWith(".instant-" + fileName)));
         assertThat(customer.list("inbound-instant")).doesNotContain(fileName);
     }
 
     @Test
     void messagesOfAContainerKeepHowTheContainerWasSubmitted() {
         UUID containerId = UUID.randomUUID();
-        intake.receive(containerId, Channel.SFTP, "sftp:sepa", "orders.xml", ReceivedContent.of(bytes(VALID_PAIN_001)),
-                true);
+        intake.receive(
+                containerId, Channel.SFTP, "sftp:sepa", "orders.xml", ReceivedContent.of(bytes(VALID_PAIN_001)), true);
 
         UUID message = paymentFiles.receiveFromContainer(containerId, 1, bytes(VALID_PAIN_001));
 
@@ -142,7 +156,8 @@ class SftpIntakeIntegrationTest {
     void doesNotAlertAboutAContainerThatWasSplitIntoMessages() {
         UUID containerId = UUID.randomUUID();
         intake.receive(containerId, Channel.SFTP, "sftp:sepa", "split.xml", ReceivedContent.of(bytes(VALID_PAIN_001)));
-        jdbc.sql("update payment_file set received_at = now() - interval '1 hour' where id = ?").param(containerId)
+        jdbc.sql("update payment_file set received_at = now() - interval '1 hour' where id = ?")
+                .param(containerId)
                 .update();
 
         assertThat(paymentFiles.recordSplit(containerId)).isTrue();
@@ -156,7 +171,9 @@ class SftpIntakeIntegrationTest {
         UUID fileId = UUID.randomUUID();
         intake.receive(fileId, Channel.SFTP, "sftp:sepa", "overdue.xml", ReceivedContent.of(bytes(VALID_PAIN_001)));
         double unansweredBefore = unansweredGauge();
-        jdbc.sql("update payment_file set received_at = now() - interval '1 hour' where id = ?").param(fileId).update();
+        jdbc.sql("update payment_file set received_at = now() - interval '1 hour' where id = ?")
+                .param(fileId)
+                .update();
 
         assertThat(unansweredFiles.check()).contains(fileId);
         assertThat(output).contains("without a reply").contains(fileId.toString());
@@ -166,8 +183,11 @@ class SftpIntakeIntegrationTest {
 
         assertThat(unansweredFiles.check()).doesNotContain(fileId);
         assertThat(unansweredGauge()).isEqualTo(unansweredBefore);
-        assertThat(jdbc.sql("select replied_at is not null from payment_file where id = ?").param(fileId)
-                .query(Boolean.class).single()).isTrue();
+        assertThat(jdbc.sql("select replied_at is not null from payment_file where id = ?")
+                        .param(fileId)
+                        .query(Boolean.class)
+                        .single())
+                .isTrue();
     }
 
     @Test
@@ -180,7 +200,9 @@ class SftpIntakeIntegrationTest {
 
         assertThat(first).isTrue();
         assertThat(second).isFalse();
-        assertThat(customer.list("processing")).filteredOn(name -> name.endsWith(fileName)).hasSize(1);
+        assertThat(customer.list("processing"))
+                .filteredOn(name -> name.endsWith(fileName))
+                .hasSize(1);
     }
 
     @Test
@@ -195,21 +217,29 @@ class SftpIntakeIntegrationTest {
         });
         assertThat(recordsWithId(claimed.fileId())).isEqualTo(1);
         assertThat(receivedEventsFor(claimed.fileId())).isEqualTo(1);
-        assertThat(jdbc.sql("select file_name from payment_file where id = ?").param(claimed.fileId())
-                .query(String.class).single()).isEqualTo(claimed.originalName());
+        assertThat(jdbc.sql("select file_name from payment_file where id = ?")
+                        .param(claimed.fileId())
+                        .query(String.class)
+                        .single())
+                .isEqualTo(claimed.originalName());
     }
 
     @Test
     void doesNotReceiveAgainWhenAnInstanceCrashedAfterReceivingButBeforeArchiving() {
         var claimed = new ClaimedFile(UUID.randomUUID(), "crashed-after-receive-" + UUID.randomUUID() + ".xml");
         byte[] content = bytes(VALID_PAIN_001);
-        assertThat(intake.receive(claimed.fileId(), Channel.SFTP, "sftp:sepa", claimed.originalName(), ReceivedContent.of(content)))
+        assertThat(intake.receive(
+                        claimed.fileId(),
+                        Channel.SFTP,
+                        "sftp:sepa",
+                        claimed.originalName(),
+                        ReceivedContent.of(content)))
                 .isTrue();
 
         customer.upload("processing", claimed.claimedName(), content);
 
-        await().atMost(TIMEOUT).untilAsserted(() ->
-                assertThat(customer.list("processed")).contains(claimed.claimedName()));
+        await().atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(customer.list("processed")).contains(claimed.claimedName()));
         assertThat(recordsWithId(claimed.fileId())).isEqualTo(1);
         assertThat(receivedEventsFor(claimed.fileId())).isEqualTo(1);
     }
@@ -235,25 +265,38 @@ class SftpIntakeIntegrationTest {
 
         customer.upload("inbound", fileName, content);
 
-        PaymentFileReceived received = await().atMost(TIMEOUT).until(
-                () -> events.ofType(PaymentFileReceived.class).stream()
-                        .filter(e -> e.fileName().equals(fileName)).findFirst().orElse(null),
-                e -> e != null);
+        PaymentFileReceived received = await().atMost(TIMEOUT)
+                .until(
+                        () -> events.ofType(PaymentFileReceived.class).stream()
+                                .filter(e -> e.fileName().equals(fileName))
+                                .findFirst()
+                                .orElse(null),
+                        e -> e != null);
         assertThat(received.sha256())
-                .isEqualTo(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content)));
+                .isEqualTo(HexFormat.of()
+                        .formatHex(MessageDigest.getInstance("SHA-256").digest(content)));
         assertThat(paymentFiles.content(received.fileId())).isEmpty();
-        assertThat(jdbc.sql("select size_bytes from payment_file where id = ?").param(received.fileId())
-                .query(Long.class).single()).isEqualTo(content.length);
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("processed"))
-                .anySatisfy(name -> assertThat(name).endsWith(fileName)));
+        assertThat(jdbc.sql("select size_bytes from payment_file where id = ?")
+                        .param(received.fileId())
+                        .query(Long.class)
+                        .single())
+                .isEqualTo(content.length);
+        await().atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(customer.list("processed"))
+                        .anySatisfy(name -> assertThat(name).endsWith(fileName)));
     }
 
     private int recordsWithId(UUID fileId) {
-        return jdbc.sql("select count(*) from payment_file where id = ?").param(fileId).query(Integer.class).single();
+        return jdbc.sql("select count(*) from payment_file where id = ?")
+                .param(fileId)
+                .query(Integer.class)
+                .single();
     }
 
     private long receivedEventsFor(UUID fileId) {
-        return events.ofType(PaymentFileReceived.class).stream().filter(e -> e.fileId().equals(fileId)).count();
+        return events.ofType(PaymentFileReceived.class).stream()
+                .filter(e -> e.fileId().equals(fileId))
+                .count();
     }
 
     @Test
@@ -263,26 +306,35 @@ class SftpIntakeIntegrationTest {
 
         customer.upload("inbound", fileName, content);
 
-        PaymentFileReceived received = await().atMost(TIMEOUT).until(
-                () -> events.ofType(PaymentFileReceived.class).stream()
-                        .filter(e -> e.fileName().equals(fileName)).findFirst().orElse(null),
-                e -> e != null);
+        PaymentFileReceived received = await().atMost(TIMEOUT)
+                .until(
+                        () -> events.ofType(PaymentFileReceived.class).stream()
+                                .filter(e -> e.fileName().equals(fileName))
+                                .findFirst()
+                                .orElse(null),
+                        e -> e != null);
 
-        String expectedHash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
+        String expectedHash =
+                HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
         assertThat(received.channel()).isEqualTo(Channel.SFTP);
         assertThat(received.submitter()).isEqualTo("sftp:sepa");
         assertThat(received.sha256()).isEqualTo(expectedHash);
         assertThat(jdbc.sql("select status, sha256, channel, submitter from payment_file where id = ?")
-                .param(received.fileId())
-                .query((rs, n) -> rs.getString(1) + "|" + rs.getString(2) + "|" + rs.getString(3)
-                        + "|" + rs.getString(4))
-                .single())
+                        .param(received.fileId())
+                        .query((rs, n) ->
+                                rs.getString(1) + "|" + rs.getString(2) + "|" + rs.getString(3) + "|" + rs.getString(4))
+                        .single())
                 .isEqualTo("RECEIVED|" + expectedHash + "|SFTP|sftp:sepa");
-        assertThat(paymentFiles.content(received.fileId())).hasValueSatisfying(stored -> assertThat(stored).isEqualTo(content));
+        assertThat(paymentFiles.content(received.fileId()))
+                .hasValueSatisfying(stored -> assertThat(stored).isEqualTo(content));
         assertThat(LogLines.messagesForFile(output, received.fileId()))
                 .contains("Received payment file " + fileName + " (" + content.length + " bytes) from sftp:sepa");
         assertThat(jdbc.sql("select count(*) from work_item where file_id = ? and step = 'VALIDATE'")
-                .param(received.fileId()).query(Integer.class).single()).as("validation scheduled").isEqualTo(1);
+                        .param(received.fileId())
+                        .query(Integer.class)
+                        .single())
+                .as("validation scheduled")
+                .isEqualTo(1);
     }
 
     @Test
@@ -293,7 +345,8 @@ class SftpIntakeIntegrationTest {
 
         await().atMost(TIMEOUT).untilAsserted(() -> {
             assertThat(customer.list("inbound")).doesNotContain(fileName);
-            assertThat(customer.list("processed")).anySatisfy(name -> assertThat(name).endsWith(fileName));
+            assertThat(customer.list("processed"))
+                    .anySatisfy(name -> assertThat(name).endsWith(fileName));
         });
     }
 
@@ -303,8 +356,11 @@ class SftpIntakeIntegrationTest {
 
         customer.upload("inbound", fileName, bytes(VALID_PAIN_001));
 
-        await().during(Duration.ofMillis(1_500)).atMost(Duration.ofSeconds(3)).untilAsserted(() ->
-                assertThat(customer.list("inbound")).as("left alone across several poll cycles").contains(fileName));
+        await().during(Duration.ofMillis(1_500))
+                .atMost(Duration.ofSeconds(3))
+                .untilAsserted(() -> assertThat(customer.list("inbound"))
+                        .as("left alone across several poll cycles")
+                        .contains(fileName));
     }
 
     @Test
@@ -312,13 +368,23 @@ class SftpIntakeIntegrationTest {
         String fileName = "slow-upload-" + UUID.randomUUID() + ".xml";
         byte[] content = bytes(VALID_PAIN_001);
 
-        customer.uploadSlowly("inbound", fileName, content, 20, Duration.ofMillis(100), () ->
-                assertThat(customer.list("inbound")).as("left alone while still growing").contains(fileName));
+        customer.uploadSlowly(
+                "inbound",
+                fileName,
+                content,
+                20,
+                Duration.ofMillis(100),
+                () -> assertThat(customer.list("inbound"))
+                        .as("left alone while still growing")
+                        .contains(fileName));
 
-        PaymentFileReceived received = await().atMost(TIMEOUT).until(
-                () -> events.ofType(PaymentFileReceived.class).stream()
-                        .filter(e -> e.fileName().equals(fileName)).findFirst().orElse(null),
-                e -> e != null);
+        PaymentFileReceived received = await().atMost(TIMEOUT)
+                .until(
+                        () -> events.ofType(PaymentFileReceived.class).stream()
+                                .filter(e -> e.fileName().equals(fileName))
+                                .findFirst()
+                                .orElse(null),
+                        e -> e != null);
         assertThat(paymentFiles.content(received.fileId()))
                 .hasValueSatisfying(stored -> assertThat(stored).isEqualTo(content));
     }
@@ -328,8 +394,11 @@ class SftpIntakeIntegrationTest {
         await().atMost(TIMEOUT).until(() -> sshLogins() > 0);
         long loginsBefore = sshLogins();
 
-        await().during(Duration.ofSeconds(2)).atMost(Duration.ofSeconds(3)).untilAsserted(() ->
-                assertThat(sshLogins()).as("no new SSH login across several polls").isEqualTo(loginsBefore));
+        await().during(Duration.ofSeconds(2))
+                .atMost(Duration.ofSeconds(3))
+                .untilAsserted(() -> assertThat(sshLogins())
+                        .as("no new SSH login across several polls")
+                        .isEqualTo(loginsBefore));
     }
 
     private double unansweredGauge() {
@@ -337,7 +406,10 @@ class SftpIntakeIntegrationTest {
     }
 
     private long sshLogins() {
-        return sftp.getLogs().lines().filter(line -> line.contains("Accepted password for")).count();
+        return sftp.getLogs()
+                .lines()
+                .filter(line -> line.contains("Accepted password for"))
+                .count();
     }
 
     @Test
@@ -346,8 +418,11 @@ class SftpIntakeIntegrationTest {
 
         paymentFiles.recordValidationOutcome(fileId, false);
 
-        assertThat(jdbc.sql("select status from payment_file where id = ?").param(fileId)
-                .query(String.class).single()).isEqualTo("REJECTED");
+        assertThat(jdbc.sql("select status from payment_file where id = ?")
+                        .param(fileId)
+                        .query(String.class)
+                        .single())
+                .isEqualTo("REJECTED");
     }
 
     @Test
@@ -374,16 +449,21 @@ class SftpIntakeIntegrationTest {
         paymentFiles.writeStatusReport(fileId, report);
 
         String reportName = fileName.replace(".xml", "") + "-" + fileId + ".pain002.xml";
-        assertThat(customer.list("outbound")).filteredOn(name -> name.equals(reportName)).hasSize(1);
+        assertThat(customer.list("outbound"))
+                .filteredOn(name -> name.equals(reportName))
+                .hasSize(1);
         assertThat(customer.download("outbound", reportName)).isEqualTo(report);
     }
 
     private UUID receive(String fileName) {
         customer.upload("inbound", fileName, bytes(VALID_PAIN_001));
-        return await().atMost(TIMEOUT).until(
-                () -> events.ofType(PaymentFileReceived.class).stream()
-                        .filter(e -> e.fileName().equals(fileName)).map(PaymentFileReceived::fileId)
-                        .findFirst().orElse(null),
-                id -> id != null);
+        return await().atMost(TIMEOUT)
+                .until(
+                        () -> events.ofType(PaymentFileReceived.class).stream()
+                                .filter(e -> e.fileName().equals(fileName))
+                                .map(PaymentFileReceived::fileId)
+                                .findFirst()
+                                .orElse(null),
+                        id -> id != null);
     }
 }

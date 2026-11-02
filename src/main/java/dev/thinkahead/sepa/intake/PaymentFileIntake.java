@@ -24,7 +24,10 @@ class PaymentFileIntake {
     private final AuditTrail auditTrail;
     private final ApplicationEventPublisher events;
 
-    PaymentFileIntake(PaymentFileRepository repository, WorkQueue workQueue, AuditTrail auditTrail,
+    PaymentFileIntake(
+            PaymentFileRepository repository,
+            WorkQueue workQueue,
+            AuditTrail auditTrail,
             ApplicationEventPublisher events) {
         this.repository = repository;
         this.workQueue = workQueue;
@@ -48,7 +51,12 @@ class PaymentFileIntake {
      * marked as such and processed with priority.
      */
     @Transactional
-    boolean receive(UUID fileId, Channel channel, String submitter, String fileName, ReceivedContent content,
+    boolean receive(
+            UUID fileId,
+            Channel channel,
+            String submitter,
+            String fileName,
+            ReceivedContent content,
             boolean instantOrder) {
         if (!repository.insertIfAbsent(fileId, channel, submitter, fileName, content, instantOrder)) {
             return false;
@@ -66,21 +74,26 @@ class PaymentFileIntake {
      */
     @Transactional
     UUID receiveFromContainer(UUID containerFileId, int index, byte[] message) {
-        UUID fileId = UUID.nameUUIDFromBytes(("container:" + containerFileId + ":" + index)
-                .getBytes(StandardCharsets.UTF_8));
+        UUID fileId =
+                UUID.nameUUIDFromBytes(("container:" + containerFileId + ":" + index).getBytes(StandardCharsets.UTF_8));
         StoredPaymentFile container = repository.find(containerFileId);
         String submitter = repository.submitter(containerFileId);
         String fileName = container.fileName().replaceFirst("(?i)\\.xml$", "") + "-msg" + index + ".xml";
         ReceivedContent content = ReceivedContent.of(message);
         boolean instantOrder = repository.submission(containerFileId).instantOrder();
-        if (repository.insertIfAbsent(fileId, container.channel(), submitter, fileName, content, instantOrder,
-                containerFileId, index)) {
+        if (repository.insertIfAbsent(
+                fileId, container.channel(), submitter, fileName, content, instantOrder, containerFileId, index)) {
             announce(fileId, container.channel(), submitter, fileName, content, instantOrder);
         }
         return fileId;
     }
 
-    private void announce(UUID fileId, Channel channel, String submitter, String fileName, ReceivedContent content,
+    private void announce(
+            UUID fileId,
+            Channel channel,
+            String submitter,
+            String fileName,
+            ReceivedContent content,
             boolean instantOrder) {
         workQueue.enqueue(fileId, Step.VALIDATE, instantOrder ? Priority.HIGH : Priority.NORMAL);
         var received = new PaymentFileReceived(fileId, channel, submitter, fileName, content.sha256());

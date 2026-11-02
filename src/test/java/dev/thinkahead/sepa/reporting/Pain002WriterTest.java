@@ -28,8 +28,8 @@ class Pain002WriterTest {
 
     @Test
     void writesSchemaValidAcceptanceReport() throws Exception {
-        var report = new StatusReport("STS-1", NOW, "MSG-2026-10-31-001", "pain.001.001.09",
-                GroupStatus.ACCP, List.of());
+        var report =
+                new StatusReport("STS-1", NOW, "MSG-2026-10-31-001", "pain.001.001.09", GroupStatus.ACCP, List.of());
 
         byte[] xml = writer.write(report);
 
@@ -45,8 +45,14 @@ class Pain002WriterTest {
 
     @Test
     void writesOneReasonPerViolationInRejectionReport() throws Exception {
-        var report = new StatusReport("STS-2", NOW, "MSG-2026-10-31-001", "pain.001.001.09", GroupStatus.RJCT,
-                List.of(new Violation("AC03", "PmtInf[1]/CdtTrfTxInf[1]/CdtrAcct/Id/IBAN", "Invalid IBAN"),
+        var report = new StatusReport(
+                "STS-2",
+                NOW,
+                "MSG-2026-10-31-001",
+                "pain.001.001.09",
+                GroupStatus.RJCT,
+                List.of(
+                        new Violation("AC03", "PmtInf[1]/CdtTrfTxInf[1]/CdtrAcct/Id/IBAN", "Invalid IBAN"),
                         new Violation("AM03", "PmtInf[1]/CdtTrfTxInf[2]/Amt/InstdAmt/@Ccy", "Not EUR")));
 
         byte[] xml = writer.write(report);
@@ -64,18 +70,29 @@ class Pain002WriterTest {
     @Test
     void truncatesAdditionalInformationToMax105Characters() throws Exception {
         String longMessage = "x".repeat(300);
-        var report = new StatusReport("STS-3", NOW, "MSG-1", "pain.001.001.09", GroupStatus.RJCT,
+        var report = new StatusReport(
+                "STS-3",
+                NOW,
+                "MSG-1",
+                "pain.001.001.09",
+                GroupStatus.RJCT,
                 List.of(new Violation("FF01", "Line 1, column 1", longMessage)));
 
         byte[] xml = writer.write(report);
 
         assertSchemaValid(xml);
-        assertThat(text(parse(xml), "OrgnlGrpInfAndSts/StsRsnInf[1]/AddtlInf[2]")).hasSize(105);
+        assertThat(text(parse(xml), "OrgnlGrpInfAndSts/StsRsnInf[1]/AddtlInf[2]"))
+                .hasSize(105);
     }
 
     @Test
     void usesNotProvidedWhenOriginalMessageIsUnknown() throws Exception {
-        var report = new StatusReport("STS-4", NOW, null, null, GroupStatus.RJCT,
+        var report = new StatusReport(
+                "STS-4",
+                NOW,
+                null,
+                null,
+                GroupStatus.RJCT,
                 List.of(new Violation("FF01", "Document", "Unsupported or unreadable message format")));
 
         byte[] xml = writer.write(report);
@@ -88,7 +105,12 @@ class Pain002WriterTest {
 
     @Test
     void escapesXmlSpecialCharactersInMessages() throws Exception {
-        var report = new StatusReport("STS-5", NOW, "MSG-<&>", "pain.001.001.09", GroupStatus.RJCT,
+        var report = new StatusReport(
+                "STS-5",
+                NOW,
+                "MSG-<&>",
+                "pain.001.001.09",
+                GroupStatus.RJCT,
                 List.of(new Violation("FF01", "Line 1, column 1", "Expected '<MsgId>' & more")));
 
         byte[] xml = writer.write(report);
@@ -101,9 +123,9 @@ class Pain002WriterTest {
 
     static void assertSchemaValid(byte[] xml) {
         assertThatCode(() -> SchemaFactory.newDefaultInstance()
-                .newSchema(Pain002WriterTest.class.getResource("/xsd/pain.002.001.10.xsd"))
-                .newValidator()
-                .validate(new StreamSource(new ByteArrayInputStream(xml))))
+                        .newSchema(Pain002WriterTest.class.getResource("/xsd/pain.002.001.10.xsd"))
+                        .newValidator()
+                        .validate(new StreamSource(new ByteArrayInputStream(xml))))
                 .doesNotThrowAnyException();
     }
 
@@ -119,8 +141,8 @@ class Pain002WriterTest {
     }
 
     private static NodeList nodes(Document doc, String relativePath) throws Exception {
-        return (NodeList) XPathFactory.newDefaultInstance().newXPath()
-                .evaluate(xpath(relativePath), doc, XPathConstants.NODESET);
+        return (NodeList)
+                XPathFactory.newDefaultInstance().newXPath().evaluate(xpath(relativePath), doc, XPathConstants.NODESET);
     }
 
     private static String xpath(String relativePath) {

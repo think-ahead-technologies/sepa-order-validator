@@ -14,8 +14,10 @@ public class ControlSumRule implements ValidationRule<Totals> {
                 || totals.declaredControlSum().compareTo(totals.actualControlSum()) == 0) {
             return List.of();
         }
-        return List.of(new Violation("AM10", totals.path() + "/CtrlSum",
-                "Declared control sum " + totals.declaredControlSum().toPlainString()
-                        + ", actual sum " + totals.actualControlSum().toPlainString()));
+        return List.of(new Violation(
+                "AM10",
+                totals.path() + "/CtrlSum",
+                "Declared control sum " + totals.declaredControlSum().toPlainString() + ", actual sum "
+                        + totals.actualControlSum().toPlainString()));
     }
 }

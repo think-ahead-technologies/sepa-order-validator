@@ -32,7 +32,8 @@ class XmlProcessingTest {
 
     @Test
     void acceptsSchemaValidFile() {
-        assertThat(schemaValidator.validate(MessageFormat.PAIN_001_001_09, bytes(VALID_PAIN_001))).isEmpty();
+        assertThat(schemaValidator.validate(MessageFormat.PAIN_001_001_09, bytes(VALID_PAIN_001)))
+                .isEmpty();
     }
 
     @Test
@@ -46,7 +47,8 @@ class XmlProcessingTest {
 
     @Test
     void acceptsAValidFileAgainstTheDkSubset() {
-        assertThat(schemaValidator.validateDkSubset(MessageFormat.PAIN_001_001_09, bytes(VALID_PAIN_001))).isEmpty();
+        assertThat(schemaValidator.validateDkSubset(MessageFormat.PAIN_001_001_09, bytes(VALID_PAIN_001)))
+                .isEmpty();
     }
 
     @Test
@@ -54,8 +56,10 @@ class XmlProcessingTest {
         var cheque = VALID_PAIN_001.replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>CHK</PmtMtd>");
         var chargesToDebtor = VALID_PAIN_001.replace("<ChrgBr>SLEV</ChrgBr>", "<ChrgBr>DEBT</ChrgBr>");
 
-        assertThat(schemaValidator.validate(MessageFormat.PAIN_001_001_09, bytes(cheque))).isEmpty();
-        assertThat(schemaValidator.validate(MessageFormat.PAIN_001_001_09, bytes(chargesToDebtor))).isEmpty();
+        assertThat(schemaValidator.validate(MessageFormat.PAIN_001_001_09, bytes(cheque)))
+                .isEmpty();
+        assertThat(schemaValidator.validate(MessageFormat.PAIN_001_001_09, bytes(chargesToDebtor)))
+                .isEmpty();
         assertThat(schemaValidator.validateDkSubset(MessageFormat.PAIN_001_001_09, bytes(cheque)))
                 .isNotEmpty()
                 .allSatisfy(error -> assertThat(error.line()).isPositive());

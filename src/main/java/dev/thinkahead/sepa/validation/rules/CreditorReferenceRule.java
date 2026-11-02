@@ -1,4 +1,4 @@
-// ABOUTME: Rule: a creditor reference needs both type and reference, and a coded type must be SCOR (EPC IG 2.169-2.175).
+// ABOUTME: Rule: a creditor reference needs type and reference, and a coded type must be SCOR (EPC IG 2.169-2.175).
 // ABOUTME: Check digits are not validated, as EPC does not require it of the receiving PSP; reports FF01.
 package dev.thinkahead.sepa.validation.rules;
 
@@ -21,7 +21,9 @@ public class CreditorReferenceRule implements ValidationRule<CreditTransferTrans
         if (!reference.typePresent()) {
             violations.add(new Violation("FF01", path + "/Tp", "Creditor reference type is missing"));
         } else if (reference.typeCode() != null && !reference.typeCode().equals("SCOR")) {
-            violations.add(new Violation("FF01", path + "/Tp/CdOrPrtry/Cd",
+            violations.add(new Violation(
+                    "FF01",
+                    path + "/Tp/CdOrPrtry/Cd",
                     "Creditor reference type " + reference.typeCode() + " is not allowed, SEPA allows only SCOR"));
         }
         if (reference.reference() == null) {

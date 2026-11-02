@@ -18,8 +18,11 @@ public class PostalAddressRule implements ValidationRule<PostalAddress> {
         String reasonCode = address.party() == Party.DEBTOR ? "RR02" : "RR03";
         var violations = new ArrayList<Violation>();
         if (address.addressLineCount() > MAXIMUM_ADDRESS_LINES) {
-            violations.add(new Violation(reasonCode, address.path() + "/AdrLine", "At most "
-                    + MAXIMUM_ADDRESS_LINES + " address lines are allowed, found " + address.addressLineCount()));
+            violations.add(new Violation(
+                    reasonCode,
+                    address.path() + "/AdrLine",
+                    "At most " + MAXIMUM_ADDRESS_LINES + " address lines are allowed, found "
+                            + address.addressLineCount()));
         }
         if (!(address.townName() && address.country())) {
             violations.add(new Violation(reasonCode, address.path(), "Address must contain TwnNm and Ctry"));

@@ -15,14 +15,16 @@ class DeadlineInputStreamTest {
 
     @Test
     void readsNormallyBeforeTheDeadline() throws Exception {
-        var in = new DeadlineInputStream(new ByteArrayInputStream(content), Instant.now().plusSeconds(60));
+        var in = new DeadlineInputStream(
+                new ByteArrayInputStream(content), Instant.now().plusSeconds(60));
 
         assertThat(in.readAllBytes()).isEqualTo(content);
     }
 
     @Test
     void failsEveryReadOnceTheDeadlineHasPassed() {
-        var in = new DeadlineInputStream(new ByteArrayInputStream(content), Instant.now().minusSeconds(1));
+        var in = new DeadlineInputStream(
+                new ByteArrayInputStream(content), Instant.now().minusSeconds(1));
 
         assertThatExceptionOfType(ValidationDeadlineExceeded.class).isThrownBy(in::read);
         assertThatExceptionOfType(ValidationDeadlineExceeded.class).isThrownBy(() -> in.read(new byte[4], 0, 4));

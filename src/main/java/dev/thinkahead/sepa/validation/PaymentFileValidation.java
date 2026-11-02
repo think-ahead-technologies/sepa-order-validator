@@ -34,9 +34,14 @@ class PaymentFileValidation implements ProcessingStep {
     private final AuditTrail auditTrail;
     private final ApplicationEventPublisher events;
 
-    PaymentFileValidation(PaymentFiles paymentFiles, PaymentFileValidator validator,
-            AcceptedMessages acceptedMessages, ValidationOutcomeRepository outcomes, WorkQueue workQueue,
-            AuditTrail auditTrail, ApplicationEventPublisher events) {
+    PaymentFileValidation(
+            PaymentFiles paymentFiles,
+            PaymentFileValidator validator,
+            AcceptedMessages acceptedMessages,
+            ValidationOutcomeRepository outcomes,
+            WorkQueue workQueue,
+            AuditTrail auditTrail,
+            ApplicationEventPublisher events) {
         this.paymentFiles = paymentFiles;
         this.validator = validator;
         this.acceptedMessages = acceptedMessages;
@@ -54,8 +59,7 @@ class PaymentFileValidation implements ProcessingStep {
     @Override
     public Completion perform(UUID fileId, Instant deadline) {
         if (!paymentFiles.isAwaitingValidation(fileId)) {
-            return () -> {
-            };
+            return () -> {};
         }
         Optional<byte[]> content = paymentFiles.content(fileId);
         if (content.isEmpty()) {
@@ -64,13 +68,13 @@ class PaymentFileValidation implements ProcessingStep {
         Optional<ContainerReading> container = readContainerOrRejectTechnically(fileId, content.get(), deadline);
         if (container.isPresent()) {
             return switch (container.get()) {
-                case ContainerReading.Fault fault -> () -> record(fileId,
-                        new ValidationResult(null, null, fault.violations()));
+                case ContainerReading.Fault fault ->
+                    () -> record(fileId, new ValidationResult(null, null, fault.violations()));
                 case ContainerReading.Split split -> () -> recordSplit(fileId, split.messages());
             };
         }
-        ValidationResult result = validateOrRejectTechnically(fileId, content.get(), deadline,
-                paymentFiles.submission(fileId));
+        ValidationResult result =
+                validateOrRejectTechnically(fileId, content.get(), deadline, paymentFiles.submission(fileId));
         return () -> record(fileId, result);
     }
 
@@ -86,8 +90,8 @@ class PaymentFileValidation implements ProcessingStep {
      * Validation is a pure function of the file content, so an unexpected exception would recur on every retry.
      * The customer gets a technical rejection instead of no reply, and operations get an ERROR to investigate.
      */
-    private ValidationResult validateOrRejectTechnically(UUID fileId, byte[] content, Instant deadline,
-            Submission submission) {
+    private ValidationResult validateOrRejectTechnically(
+            UUID fileId, byte[] content, Instant deadline, Submission submission) {
         try {
             return validator.validate(content, deadline, submission);
         } catch (RuntimeException e) {
@@ -96,13 +100,13 @@ class PaymentFileValidation implements ProcessingStep {
         }
     }
 
-    private Optional<ContainerReading> readContainerOrRejectTechnically(UUID fileId, byte[] content,
-            Instant deadline) {
+    private Optional<ContainerReading> readContainerOrRejectTechnically(UUID fileId, byte[] content, Instant deadline) {
         try {
             return validator.readContainer(content, deadline);
         } catch (RuntimeException e) {
             LOG.error("Reading payment file {} as container failed unexpectedly; rejecting it technically", fileId, e);
-            return Optional.of(new ContainerReading.Fault(ValidationResult.technicalError(fileId).violations()));
+            return Optional.of(new ContainerReading.Fault(
+                    ValidationResult.technicalError(fileId).violations()));
         }
     }
 
@@ -131,16 +135,22 @@ class PaymentFileValidation implements ProcessingStep {
             return;
         }
         ValidationResult outcome = result;
-        if (outcome.accepted() && !acceptedMessages.register(paymentFiles.submitter(fileId),
-                outcome.originalMessageId(), fileId)) {
-            outcome = outcome.withViolation(new Violation(DUPLICATE_MESSAGE_ID, "GrpHdr/MsgId",
+        if (outcome.accepted()
+                && !acceptedMessages.register(paymentFiles.submitter(fileId), outcome.originalMessageId(), fileId)) {
+            outcome = outcome.withViolation(new Violation(
+                    DUPLICATE_MESSAGE_ID,
+                    "GrpHdr/MsgId",
                     "Message id " + outcome.originalMessageId() + " was already submitted and accepted"));
         }
         if (!paymentFiles.recordValidationOutcome(fileId, outcome.accepted())) {
             throw new IllegalStateException("Validation outcome of payment file " + fileId + " changed concurrently");
         }
-        var validated = new PaymentFileValidated(fileId, outcome.originalMessageId(),
-                outcome.originalMessageNameId(), outcome.accepted(), outcome.violations());
+        var validated = new PaymentFileValidated(
+                fileId,
+                outcome.originalMessageId(),
+                outcome.originalMessageNameId(),
+                outcome.accepted(),
+                outcome.violations());
         outcomes.insert(validated);
         workQueue.enqueue(fileId, Step.REPORT);
         auditTrail.record(fileId, validated);
@@ -155,8 +165,12 @@ class PaymentFileValidation implements ProcessingStep {
         if (result.accepted()) {
             LOG.info("Validated payment file: accepted");
         } else {
-            LOG.info("Validated payment file: rejected with reason codes {}",
-                    result.violations().stream().map(Violation::reasonCode).distinct().toList());
+            LOG.info(
+                    "Validated payment file: rejected with reason codes {}",
+                    result.violations().stream()
+                            .map(Violation::reasonCode)
+                            .distinct()
+                            .toList());
         }
     }
 }

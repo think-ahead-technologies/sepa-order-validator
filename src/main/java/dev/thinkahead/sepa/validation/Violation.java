@@ -2,5 +2,4 @@
 // ABOUTME: Carries an ISO 20022 external status reason code, the location in the file and a readable message.
 package dev.thinkahead.sepa.validation;
 
-public record Violation(String reasonCode, String path, String message) {
-}
+public record Violation(String reasonCode, String path, String message) {}

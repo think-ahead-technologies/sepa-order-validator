@@ -23,7 +23,12 @@ class PaymentFileRepository {
     /**
      * @return false if a file with this id already exists; the existing record is left untouched
      */
-    boolean insertIfAbsent(UUID id, Channel channel, String submitter, String fileName, ReceivedContent content,
+    boolean insertIfAbsent(
+            UUID id,
+            Channel channel,
+            String submitter,
+            String fileName,
+            ReceivedContent content,
             boolean instantOrder) {
         return insertIfAbsent(id, channel, submitter, fileName, content, instantOrder, null, null);
     }
@@ -33,8 +38,15 @@ class PaymentFileRepository {
      *
      * @return false if a file with this id already exists; the existing record is left untouched
      */
-    boolean insertIfAbsent(UUID id, Channel channel, String submitter, String fileName, ReceivedContent content,
-            boolean instantOrder, UUID containerFileId, Integer containerIndex) {
+    boolean insertIfAbsent(
+            UUID id,
+            Channel channel,
+            String submitter,
+            String fileName,
+            ReceivedContent content,
+            boolean instantOrder,
+            UUID containerFileId,
+            Integer containerIndex) {
         return jdbc.sql("""
                         insert into payment_file
                             (id, channel, submitter, file_name, size_bytes, sha256, content, status,
@@ -42,25 +54,27 @@ class PaymentFileRepository {
                         values (:id, :channel, :submitter, :fileName, :size, :sha256, :content, :status,
                                 :instantOrder, :containerFileId, :containerIndex)
                         on conflict (id) do nothing""")
-                .param("id", id)
-                .param("channel", channel.name())
-                .param("submitter", submitter)
-                .param("fileName", fileName)
-                .param("size", content.size())
-                .param("sha256", content.sha256())
-                .param("content", new SqlParameterValue(Types.BINARY, content.content()))
-                .param("status", FileStatus.RECEIVED.name())
-                .param("instantOrder", instantOrder)
-                .param("containerFileId", new SqlParameterValue(Types.OTHER, containerFileId))
-                .param("containerIndex", new SqlParameterValue(Types.INTEGER, containerIndex))
-                .update() == 1;
+                        .param("id", id)
+                        .param("channel", channel.name())
+                        .param("submitter", submitter)
+                        .param("fileName", fileName)
+                        .param("size", content.size())
+                        .param("sha256", content.sha256())
+                        .param("content", new SqlParameterValue(Types.BINARY, content.content()))
+                        .param("status", FileStatus.RECEIVED.name())
+                        .param("instantOrder", instantOrder)
+                        .param("containerFileId", new SqlParameterValue(Types.OTHER, containerFileId))
+                        .param("containerIndex", new SqlParameterValue(Types.INTEGER, containerIndex))
+                        .update()
+                == 1;
     }
 
     /**
      * @return the stored bytes, or empty if the file exceeded the maximum size and only its hash was kept
      */
     Optional<byte[]> content(UUID id) {
-        List<byte[]> rows = jdbc.sql("select content from payment_file where id = ?").param(id)
+        List<byte[]> rows = jdbc.sql("select content from payment_file where id = ?")
+                .param(id)
                 .query((rs, rowNum) -> rs.getBytes("content"))
                 .list();
         if (rows.isEmpty()) {
@@ -79,7 +93,10 @@ class PaymentFileRepository {
     }
 
     String submitter(UUID id) {
-        return jdbc.sql("select submitter from payment_file where id = ?").param(id).query(String.class).single();
+        return jdbc.sql("select submitter from payment_file where id = ?")
+                .param(id)
+                .query(String.class)
+                .single();
     }
 
     StoredPaymentFile find(UUID id) {
@@ -93,7 +110,9 @@ class PaymentFileRepository {
     }
 
     void markReplied(UUID id) {
-        jdbc.sql("update payment_file set replied_at = now() where id = ?").param(id).update();
+        jdbc.sql("update payment_file set replied_at = now() where id = ?")
+                .param(id)
+                .update();
     }
 
     List<UUID> unansweredSince(Duration age, int limit) {
@@ -102,24 +121,19 @@ class PaymentFileRepository {
                         where replied_at is null and status <> 'SPLIT'
                           and received_at < now() - make_interval(secs => ?)
                         order by received_at
-                        limit ?""")
-                .params(age.toSeconds(), limit)
-                .query(UUID.class)
-                .list();
+                        limit ?""").params(age.toSeconds(), limit).query(UUID.class).list();
     }
 
     long countUnansweredSince(Duration age) {
         return jdbc.sql("""
                         select count(*) from payment_file
                         where replied_at is null and status <> 'SPLIT'
-                          and received_at < now() - make_interval(secs => ?)""")
-                .param(age.toSeconds())
-                .query(Long.class)
-                .single();
+                          and received_at < now() - make_interval(secs => ?)""").param(age.toSeconds()).query(Long.class).single();
     }
 
     FileStatus status(UUID id) {
-        return jdbc.sql("select status from payment_file where id = ?").param(id)
+        return jdbc.sql("select status from payment_file where id = ?")
+                .param(id)
                 .query((rs, rowNum) -> FileStatus.valueOf(rs.getString("status")))
                 .single();
     }
@@ -132,8 +146,6 @@ class PaymentFileRepository {
     boolean updateStatus(UUID id, FileStatus expected, FileStatus next) {
         return jdbc.sql("""
                         update payment_file set status = ?, status_changed_at = now()
-                        where id = ? and status = ?""")
-                .params(next.name(), id, expected.name())
-                .update() == 1;
+                        where id = ? and status = ?""").params(next.name(), id, expected.name()).update() == 1;
     }
 }

@@ -39,15 +39,18 @@ class FinishedUploadsTest {
     void aFileWithANewModificationTimeIsNotFinished() {
         uploads.finished(List.of(new RemoteFile("a.xml", 100, T0)));
 
-        assertThat(uploads.finished(List.of(new RemoteFile("a.xml", 100, T0.plusSeconds(1))))).isEmpty();
+        assertThat(uploads.finished(List.of(new RemoteFile("a.xml", 100, T0.plusSeconds(1)))))
+                .isEmpty();
     }
 
     @Test
     void judgesEveryFileOnItsOwn() {
         uploads.finished(List.of(new RemoteFile("done.xml", 100, T0), new RemoteFile("growing.xml", 10, T0)));
 
-        assertThat(uploads.finished(List.of(new RemoteFile("done.xml", 100, T0),
-                new RemoteFile("growing.xml", 20, T0), new RemoteFile("new.xml", 5, T0))))
+        assertThat(uploads.finished(List.of(
+                        new RemoteFile("done.xml", 100, T0),
+                        new RemoteFile("growing.xml", 20, T0),
+                        new RemoteFile("new.xml", 5, T0))))
                 .containsExactly("done.xml");
     }
 

@@ -28,16 +28,17 @@ class ConnectionPoolCheckIntegrationTest {
 
     @Test
     void refusesToStartWithAPoolSmallerThanTheWorkersNeed() {
-        assertThatThrownBy(() -> new SpringApplicationBuilder(PaymentOrderValidatorApplication.class).run(
-                "--spring.datasource.url=" + postgres.getJdbcUrl(),
-                "--spring.datasource.username=" + postgres.getUsername(),
-                "--spring.datasource.password=" + postgres.getPassword(),
-                "--spring.datasource.hikari.maximum-pool-size=5",
-                "--server.port=0",
-                "--sepa.sftp.host=sftp.invalid",
-                "--sepa.sftp.username=customer",
-                "--sepa.sftp.password=unused",
-                "--sepa.sftp.known-hosts=file:/dev/null"))
+        assertThatThrownBy(() -> new SpringApplicationBuilder(PaymentOrderValidatorApplication.class)
+                        .run(
+                                "--spring.datasource.url=" + postgres.getJdbcUrl(),
+                                "--spring.datasource.username=" + postgres.getUsername(),
+                                "--spring.datasource.password=" + postgres.getPassword(),
+                                "--spring.datasource.hikari.maximum-pool-size=5",
+                                "--server.port=0",
+                                "--sepa.sftp.host=sftp.invalid",
+                                "--sepa.sftp.username=customer",
+                                "--sepa.sftp.password=unused",
+                                "--sepa.sftp.known-hosts=file:/dev/null"))
                 .rootCause()
                 .hasMessageContaining("spring.datasource.hikari.maximum-pool-size")
                 .hasMessageContaining("is 5");

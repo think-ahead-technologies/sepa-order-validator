@@ -20,8 +20,7 @@ final class EmbeddedDocumentStubs implements LSResourceResolver {
             "urn:iso:std:iso:20022:tech:xsd:pain.008.001.08");
 
     @Override
-    public LSInput resolveResource(String type, String namespaceUri, String publicId, String systemId,
-            String baseUri) {
+    public LSInput resolveResource(String type, String namespaceUri, String publicId, String systemId, String baseUri) {
         if (!XML_SCHEMA.equals(type) || !MESSAGE_NAMESPACES.contains(namespaceUri)) {
             return null;
         }

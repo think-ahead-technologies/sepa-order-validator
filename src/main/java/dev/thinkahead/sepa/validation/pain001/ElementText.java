@@ -2,5 +2,4 @@
 // ABOUTME: The path carries indices of payment information and transactions, e.g. "PmtInf[1]/CdtTrfTxInf[2]/Cdtr/Nm".
 package dev.thinkahead.sepa.validation.pain001;
 
-public record ElementText(String path, String value) {
-}
+public record ElementText(String path, String value) {}

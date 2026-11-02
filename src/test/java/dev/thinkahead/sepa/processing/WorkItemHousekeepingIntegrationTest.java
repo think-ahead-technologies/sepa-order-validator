@@ -42,21 +42,23 @@ class WorkItemHousekeepingIntegrationTest {
     @Test
     void reDrivingAFailedItemMakesItDueWithFreshAttemptsAndAuditsWhoDidItAndWhy() {
         UUID fileId = insertItem("FAILED", "null");
-        jdbc.sql("update work_item set attempts = 10, last_error = 'gave up' where file_id = ?").param(fileId).update();
+        jdbc.sql("update work_item set attempts = 10, last_error = 'gave up' where file_id = ?")
+                .param(fileId)
+                .update();
 
         jdbc.sql("select redrive_work_item(?, 'DELIVER', 'jane.doe', 'customer outbound repaired, INC-4711')")
-                .param(fileId).query(String.class).single();
+                .param(fileId)
+                .query(String.class)
+                .single();
 
         assertThat(jdbc.sql("""
                         select state || ':' || attempts || ':' || (next_attempt_at <= now()) || ':'
                                || (lease_token is null)
-                        from work_item where file_id = ?""").param(fileId).query(String.class).single())
-                .isEqualTo("PENDING:0:true:true");
+                        from work_item where file_id = ?""").param(fileId).query(String.class).single()).isEqualTo("PENDING:0:true:true");
         assertThat(jdbc.sql("""
                         select payload ->> 'step' || '|' || (payload ->> 'operator') || '|' || (payload ->> 'reason')
                                || '|' || (payload ->> 'previousState')
-                        from audit_event where file_id = ? and event_type = 'WorkItemRedriven'""")
-                .param(fileId).query(String.class).single())
+                        from audit_event where file_id = ? and event_type = 'WorkItemRedriven'""").param(fileId).query(String.class).single())
                 .isEqualTo("DELIVER|jane.doe|customer outbound repaired, INC-4711|FAILED");
     }
 
@@ -65,10 +67,15 @@ class WorkItemHousekeepingIntegrationTest {
         UUID fileId = insertItem("DONE", "now()");
 
         jdbc.sql("select redrive_work_item(?, 'DELIVER', 'jane.doe', 'customer lost the report')")
-                .param(fileId).query(String.class).single();
+                .param(fileId)
+                .query(String.class)
+                .single();
 
-        assertThat(jdbc.sql("select state from work_item where file_id = ?").param(fileId)
-                .query(String.class).single()).isEqualTo("PENDING");
+        assertThat(jdbc.sql("select state from work_item where file_id = ?")
+                        .param(fileId)
+                        .query(String.class)
+                        .single())
+                .isEqualTo("PENDING");
     }
 
     @Test
@@ -76,25 +83,39 @@ class WorkItemHousekeepingIntegrationTest {
         UUID pending = insertItem("PENDING", "null");
 
         assertThatThrownBy(() -> jdbc.sql("select redrive_work_item(?, 'DELIVER', 'jane.doe', 'why')")
-                .param(pending).query(String.class).single())
-                .isInstanceOf(DataAccessException.class).hasMessageContaining("PENDING");
+                        .param(pending)
+                        .query(String.class)
+                        .single())
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("PENDING");
         assertThatThrownBy(() -> jdbc.sql("select redrive_work_item(?, 'DELIVER', 'jane.doe', 'why')")
-                .param(UUID.randomUUID()).query(String.class).single())
-                .isInstanceOf(DataAccessException.class).hasMessageContaining("No DELIVER work item");
+                        .param(UUID.randomUUID())
+                        .query(String.class)
+                        .single())
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("No DELIVER work item");
         assertThatThrownBy(() -> jdbc.sql("select redrive_work_item(?, 'DELIVER', ' ', 'why')")
-                .param(pending).query(String.class).single())
-                .isInstanceOf(DataAccessException.class).hasMessageContaining("operator and reason");
+                        .param(pending)
+                        .query(String.class)
+                        .single())
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("operator and reason");
     }
 
     private UUID insertItem(String state, String completedAt) {
         UUID fileId = UUID.randomUUID();
         jdbc.sql("insert into work_item (file_id, step, state, completed_at) values (?, 'DELIVER', ?, %s)"
-                .formatted(completedAt)).params(fileId, state).update();
+                        .formatted(completedAt))
+                .params(fileId, state)
+                .update();
         return fileId;
     }
 
     private boolean exists(UUID fileId) {
-        return jdbc.sql("select count(*) from work_item where file_id = ?").param(fileId)
-                .query(Integer.class).single() == 1;
+        return jdbc.sql("select count(*) from work_item where file_id = ?")
+                        .param(fileId)
+                        .query(Integer.class)
+                        .single()
+                == 1;
     }
 }

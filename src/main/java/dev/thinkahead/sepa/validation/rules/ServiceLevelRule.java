@@ -16,7 +16,9 @@ public class ServiceLevelRule implements ValidationRule<PaymentTypeInformation> 
         if (code == null || code.equals(SEPA)) {
             return List.of();
         }
-        return List.of(new Violation("AG02", paymentType.path() + "/SvcLvl/Cd",
+        return List.of(new Violation(
+                "AG02",
+                paymentType.path() + "/SvcLvl/Cd",
                 "Service level " + code + " is not allowed, SEPA credit transfers use SEPA"));
     }
 }

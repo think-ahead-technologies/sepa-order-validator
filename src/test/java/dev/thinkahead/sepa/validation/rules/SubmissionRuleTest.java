@@ -15,8 +15,8 @@ import org.junit.jupiter.api.Test;
 class SubmissionRuleTest {
 
     private static PaymentInformation paymentInformation(CreditTransferScheme scheme) {
-        return new PaymentInformation("PmtInf[2]", "PMT-002", "DE89370400440532013000", null,
-                LocalDate.of(2026, 11, 2), scheme);
+        return new PaymentInformation(
+                "PmtInf[2]", "PMT-002", "DE89370400440532013000", null, LocalDate.of(2026, 11, 2), scheme);
     }
 
     @Test
@@ -24,19 +24,21 @@ class SubmissionRuleTest {
         var rule = new SubmissionRule(Submission.REGULAR);
 
         assertThat(rule.validate(paymentInformation(CreditTransferScheme.SCT))).isEmpty();
-        assertThat(rule.validate(paymentInformation(CreditTransferScheme.SCT_INST))).isEmpty();
+        assertThat(rule.validate(paymentInformation(CreditTransferScheme.SCT_INST)))
+                .isEmpty();
     }
 
     @Test
     void acceptsSepaCreditTransfersInAContainer() {
         assertThat(new SubmissionRule(new Submission(false, true))
-                .validate(paymentInformation(CreditTransferScheme.SCT))).isEmpty();
+                        .validate(paymentInformation(CreditTransferScheme.SCT)))
+                .isEmpty();
     }
 
     @Test
     void reportsAg02ForSepaInstantInAContainer() {
         assertThat(new SubmissionRule(new Submission(false, true))
-                .validate(paymentInformation(CreditTransferScheme.SCT_INST)))
+                        .validate(paymentInformation(CreditTransferScheme.SCT_INST)))
                 .singleElement()
                 .satisfies(v -> {
                     assertThat(v.reasonCode()).isEqualTo("AG02");
@@ -48,13 +50,14 @@ class SubmissionRuleTest {
     @Test
     void acceptsSepaInstantInTheSepaInstantInbox() {
         assertThat(new SubmissionRule(new Submission(true, false))
-                .validate(paymentInformation(CreditTransferScheme.SCT_INST))).isEmpty();
+                        .validate(paymentInformation(CreditTransferScheme.SCT_INST)))
+                .isEmpty();
     }
 
     @Test
     void reportsAg02ForSepaCreditTransfersInTheSepaInstantInbox() {
         assertThat(new SubmissionRule(new Submission(true, false))
-                .validate(paymentInformation(CreditTransferScheme.SCT)))
+                        .validate(paymentInformation(CreditTransferScheme.SCT)))
                 .extracting(Violation::reasonCode, Violation::path)
                 .containsExactly(tuple("AG02", "PmtInf[2]"));
     }

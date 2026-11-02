@@ -14,8 +14,15 @@ class CreditorNameRuleTest {
     private final CreditorNameRule rule = new CreditorNameRule();
 
     private static CreditTransferTransaction transaction(String creditorName) {
-        return new CreditTransferTransaction("PmtInf[1]/CdtTrfTxInf[1]", "E2E-001", new BigDecimal("100.00"), "EUR",
-                "NL91ABNA0417164300", null, RemittanceInformation.NONE, creditorName);
+        return new CreditTransferTransaction(
+                "PmtInf[1]/CdtTrfTxInf[1]",
+                "E2E-001",
+                new BigDecimal("100.00"),
+                "EUR",
+                "NL91ABNA0417164300",
+                null,
+                RemittanceInformation.NONE,
+                creditorName);
     }
 
     @Test
@@ -25,11 +32,9 @@ class CreditorNameRuleTest {
 
     @Test
     void reportsRr03WhenTheCreditorNameIsMissing() {
-        assertThat(rule.validate(transaction(null)))
-                .singleElement()
-                .satisfies(v -> {
-                    assertThat(v.reasonCode()).isEqualTo("RR03");
-                    assertThat(v.path()).isEqualTo("PmtInf[1]/CdtTrfTxInf[1]/Cdtr/Nm");
-                });
+        assertThat(rule.validate(transaction(null))).singleElement().satisfies(v -> {
+            assertThat(v.reasonCode()).isEqualTo("RR03");
+            assertThat(v.path()).isEqualTo("PmtInf[1]/CdtTrfTxInf[1]/Cdtr/Nm");
+        });
     }
 }

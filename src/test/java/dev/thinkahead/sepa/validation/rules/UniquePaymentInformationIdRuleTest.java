@@ -17,8 +17,8 @@ class UniquePaymentInformationIdRuleTest {
     private final UniquePaymentInformationIdRule rule = new UniquePaymentInformationIdRule();
 
     private static PaymentInformation paymentInformation(int index, String paymentInformationId) {
-        return new PaymentInformation("PmtInf[" + index + "]", paymentInformationId, IBAN, null, EXECUTION_DATE,
-                CreditTransferScheme.SCT);
+        return new PaymentInformation(
+                "PmtInf[" + index + "]", paymentInformationId, IBAN, null, EXECUTION_DATE, CreditTransferScheme.SCT);
     }
 
     @Test

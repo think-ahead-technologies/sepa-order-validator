@@ -45,19 +45,31 @@ class ValidationDeadlineIntegrationTest {
         String fileName = "deadline-" + UUID.randomUUID() + ".xml";
         customer.upload("inbound", fileName, bytes(Fixtures.paddedTo(validPain001(uniqueMessageId()), 900_000)));
 
-        UUID fileId = await().atMost(TIMEOUT).until(() -> events.ofType(PaymentFileReceived.class).stream()
-                .filter(e -> e.fileName().equals(fileName)).map(PaymentFileReceived::fileId)
-                .findFirst().orElse(null), id -> id != null);
-        PaymentFileValidated validated = await().atMost(TIMEOUT).until(
-                () -> events.ofType(PaymentFileValidated.class).stream()
-                        .filter(e -> e.fileId().equals(fileId)).findFirst().orElse(null),
-                e -> e != null);
+        UUID fileId = await().atMost(TIMEOUT)
+                .until(
+                        () -> events.ofType(PaymentFileReceived.class).stream()
+                                .filter(e -> e.fileName().equals(fileName))
+                                .map(PaymentFileReceived::fileId)
+                                .findFirst()
+                                .orElse(null),
+                        id -> id != null);
+        PaymentFileValidated validated = await().atMost(TIMEOUT)
+                .until(
+                        () -> events.ofType(PaymentFileValidated.class).stream()
+                                .filter(e -> e.fileId().equals(fileId))
+                                .findFirst()
+                                .orElse(null),
+                        e -> e != null);
 
         assertThat(validated.violations()).singleElement().satisfies(violation -> {
             assertThat(violation.reasonCode()).isEqualTo("FF01");
             assertThat(violation.message()).contains("time limit");
         });
         assertThat(jdbc.sql("select state || ':' || attempts from work_item where file_id = ? and step = 'VALIDATE'")
-                .param(fileId).query(String.class).single()).as("completed on the first attempt").isEqualTo("DONE:1");
+                        .param(fileId)
+                        .query(String.class)
+                        .single())
+                .as("completed on the first attempt")
+                .isEqualTo("DONE:1");
     }
 }

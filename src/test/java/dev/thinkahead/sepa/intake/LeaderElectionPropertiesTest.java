@@ -12,8 +12,8 @@ class LeaderElectionPropertiesTest {
 
     @Test
     void acceptsAHeartbeatOfAtMostHalfTheTimeToLive() {
-        assertThatNoException().isThrownBy(() ->
-                new LeaderElectionProperties(Duration.ofSeconds(10), Duration.ofSeconds(5)));
+        assertThatNoException()
+                .isThrownBy(() -> new LeaderElectionProperties(Duration.ofSeconds(10), Duration.ofSeconds(5)));
     }
 
     @Test

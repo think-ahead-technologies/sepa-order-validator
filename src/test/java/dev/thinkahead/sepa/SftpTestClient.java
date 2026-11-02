@@ -34,8 +34,8 @@ public final class SftpTestClient {
      * Uploads like a customer on a slow line: in chunks under the final name, pausing after each chunk.
      * Runs the given check after every chunk while the file is still incomplete.
      */
-    public void uploadSlowly(String directory, String fileName, byte[] content, int chunks, Duration pause,
-            Runnable whileIncomplete) {
+    public void uploadSlowly(
+            String directory, String fileName, byte[] content, int chunks, Duration pause, Runnable whileIncomplete) {
         int chunkSize = Math.ceilDiv(content.length, chunks);
         try (Session<SftpClient.DirEntry> session = sessions.getSession();
                 OutputStream out = ((SftpClient) session.getClientInstance()).write(directory + "/" + fileName)) {

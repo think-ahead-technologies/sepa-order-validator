@@ -16,7 +16,7 @@ public class PartyNameLengthRule implements ValidationRule<PartyName> {
         if (length <= MAXIMUM_LENGTH) {
             return List.of();
         }
-        return List.of(new Violation("FF01", partyName.path(),
-                "Name has " + length + " characters, SEPA allows at most " + MAXIMUM_LENGTH));
+        return List.of(new Violation(
+                "FF01", partyName.path(), "Name has " + length + " characters, SEPA allows at most " + MAXIMUM_LENGTH));
     }
 }

@@ -68,8 +68,9 @@ class SftpKeyAuthenticationEndToEndTest {
         customer.upload("inbound", fileName, bytes(validPain001(uniqueMessageId())));
 
         String reportPrefix = fileName.replace(".xml", "") + "-";
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("outbound"))
-                .anySatisfy(name -> assertThat(name).startsWith(reportPrefix)));
+        await().atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(customer.list("outbound"))
+                        .anySatisfy(name -> assertThat(name).startsWith(reportPrefix)));
         assertThat(sftp.getLogs()).contains("Accepted publickey for").doesNotContain("Accepted password for");
     }
 }

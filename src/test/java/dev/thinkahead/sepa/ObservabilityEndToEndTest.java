@@ -1,5 +1,6 @@
 // ABOUTME: End-to-end tests of the operational HTTP endpoints of the running application on a real port.
-// ABOUTME: Health and Prometheus metrics are exposed, nothing else; a customer left without a reply shows in the metrics.
+// ABOUTME: Health and Prometheus metrics are exposed, nothing else; a customer left without a reply shows in the
+// metrics.
 package dev.thinkahead.sepa;
 
 import static dev.thinkahead.sepa.Fixtures.bytes;
@@ -29,7 +30,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 class ObservabilityEndToEndTest {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
-    private static final Pattern UNANSWERED = Pattern.compile("(?m)^sepa_intake_files_unanswered(?:\\{[^}]*})? (\\S+)$");
+    private static final Pattern UNANSWERED =
+            Pattern.compile("(?m)^sepa_intake_files_unanswered(?:\\{[^}]*})? (\\S+)$");
 
     private final HttpClient http = HttpClient.newHttpClient();
 
@@ -71,28 +73,39 @@ class ObservabilityEndToEndTest {
         customer.chmod(".", "outbound", 0555);
         try {
             customer.upload("inbound", fileName, bytes(validPain001(uniqueMessageId())));
-            await().atMost(TIMEOUT).until(() -> jdbc.sql("select count(*) from payment_file where file_name = ?")
-                    .param(fileName).query(Integer.class).single() == 1);
+            await().atMost(TIMEOUT)
+                    .until(() -> jdbc.sql("select count(*) from payment_file where file_name = ?")
+                                    .param(fileName)
+                                    .query(Integer.class)
+                                    .single()
+                            == 1);
             jdbc.sql("update payment_file set received_at = now() - interval '1 hour' where file_name = ?")
-                    .param(fileName).update();
+                    .param(fileName)
+                    .update();
 
             assertThat(unansweredFiles()).isEqualTo(before + 1);
         } finally {
             customer.chmod(".", "outbound", 0755);
         }
-        await().atMost(Duration.ofMinutes(1)).untilAsserted(() -> assertThat(unansweredFiles()).isEqualTo(before));
+        await().atMost(Duration.ofMinutes(1))
+                .untilAsserted(() -> assertThat(unansweredFiles()).isEqualTo(before));
     }
 
     private double unansweredFiles() throws Exception {
         HttpResponse<String> metrics = get("/actuator/prometheus");
         assertThat(metrics.statusCode()).isEqualTo(200);
         Matcher matcher = UNANSWERED.matcher(metrics.body());
-        assertThat(matcher.find()).as("sepa_intake_files_unanswered in Prometheus output").isTrue();
+        assertThat(matcher.find())
+                .as("sepa_intake_files_unanswered in Prometheus output")
+                .isTrue();
         return Double.parseDouble(matcher.group(1));
     }
 
     private HttpResponse<String> get(String path) throws Exception {
-        return http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + path)).GET().build(),
+        return http.send(
+                HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                        .GET()
+                        .build(),
                 HttpResponse.BodyHandlers.ofString());
     }
 }

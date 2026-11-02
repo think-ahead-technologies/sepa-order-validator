@@ -19,10 +19,10 @@ class ExecutionDateRuleTest {
         return paymentInformation(requestedExecutionDate, CreditTransferScheme.SCT);
     }
 
-    private static PaymentInformation paymentInformation(LocalDate requestedExecutionDate,
-            CreditTransferScheme scheme) {
-        return new PaymentInformation("PmtInf[2]", "PMT-002", "DE89370400440532013000", null,
-                requestedExecutionDate, scheme);
+    private static PaymentInformation paymentInformation(
+            LocalDate requestedExecutionDate, CreditTransferScheme scheme) {
+        return new PaymentInformation(
+                "PmtInf[2]", "PMT-002", "DE89370400440532013000", null, requestedExecutionDate, scheme);
     }
 
     @Test

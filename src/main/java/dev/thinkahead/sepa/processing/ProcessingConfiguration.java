@@ -7,5 +7,4 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(ProcessingProperties.class)
-class ProcessingConfiguration {
-}
+class ProcessingConfiguration {}

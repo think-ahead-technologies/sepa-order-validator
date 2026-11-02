@@ -25,8 +25,12 @@ class SftpInboundPoller implements SchedulingConfigurer {
     private final FinishedUploads finishedUploads = new FinishedUploads();
     private final FinishedUploads finishedInstantUploads = new FinishedUploads();
 
-    SftpInboundPoller(SftpChannel sftp, PaymentFileIntake intake, IntakeLeadership leadership,
-            IntakeProperties properties, SftpProperties sftpProperties) {
+    SftpInboundPoller(
+            SftpChannel sftp,
+            PaymentFileIntake intake,
+            IntakeLeadership leadership,
+            IntakeProperties properties,
+            SftpProperties sftpProperties) {
         this.sftp = sftp;
         this.intake = intake;
         this.leadership = leadership;
@@ -79,8 +83,8 @@ class SftpInboundPoller implements SchedulingConfigurer {
         ReceivedContent content = size > properties.maxFileSize().toBytes()
                 ? sftp.hashProcessing(claimed.claimedName())
                 : sftp.readProcessing(claimed.claimedName());
-        intake.receive(claimed.fileId(), Channel.SFTP, sftp.submitter(), claimed.originalName(), content,
-                claimed.instant());
+        intake.receive(
+                claimed.fileId(), Channel.SFTP, sftp.submitter(), claimed.originalName(), content, claimed.instant());
         sftp.archive(claimed.claimedName());
     }
 }

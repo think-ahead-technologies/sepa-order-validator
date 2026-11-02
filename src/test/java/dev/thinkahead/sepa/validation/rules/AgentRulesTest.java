@@ -5,8 +5,8 @@ package dev.thinkahead.sepa.validation.rules;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.thinkahead.sepa.validation.pain001.Agent;
-import dev.thinkahead.sepa.validation.pain001.CreditTransferTransaction;
 import dev.thinkahead.sepa.validation.pain001.CreditTransferScheme;
+import dev.thinkahead.sepa.validation.pain001.CreditTransferTransaction;
 import dev.thinkahead.sepa.validation.pain001.PaymentInformation;
 import dev.thinkahead.sepa.validation.pain001.RemittanceInformation;
 import java.math.BigDecimal;
@@ -19,23 +19,37 @@ class AgentRulesTest {
     private final CreditorAgentRule creditorAgentRule = new CreditorAgentRule();
 
     private static PaymentInformation paymentInformation(Agent debtorAgent) {
-        return new PaymentInformation("PmtInf[1]", "PMT-001", "DE89370400440532013000", debtorAgent,
-                LocalDate.of(2026, 11, 2), CreditTransferScheme.SCT);
+        return new PaymentInformation(
+                "PmtInf[1]",
+                "PMT-001",
+                "DE89370400440532013000",
+                debtorAgent,
+                LocalDate.of(2026, 11, 2),
+                CreditTransferScheme.SCT);
     }
 
     private static CreditTransferTransaction transaction(Agent creditorAgent) {
-        return new CreditTransferTransaction("PmtInf[1]/CdtTrfTxInf[2]", "E2E-002", new BigDecimal("50.50"), "EUR",
-                "NL91ABNA0417164300", creditorAgent, RemittanceInformation.NONE, "Lieferant AG");
+        return new CreditTransferTransaction(
+                "PmtInf[1]/CdtTrfTxInf[2]",
+                "E2E-002",
+                new BigDecimal("50.50"),
+                "EUR",
+                "NL91ABNA0417164300",
+                creditorAgent,
+                RemittanceInformation.NONE,
+                "Lieferant AG");
     }
 
     @Test
     void acceptsADebtorAgentIdentifiedByBic() {
-        assertThat(debtorAgentRule.validate(paymentInformation(new Agent("COBADEFFXXX", null, false)))).isEmpty();
+        assertThat(debtorAgentRule.validate(paymentInformation(new Agent("COBADEFFXXX", null, false))))
+                .isEmpty();
     }
 
     @Test
     void acceptsADebtorAgentIdentifiedByOtherIdentification() {
-        assertThat(debtorAgentRule.validate(paymentInformation(new Agent(null, "NOTPROVIDED", true)))).isEmpty();
+        assertThat(debtorAgentRule.validate(paymentInformation(new Agent(null, "NOTPROVIDED", true))))
+                .isEmpty();
     }
 
     @Test
@@ -55,7 +69,8 @@ class AgentRulesTest {
 
     @Test
     void acceptsACreditorAgentIdentifiedOnlyByBic() {
-        assertThat(creditorAgentRule.validate(transaction(new Agent("ABNANL2A", null, false)))).isEmpty();
+        assertThat(creditorAgentRule.validate(transaction(new Agent("ABNANL2A", null, false))))
+                .isEmpty();
     }
 
     @Test

@@ -25,7 +25,8 @@ import org.springframework.modulith.test.ApplicationModuleTest.BootstrapMode;
 class IntakeLeaderElectionIntegrationTest {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(20);
-    private static final String LOCK_KEY = UUIDConverter.getUUID(IntakeLeadership.ROLE).toString();
+    private static final String LOCK_KEY =
+            UUIDConverter.getUUID(IntakeLeadership.ROLE).toString();
 
     @Autowired
     IntakeLeadership leadership;

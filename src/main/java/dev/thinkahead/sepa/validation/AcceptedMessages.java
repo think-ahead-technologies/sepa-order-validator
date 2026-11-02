@@ -24,8 +24,6 @@ class AcceptedMessages {
         return jdbc.sql("""
                         insert into accepted_message (submitter, message_id, file_id)
                         values (?, ?, ?)
-                        on conflict (submitter, message_id) do nothing""")
-                .params(submitter, messageId, fileId)
-                .update() == 1;
+                        on conflict (submitter, message_id) do nothing""").params(submitter, messageId, fileId).update() == 1;
     }
 }

@@ -4,5 +4,4 @@ package dev.thinkahead.sepa.intake;
 
 import java.util.UUID;
 
-public record PaymentFileReceived(UUID fileId, Channel channel, String submitter, String fileName, String sha256) {
-}
+public record PaymentFileReceived(UUID fileId, Channel channel, String submitter, String fileName, String sha256) {}

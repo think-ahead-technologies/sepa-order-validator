@@ -4,5 +4,4 @@ package dev.thinkahead.sepa.reporting;
 
 import java.util.UUID;
 
-public record StatusReportDelivered(UUID fileId, String reportMessageId, GroupStatus groupStatus) {
-}
+public record StatusReportDelivered(UUID fileId, String reportMessageId, GroupStatus groupStatus) {}

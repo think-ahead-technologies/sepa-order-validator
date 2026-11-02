@@ -48,12 +48,10 @@ class TotalsRulesTest {
     void controlSumRuleReportsAm10OnMismatch() {
         var totals = new Totals("PmtInf[1]", "2", new BigDecimal("150.51"), 2, new BigDecimal("150.50"));
 
-        assertThat(new ControlSumRule().validate(totals))
-                .singleElement()
-                .satisfies(v -> {
-                    assertThat(v.reasonCode()).isEqualTo("AM10");
-                    assertThat(v.path()).isEqualTo("PmtInf[1]/CtrlSum");
-                });
+        assertThat(new ControlSumRule().validate(totals)).singleElement().satisfies(v -> {
+            assertThat(v.reasonCode()).isEqualTo("AM10");
+            assertThat(v.path()).isEqualTo("PmtInf[1]/CtrlSum");
+        });
     }
 
     @Test

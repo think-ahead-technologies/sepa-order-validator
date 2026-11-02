@@ -26,9 +26,7 @@ class WorkItemRepository {
         jdbc.sql("""
                         insert into work_item (file_id, step, priority)
                         values (?, ?, coalesce((select max(priority) from work_item where file_id = ?), 0))
-                        on conflict do nothing""")
-                .params(fileId, step.name(), fileId)
-                .update();
+                        on conflict do nothing""").params(fileId, step.name(), fileId).update();
     }
 
     void insertIfAbsent(UUID fileId, Step step, Priority priority) {
@@ -58,8 +56,11 @@ class WorkItemRepository {
                         returning w.file_id, w.lease_token, w.attempts""")
                 .param("step", step.name())
                 .param("leaseSeconds", lease.toMillis() / 1_000.0)
-                .query((rs, rowNum) -> new ClaimedItem(rs.getObject("file_id", UUID.class), step,
-                        rs.getObject("lease_token", UUID.class), rs.getInt("attempts")))
+                .query((rs, rowNum) -> new ClaimedItem(
+                        rs.getObject("file_id", UUID.class),
+                        step,
+                        rs.getObject("lease_token", UUID.class),
+                        rs.getInt("attempts")))
                 .optional();
     }
 
@@ -72,8 +73,9 @@ class WorkItemRepository {
                         set state = 'DONE', completed_at = now(), lease_token = null, locked_until = null,
                             last_error = null
                         where file_id = ? and step = ? and lease_token = ? and state = 'PENDING'""")
-                .params(item.fileId(), item.step().name(), item.leaseToken())
-                .update() == 1;
+                        .params(item.fileId(), item.step().name(), item.leaseToken())
+                        .update()
+                == 1;
     }
 
     /**
@@ -85,9 +87,14 @@ class WorkItemRepository {
                         set next_attempt_at = now() + make_interval(secs => ?), lease_token = null,
                             locked_until = null, last_error = ?
                         where file_id = ? and step = ? and lease_token = ? and state = 'PENDING'""")
-                .params(delay.toMillis() / 1_000.0, truncate(error), item.fileId(), item.step().name(),
-                        item.leaseToken())
-                .update() == 1;
+                        .params(
+                                delay.toMillis() / 1_000.0,
+                                truncate(error),
+                                item.fileId(),
+                                item.step().name(),
+                                item.leaseToken())
+                        .update()
+                == 1;
     }
 
     /**
@@ -100,8 +107,9 @@ class WorkItemRepository {
                         update work_item
                         set state = 'FAILED', lease_token = null, locked_until = null, last_error = ?
                         where file_id = ? and step = ? and lease_token = ? and state = 'PENDING'""")
-                .params(truncate(error), item.fileId(), item.step().name(), item.leaseToken())
-                .update() == 1;
+                        .params(truncate(error), item.fileId(), item.step().name(), item.leaseToken())
+                        .update()
+                == 1;
     }
 
     /**
@@ -110,9 +118,7 @@ class WorkItemRepository {
     int deleteDoneBefore(Duration retention) {
         return jdbc.sql("""
                         delete from work_item
-                        where state = 'DONE' and completed_at < now() - make_interval(secs => ?)""")
-                .param(retention.toSeconds())
-                .update();
+                        where state = 'DONE' and completed_at < now() - make_interval(secs => ?)""").param(retention.toSeconds()).update();
     }
 
     private static String truncate(String error) {
@@ -122,6 +128,5 @@ class WorkItemRepository {
     /**
      * @param attempt number of this attempt, counted when the item was claimed
      */
-    record ClaimedItem(UUID fileId, Step step, UUID leaseToken, int attempt) {
-    }
+    record ClaimedItem(UUID fileId, Step step, UUID leaseToken, int attempt) {}
 }

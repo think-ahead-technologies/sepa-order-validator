@@ -11,7 +11,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 
 import dev.thinkahead.sepa.validation.container.ContainerReading;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -35,13 +34,16 @@ class PaymentFileValidatorTest {
 
     @Test
     void readsAContainerAsItsSplitMessages() {
-        var xml = dev.thinkahead.sepa.Fixtures.container(dev.thinkahead.sepa.Fixtures.validPain001("MSG-A"),
-                dev.thinkahead.sepa.Fixtures.validPain001("MSG-B"));
+        var xml = dev.thinkahead.sepa.Fixtures.container(
+                dev.thinkahead.sepa.Fixtures.validPain001("MSG-A"), dev.thinkahead.sepa.Fixtures.validPain001("MSG-B"));
 
         Optional<ContainerReading> reading = validator.readContainer(bytes(xml), NO_DEADLINE);
 
-        assertThat(reading).get().isInstanceOfSatisfying(ContainerReading.Split.class,
-                split -> assertThat(split.messages()).hasSize(2));
+        assertThat(reading)
+                .get()
+                .isInstanceOfSatisfying(
+                        ContainerReading.Split.class,
+                        split -> assertThat(split.messages()).hasSize(2));
     }
 
     @Test
@@ -53,22 +55,26 @@ class PaymentFileValidatorTest {
     void rejectsAContainerWhoseReadingRunsPastTheDeadlineWithFf01() {
         var xml = dev.thinkahead.sepa.Fixtures.container(dev.thinkahead.sepa.Fixtures.validPain001("MSG-A"));
 
-        Optional<ContainerReading> reading = validator.readContainer(bytes(xml), Instant.now().minusSeconds(1));
+        Optional<ContainerReading> reading =
+                validator.readContainer(bytes(xml), Instant.now().minusSeconds(1));
 
-        assertThat(reading).get().isInstanceOfSatisfying(ContainerReading.Fault.class,
-                fault -> assertThat(fault.violations()).singleElement().satisfies(violation -> {
-                    assertThat(violation.reasonCode()).isEqualTo("FF01");
-                    assertThat(violation.message()).contains("time limit");
-                }));
+        assertThat(reading)
+                .get()
+                .isInstanceOfSatisfying(
+                        ContainerReading.Fault.class,
+                        fault -> assertThat(fault.violations()).singleElement().satisfies(violation -> {
+                            assertThat(violation.reasonCode()).isEqualTo("FF01");
+                            assertThat(violation.message()).contains("time limit");
+                        }));
     }
 
     @Test
     void rejectsSepaInstantFromAContainerWithAg02() {
-        String xml = dev.thinkahead.sepa.Fixtures.validInstantPain001(SAMPLE_MESSAGE_ID,
-                java.time.LocalDate.of(2026, 11, 2));
+        String xml = dev.thinkahead.sepa.Fixtures.validInstantPain001(
+                SAMPLE_MESSAGE_ID, java.time.LocalDate.of(2026, 11, 2));
 
-        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE,
-                new dev.thinkahead.sepa.intake.Submission(false, true));
+        ValidationResult result =
+                validator.validate(bytes(xml), NO_DEADLINE, new dev.thinkahead.sepa.intake.Submission(false, true));
 
         assertThat(result.violations())
                 .extracting(Violation::reasonCode, Violation::path)
@@ -77,8 +83,8 @@ class PaymentFileValidatorTest {
 
     @Test
     void rejectsSepaCreditTransfersFromTheSepaInstantInboxWithAg02() {
-        ValidationResult result = validator.validate(bytes(VALID_PAIN_001), NO_DEADLINE,
-                new dev.thinkahead.sepa.intake.Submission(true, false));
+        ValidationResult result = validator.validate(
+                bytes(VALID_PAIN_001), NO_DEADLINE, new dev.thinkahead.sepa.intake.Submission(true, false));
 
         assertThat(result.violations())
                 .extracting(Violation::reasonCode, Violation::path)
@@ -87,8 +93,8 @@ class PaymentFileValidatorTest {
 
     @Test
     void acceptsSepaInstantWithAnExecutionDateInThePastOnASunday() {
-        String xml = dev.thinkahead.sepa.Fixtures.validInstantPain001(SAMPLE_MESSAGE_ID,
-                java.time.LocalDate.of(2026, 10, 25));
+        String xml = dev.thinkahead.sepa.Fixtures.validInstantPain001(
+                SAMPLE_MESSAGE_ID, java.time.LocalDate.of(2026, 10, 25));
 
         ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
 
@@ -108,8 +114,9 @@ class PaymentFileValidatorTest {
 
     @Test
     void rejectsALocalInstrumentOtherThanInstWithAg02() {
-        String xml = dev.thinkahead.sepa.Fixtures.validInstantPain001(SAMPLE_MESSAGE_ID,
-                java.time.LocalDate.of(2026, 11, 2)).replace("<Cd>INST</Cd>", "<Cd>SDCL</Cd>");
+        String xml = dev.thinkahead.sepa.Fixtures.validInstantPain001(
+                        SAMPLE_MESSAGE_ID, java.time.LocalDate.of(2026, 11, 2))
+                .replace("<Cd>INST</Cd>", "<Cd>SDCL</Cd>");
 
         ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
 
@@ -125,7 +132,8 @@ class PaymentFileValidatorTest {
         ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
 
         assertThat(result.accepted()).isFalse();
-        assertThat(result.violations()).isNotEmpty()
+        assertThat(result.violations())
+                .isNotEmpty()
                 .allSatisfy(violation -> assertThat(violation.reasonCode()).isEqualTo("FF01"));
     }
 
@@ -136,13 +144,15 @@ class PaymentFileValidatorTest {
         ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
 
         assertThat(result.accepted()).isFalse();
-        assertThat(result.violations()).isNotEmpty()
+        assertThat(result.violations())
+                .isNotEmpty()
                 .allSatisfy(violation -> assertThat(violation.reasonCode()).isEqualTo("FF01"));
     }
 
     @Test
     void reportsRuleViolationsWithTheirReasonCodesBeforeCheckingTheDkSubset() {
-        var xml = VALID_PAIN_001.replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>CHK</PmtMtd>")
+        var xml = VALID_PAIN_001
+                .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>CHK</PmtMtd>")
                 .replace("<CtrlSum>150.50</CtrlSum>", "<CtrlSum>150.51</CtrlSum>");
 
         ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
@@ -159,7 +169,8 @@ class PaymentFileValidatorTest {
         ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
 
         assertThat(result.originalMessageId()).isEqualTo(SAMPLE_MESSAGE_ID);
-        assertThat(result.violations()).first()
+        assertThat(result.violations())
+                .first()
                 .satisfies(violation -> assertThat(violation.message()).startsWith("DK subset GBIC_5: "));
     }
 
@@ -176,10 +187,11 @@ class PaymentFileValidatorTest {
 
     @Test
     void rejectsPaymentTypeInformationOnBothLevelsWithFf01() {
-        String xml = dev.thinkahead.sepa.Fixtures.validInstantPain001(SAMPLE_MESSAGE_ID,
-                java.time.LocalDate.of(2026, 11, 2)).replaceFirst(
-                "(<PmtId>\\s*<EndToEndId>E2E-001</EndToEndId>\\s*</PmtId>)",
-                "$1<PmtTpInf><LclInstrm><Cd>INST</Cd></LclInstrm></PmtTpInf>");
+        String xml = dev.thinkahead.sepa.Fixtures.validInstantPain001(
+                        SAMPLE_MESSAGE_ID, java.time.LocalDate.of(2026, 11, 2))
+                .replaceFirst(
+                        "(<PmtId>\\s*<EndToEndId>E2E-001</EndToEndId>\\s*</PmtId>)",
+                        "$1<PmtTpInf><LclInstrm><Cd>INST</Cd></LclInstrm></PmtTpInf>");
 
         ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
 
@@ -230,14 +242,17 @@ class PaymentFileValidatorTest {
         var lateEvening = new PaymentFileValidator(clockAt("2026-11-02T22:30:00Z"));
         var afterMidnight = new PaymentFileValidator(clockAt("2026-11-02T23:30:00Z"));
 
-        assertThat(lateEvening.validate(bytes(VALID_PAIN_001), NO_DEADLINE).violations()).isEmpty();
+        assertThat(lateEvening.validate(bytes(VALID_PAIN_001), NO_DEADLINE).violations())
+                .isEmpty();
         assertThat(afterMidnight.validate(bytes(VALID_PAIN_001), NO_DEADLINE).violations())
-                .extracting(Violation::reasonCode).containsExactly("DT01");
+                .extracting(Violation::reasonCode)
+                .containsExactly("DT01");
     }
 
     @Test
     void rejectsAFileWhoseValidationRunsPastTheDeadlineWithFf01() {
-        ValidationResult result = validator.validate(bytes(VALID_PAIN_001), Instant.now().minusSeconds(1));
+        ValidationResult result =
+                validator.validate(bytes(VALID_PAIN_001), Instant.now().minusSeconds(1));
 
         assertThat(result.accepted()).isFalse();
         assertThat(result.violations()).singleElement().satisfies(violation -> {
@@ -261,7 +276,8 @@ class PaymentFileValidatorTest {
         var xml = VALID_PAIN_001
                 .replace("NL91ABNA0417164300", "NL91ABNA0417164301")
                 .replace("Ccy=\"EUR\">50.50", "Ccy=\"USD\">50.50")
-                .replace("<NbOfTxs>2</NbOfTxs>\n      <CtrlSum>150.50</CtrlSum>\n      <InitgPty>",
+                .replace(
+                        "<NbOfTxs>2</NbOfTxs>\n      <CtrlSum>150.50</CtrlSum>\n      <InitgPty>",
                         "<NbOfTxs>3</NbOfTxs>\n      <CtrlSum>150.50</CtrlSum>\n      <InitgPty>");
 
         ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
@@ -278,8 +294,8 @@ class PaymentFileValidatorTest {
 
     @Test
     void rejectsSchemaValidFileBreakingSepaFieldRules() {
-        ValidationResult result = validator.validate(
-                bytes(withSepaFieldRuleViolations(SAMPLE_MESSAGE_ID)), NO_DEADLINE);
+        ValidationResult result =
+                validator.validate(bytes(withSepaFieldRuleViolations(SAMPLE_MESSAGE_ID)), NO_DEADLINE);
 
         assertThat(result.accepted()).isFalse();
         assertThat(result.violations())
@@ -294,8 +310,8 @@ class PaymentFileValidatorTest {
 
     @Test
     void rejectsMissingCreditorNameAndUnstructuredAddressWithRr03() {
-        ValidationResult result = validator.validate(
-                bytes(withCreditorNameAndAddressViolations(SAMPLE_MESSAGE_ID)), NO_DEADLINE);
+        ValidationResult result =
+                validator.validate(bytes(withCreditorNameAndAddressViolations(SAMPLE_MESSAGE_ID)), NO_DEADLINE);
 
         assertThat(result.accepted()).isFalse();
         assertThat(result.violations())
@@ -307,8 +323,8 @@ class PaymentFileValidatorTest {
 
     @Test
     void rejectsAPastDatedSepaInstantFileWithAnUnstructuredAddressWithRr03Only() {
-        String xml = dev.thinkahead.sepa.Fixtures.pastDatedInstantWithUnstructuredCreditorAddress(SAMPLE_MESSAGE_ID,
-                java.time.LocalDate.of(2026, 10, 25));
+        String xml = dev.thinkahead.sepa.Fixtures.pastDatedInstantWithUnstructuredCreditorAddress(
+                SAMPLE_MESSAGE_ID, java.time.LocalDate.of(2026, 10, 25));
 
         ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
 
@@ -357,13 +373,14 @@ class PaymentFileValidatorTest {
     }
 
     private static String withTwoPaymentInformationBlocks(String secondPaymentInformationId) {
-        String first = VALID_PAIN_001.substring(VALID_PAIN_001.indexOf("<PmtInf>"),
-                VALID_PAIN_001.indexOf("</PmtInf>") + "</PmtInf>".length());
-        String second = first.replace("<PmtInfId>PMT-001</PmtInfId>",
-                "<PmtInfId>" + secondPaymentInformationId + "</PmtInfId>");
+        String first = VALID_PAIN_001.substring(
+                VALID_PAIN_001.indexOf("<PmtInf>"), VALID_PAIN_001.indexOf("</PmtInf>") + "</PmtInf>".length());
+        String second = first.replace(
+                "<PmtInfId>PMT-001</PmtInfId>", "<PmtInfId>" + secondPaymentInformationId + "</PmtInfId>");
         return VALID_PAIN_001
                 .replace(first, first + "\n    " + second)
-                .replace("<NbOfTxs>2</NbOfTxs>\n      <CtrlSum>150.50</CtrlSum>\n      <InitgPty>",
+                .replace(
+                        "<NbOfTxs>2</NbOfTxs>\n      <CtrlSum>150.50</CtrlSum>\n      <InitgPty>",
                         "<NbOfTxs>4</NbOfTxs>\n      <CtrlSum>301.00</CtrlSum>\n      <InitgPty>");
     }
 
@@ -376,7 +393,9 @@ class PaymentFileValidatorTest {
         ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
 
         assertThat(result.accepted()).isFalse();
-        assertThat(result.violations()).isNotEmpty().allSatisfy(v -> assertThat(v.reasonCode()).isEqualTo("FF01"));
+        assertThat(result.violations())
+                .isNotEmpty()
+                .allSatisfy(v -> assertThat(v.reasonCode()).isEqualTo("FF01"));
         assertThat(result.originalMessageNameId()).isEqualTo("pain.001.001.09");
     }
 
@@ -405,7 +424,8 @@ class PaymentFileValidatorTest {
         assertThat(result.accepted()).isFalse();
         assertThat(result.originalMessageId()).isNull();
         assertThat(result.originalMessageNameId()).isNull();
-        assertThat(result.violations()).singleElement()
+        assertThat(result.violations())
+                .singleElement()
                 .satisfies(v -> assertThat(v.reasonCode()).isEqualTo("FF01"));
     }
 }

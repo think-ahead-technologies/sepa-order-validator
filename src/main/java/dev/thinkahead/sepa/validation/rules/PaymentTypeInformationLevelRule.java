@@ -23,7 +23,9 @@ public class PaymentTypeInformationLevelRule implements ValidationRule<PaymentTy
         if (paymentInformationWithPaymentType == null || !path.startsWith(paymentInformationWithPaymentType)) {
             return List.of();
         }
-        return List.of(new Violation("FF01", path,
+        return List.of(new Violation(
+                "FF01",
+                path,
                 "Payment type information must not be given on payment information and transaction level"));
     }
 }

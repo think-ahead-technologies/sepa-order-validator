@@ -27,8 +27,8 @@ public class ExecutionDateRule implements ValidationRule<PaymentInformation> {
             return List.of(new Violation("DT01", path, "Requested execution date " + date + " is in the past"));
         }
         if (!TargetCalendar.isBusinessDay(date)) {
-            return List.of(new Violation("DT01", path,
-                    "Requested execution date " + date + " is not a TARGET business day"));
+            return List.of(
+                    new Violation("DT01", path, "Requested execution date " + date + " is not a TARGET business day"));
         }
         return List.of();
     }

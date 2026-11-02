@@ -40,25 +40,32 @@ class RedriveEndToEndTest {
         } finally {
             customer.chmod(".", "outbound", 0755);
         }
-        UUID fileId = jdbc.sql("select id from payment_file where file_name = ?").param(fileName)
-                .query(UUID.class).single();
+        UUID fileId = jdbc.sql("select id from payment_file where file_name = ?")
+                .param(fileName)
+                .query(UUID.class)
+                .single();
 
         jdbc.sql("select redrive_work_item(?, 'DELIVER', 'ops.on.call', 'outbound permissions repaired')")
-                .param(fileId).query(String.class).single();
+                .param(fileId)
+                .query(String.class)
+                .single();
 
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("outbound"))
-                .filteredOn(name -> name.startsWith(reportPrefix)).hasSize(1));
+        await().atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(customer.list("outbound"))
+                        .filteredOn(name -> name.startsWith(reportPrefix))
+                        .hasSize(1));
         await().atMost(TIMEOUT).until(() -> "DONE".equals(deliverState(fileName)));
         assertThat(jdbc.sql("select event_type from audit_event where file_id = ? order by recorded_at")
-                .param(fileId).query(String.class).list())
-                .containsExactly("PaymentFileReceived", "PaymentFileValidated", "WorkItemRedriven",
-                        "StatusReportDelivered");
+                        .param(fileId)
+                        .query(String.class)
+                        .list())
+                .containsExactly(
+                        "PaymentFileReceived", "PaymentFileValidated", "WorkItemRedriven", "StatusReportDelivered");
     }
 
     private String deliverState(String fileName) {
         return jdbc.sql("""
                         select w.state from work_item w join payment_file f on f.id = w.file_id
-                        where f.file_name = ? and w.step = 'DELIVER'""").param(fileName)
-                .query(String.class).optional().orElse(null);
+                        where f.file_name = ? and w.step = 'DELIVER'""").param(fileName).query(String.class).optional().orElse(null);
     }
 }

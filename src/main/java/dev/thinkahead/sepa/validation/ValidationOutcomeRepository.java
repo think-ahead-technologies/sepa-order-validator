@@ -12,8 +12,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Repository
 class ValidationOutcomeRepository {
 
-    private static final TypeReference<List<Violation>> VIOLATIONS = new TypeReference<>() {
-    };
+    private static final TypeReference<List<Violation>> VIOLATIONS = new TypeReference<>() {};
 
     private final JdbcClient jdbc;
     private final JsonMapper json;
@@ -41,8 +40,11 @@ class ValidationOutcomeRepository {
                         select original_message_id, original_message_name_id, accepted, violations
                         from validation_result where file_id = ?""")
                 .param(fileId)
-                .query((rs, rowNum) -> new PaymentFileValidated(fileId, rs.getString("original_message_id"),
-                        rs.getString("original_message_name_id"), rs.getBoolean("accepted"),
+                .query((rs, rowNum) -> new PaymentFileValidated(
+                        fileId,
+                        rs.getString("original_message_id"),
+                        rs.getString("original_message_name_id"),
+                        rs.getBoolean("accepted"),
                         json.readValue(rs.getString("violations"), VIOLATIONS)))
                 .single();
     }

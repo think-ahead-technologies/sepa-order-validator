@@ -49,8 +49,11 @@ class WorkItemRepositoryIntegrationTest {
         workQueue.enqueue(fileId, Step.DELIVER);
         workQueue.enqueue(fileId, Step.DELIVER);
 
-        assertThat(jdbc.sql("select count(*) from work_item where file_id = ?").param(fileId)
-                .query(Integer.class).single()).isEqualTo(1);
+        assertThat(jdbc.sql("select count(*) from work_item where file_id = ?")
+                        .param(fileId)
+                        .query(Integer.class)
+                        .single())
+                .isEqualTo(1);
     }
 
     @Test
@@ -58,14 +61,15 @@ class WorkItemRepositoryIntegrationTest {
         UUID older = UUID.randomUUID();
         UUID urgent = UUID.randomUUID();
         workQueue.enqueue(older, Step.VALIDATE);
-        jdbc.sql("update work_item set next_attempt_at = now() - interval '1 minute' where file_id = ?").param(older)
+        jdbc.sql("update work_item set next_attempt_at = now() - interval '1 minute' where file_id = ?")
+                .param(older)
                 .update();
         workQueue.enqueue(urgent, Step.VALIDATE, Priority.HIGH);
 
-        assertThat(workItems.claim(Step.VALIDATE, LEASE)).hasValueSatisfying(
-                item -> assertThat(item.fileId()).isEqualTo(urgent));
-        assertThat(workItems.claim(Step.VALIDATE, LEASE)).hasValueSatisfying(
-                item -> assertThat(item.fileId()).isEqualTo(older));
+        assertThat(workItems.claim(Step.VALIDATE, LEASE))
+                .hasValueSatisfying(item -> assertThat(item.fileId()).isEqualTo(urgent));
+        assertThat(workItems.claim(Step.VALIDATE, LEASE))
+                .hasValueSatisfying(item -> assertThat(item.fileId()).isEqualTo(older));
     }
 
     @Test
@@ -78,7 +82,9 @@ class WorkItemRepositoryIntegrationTest {
         workQueue.enqueue(fileId, Step.REPORT);
         workQueue.enqueue(regular, Step.REPORT);
 
-        assertThat(jdbc.sql("select file_id, priority from work_item where step = 'REPORT'").query().listOfRows())
+        assertThat(jdbc.sql("select file_id, priority from work_item where step = 'REPORT'")
+                        .query()
+                        .listOfRows())
                 .extracting(row -> row.get("file_id"), row -> row.get("priority"))
                 .containsExactlyInAnyOrder(
                         org.assertj.core.groups.Tuple.tuple(fileId, Priority.HIGH.value()),
@@ -106,7 +112,8 @@ class WorkItemRepositoryIntegrationTest {
         ClaimedItem lost = workItems.claim(Step.DELIVER, Duration.ofMillis(100)).orElseThrow();
 
         ClaimedItem takenOver = await().atMost(Duration.ofSeconds(5))
-                .until(() -> workItems.claim(Step.DELIVER, LEASE), Optional::isPresent).orElseThrow();
+                .until(() -> workItems.claim(Step.DELIVER, LEASE), Optional::isPresent)
+                .orElseThrow();
 
         assertThat(takenOver.attempt()).isEqualTo(2);
         assertThat(workItems.complete(lost)).as("stale lease token").isFalse();
@@ -116,7 +123,8 @@ class WorkItemRepositoryIntegrationTest {
 
     @Test
     void concurrentWorkersEachClaimDistinctItems() throws Exception {
-        List<UUID> fileIds = IntStream.range(0, 40).mapToObj(i -> UUID.randomUUID()).toList();
+        List<UUID> fileIds =
+                IntStream.range(0, 40).mapToObj(i -> UUID.randomUUID()).toList();
         fileIds.forEach(fileId -> workQueue.enqueue(fileId, Step.DELIVER));
         Set<UUID> claimed = ConcurrentHashMap.newKeySet();
         List<UUID> claimedTwice = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -148,7 +156,8 @@ class WorkItemRepositoryIntegrationTest {
         workQueue.enqueue(fileId, Step.DELIVER);
         ClaimedItem item = workItems.claim(Step.DELIVER, LEASE).orElseThrow();
 
-        assertThat(workItems.retryLater(item, Duration.ofHours(1), "SFTP server unreachable")).isTrue();
+        assertThat(workItems.retryLater(item, Duration.ofHours(1), "SFTP server unreachable"))
+                .isTrue();
 
         assertThat(workItems.claim(Step.DELIVER, LEASE)).isEmpty();
         assertThat(state(fileId)).isEqualTo("PENDING");
@@ -165,7 +174,9 @@ class WorkItemRepositoryIntegrationTest {
 
         assertThat(state(fileId)).isEqualTo("FAILED");
         assertThat(lastError(fileId)).isEqualTo("gave up");
-        assertThat(jdbc.sql("update work_item set locked_until = null where file_id = ?").param(fileId).update())
+        assertThat(jdbc.sql("update work_item set locked_until = null where file_id = ?")
+                        .param(fileId)
+                        .update())
                 .isEqualTo(1);
         assertThat(workItems.claim(Step.DELIVER, LEASE)).isEmpty();
     }
@@ -175,7 +186,8 @@ class WorkItemRepositoryIntegrationTest {
         workQueue.enqueue(UUID.randomUUID(), Step.DELIVER);
         ClaimedItem lost = workItems.claim(Step.DELIVER, Duration.ofMillis(100)).orElseThrow();
         ClaimedItem current = await().atMost(Duration.ofSeconds(5))
-                .until(() -> workItems.claim(Step.DELIVER, LEASE), Optional::isPresent).orElseThrow();
+                .until(() -> workItems.claim(Step.DELIVER, LEASE), Optional::isPresent)
+                .orElseThrow();
 
         assertThat(workItems.retryLater(lost, Duration.ZERO, "late")).isFalse();
         assertThat(workItems.fail(lost, "late")).isFalse();
@@ -183,11 +195,16 @@ class WorkItemRepositoryIntegrationTest {
     }
 
     private String state(UUID fileId) {
-        return jdbc.sql("select state from work_item where file_id = ?").param(fileId).query(String.class).single();
+        return jdbc.sql("select state from work_item where file_id = ?")
+                .param(fileId)
+                .query(String.class)
+                .single();
     }
 
     private String lastError(UUID fileId) {
-        return jdbc.sql("select last_error from work_item where file_id = ?").param(fileId)
-                .query(String.class).single();
+        return jdbc.sql("select last_error from work_item where file_id = ?")
+                .param(fileId)
+                .query(String.class)
+                .single();
     }
 }

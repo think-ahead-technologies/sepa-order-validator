@@ -10,5 +10,4 @@ public record PaymentFileValidated(
         String originalMessageId,
         String originalMessageNameId,
         boolean accepted,
-        List<Violation> violations) {
-}
+        List<Violation> violations) {}

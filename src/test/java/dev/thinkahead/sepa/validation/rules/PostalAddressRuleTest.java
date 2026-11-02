@@ -24,19 +24,19 @@ class PostalAddressRuleTest {
 
     @Test
     void acceptsStructuredAndHybridAddresses() {
-        assertThat(rule.validate(new PostalAddress(CREDITOR_ADDRESS, Party.CREDITOR, 0, true, true))).isEmpty();
-        assertThat(rule.validate(new PostalAddress(CREDITOR_ADDRESS, Party.CREDITOR, 2, true, true))).isEmpty();
+        assertThat(rule.validate(new PostalAddress(CREDITOR_ADDRESS, Party.CREDITOR, 0, true, true)))
+                .isEmpty();
+        assertThat(rule.validate(new PostalAddress(CREDITOR_ADDRESS, Party.CREDITOR, 2, true, true)))
+                .isEmpty();
     }
 
     @Test
     void reportsRr03ForAnUnstructuredCreditorAddress() {
-        assertThat(rule.validate(unstructured(Party.CREDITOR)))
-                .singleElement()
-                .satisfies(v -> {
-                    assertThat(v.reasonCode()).isEqualTo("RR03");
-                    assertThat(v.path()).isEqualTo(CREDITOR_ADDRESS);
-                    assertThat(v.message()).contains("TwnNm").contains("Ctry");
-                });
+        assertThat(rule.validate(unstructured(Party.CREDITOR))).singleElement().satisfies(v -> {
+            assertThat(v.reasonCode()).isEqualTo("RR03");
+            assertThat(v.path()).isEqualTo(CREDITOR_ADDRESS);
+            assertThat(v.message()).contains("TwnNm").contains("Ctry");
+        });
     }
 
     @Test
@@ -71,12 +71,10 @@ class PostalAddressRuleTest {
     void reportsMoreThanTwoAddressLines() {
         var address = new PostalAddress(DEBTOR_ADDRESS, Party.DEBTOR, 3, true, true);
 
-        assertThat(rule.validate(address))
-                .singleElement()
-                .satisfies(v -> {
-                    assertThat(v.reasonCode()).isEqualTo("RR02");
-                    assertThat(v.path()).isEqualTo(DEBTOR_ADDRESS + "/AdrLine");
-                    assertThat(v.message()).contains("3");
-                });
+        assertThat(rule.validate(address)).singleElement().satisfies(v -> {
+            assertThat(v.reasonCode()).isEqualTo("RR02");
+            assertThat(v.path()).isEqualTo(DEBTOR_ADDRESS + "/AdrLine");
+            assertThat(v.message()).contains("3");
+        });
     }
 }

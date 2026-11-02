@@ -14,7 +14,8 @@ import java.util.HexFormat;
 record ReceivedContent(long size, String sha256, byte[] content) {
 
     static ReceivedContent of(byte[] content) {
-        return new ReceivedContent(content.length, HexFormat.of().formatHex(newDigest().digest(content)), content);
+        return new ReceivedContent(
+                content.length, HexFormat.of().formatHex(newDigest().digest(content)), content);
     }
 
     static ReceivedContent oversized(InputStream in) {

@@ -21,7 +21,8 @@ class EventPublicationConfigurationTest {
 
     @Test
     void deletesCompletedPublications() {
-        assertThat(application.getProperty("spring.modulith.events.completion-mode")).isEqualTo("delete");
+        assertThat(application.getProperty("spring.modulith.events.completion-mode"))
+                .isEqualTo("delete");
     }
 
     private static Properties load() {

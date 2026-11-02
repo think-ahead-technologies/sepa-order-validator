@@ -18,8 +18,7 @@ public final class SecureXml {
 
     private static final String DISALLOW_DOCTYPE = "http://apache.org/xml/features/disallow-doctype-decl";
 
-    private SecureXml() {
-    }
+    private SecureXml() {}
 
     public static XMLInputFactory inputFactory() {
         XMLInputFactory factory = XMLInputFactory.newDefaultFactory();

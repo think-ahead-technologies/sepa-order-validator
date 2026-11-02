@@ -50,13 +50,19 @@ class PaymentFileProcessingEndToEndTest {
         String messageId = uniqueMessageId();
         Delivery delivery = submit(validPain001(messageId));
 
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='OrgnlMsgId']")).isEqualTo(messageId);
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='OrgnlMsgNmId']")).isEqualTo("pain.001.001.09");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("ACCP");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='OrgnlMsgId']"))
+                .isEqualTo(messageId);
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='OrgnlMsgNmId']"))
+                .isEqualTo("pain.001.001.09");
         assertThat(reasonCodes(delivery.report())).isEmpty();
         assertThat(fileStatus(delivery.fileName())).isEqualTo("ACCEPTED");
         assertThat(jdbc.sql("select replied_at is not null from payment_file where file_name = ?")
-                .param(delivery.fileName()).query(Boolean.class).single()).isTrue();
+                        .param(delivery.fileName())
+                        .query(Boolean.class)
+                        .single())
+                .isTrue();
         assertThat(customer.list("inbound")).doesNotContain(delivery.fileName());
         assertAuditTrailComplete(delivery.fileName());
     }
@@ -67,15 +73,18 @@ class PaymentFileProcessingEndToEndTest {
                 .replace("NL91ABNA0417164300", "NL91ABNA0417164301")
                 .replace("Ccy=\"EUR\">50.50", "Ccy=\"USD\">50.50"));
 
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("RJCT");
         assertThat(reasonCodes(delivery.report())).containsExactlyInAnyOrder("AC03", "AM03");
         assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
         assertAuditTrailComplete(delivery.fileName());
         UUID fileId = fileId(delivery.fileName());
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(LogLines.messagesForFile(output, fileId))
-                .anySatisfy(message -> assertThat(message).startsWith("Received payment file " + delivery.fileName()))
-                .anySatisfy(message -> assertThat(message).startsWith("Validated payment file: rejected"))
-                .anySatisfy(message -> assertThat(message).startsWith("Delivered status report")));
+        await().atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(LogLines.messagesForFile(output, fileId))
+                        .anySatisfy(message ->
+                                assertThat(message).startsWith("Received payment file " + delivery.fileName()))
+                        .anySatisfy(message -> assertThat(message).startsWith("Validated payment file: rejected"))
+                        .anySatisfy(message -> assertThat(message).startsWith("Delivered status report")));
         assertThat(output).doesNotContain("NL91ABNA0417164301");
     }
 
@@ -84,26 +93,28 @@ class PaymentFileProcessingEndToEndTest {
         LoggerFactory.getLogger(PaymentFileProcessingEndToEndTest.class)
                 .info("Creditor account DE89370400440532013000");
 
-        assertThat(LogLines.of(output)).anySatisfy(line ->
-                assertThat(line.path("message").asString()).isEqualTo("Creditor account DE89**************3000"));
+        assertThat(LogLines.of(output))
+                .anySatisfy(line -> assertThat(line.path("message").asString())
+                        .isEqualTo("Creditor account DE89**************3000"));
         assertThat(output).doesNotContain("DE89370400440532013000");
     }
 
     @Test
     void paymentToACountryThatJoinedSepaIn2025IsAccepted() throws Exception {
-        Delivery delivery = submit(validPain001(uniqueMessageId())
-                .replace("NL91ABNA0417164300", "MK07250120000058984"));
+        Delivery delivery =
+                submit(validPain001(uniqueMessageId()).replace("NL91ABNA0417164300", "MK07250120000058984"));
 
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("ACCP");
         assertThat(fileStatus(delivery.fileName())).isEqualTo("ACCEPTED");
     }
 
     @Test
     void lowerCaseIbanIsRejectedWithAc03RatherThanAsSchemaError() throws Exception {
-        Delivery delivery = submit(validPain001(uniqueMessageId())
-                .replace("NL91ABNA0417164300", "NL91abna0417164300"));
+        Delivery delivery = submit(validPain001(uniqueMessageId()).replace("NL91ABNA0417164300", "NL91abna0417164300"));
 
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("RJCT");
         assertThat(reasonCodes(delivery.report())).containsExactly("AC03");
     }
 
@@ -111,7 +122,8 @@ class PaymentFileProcessingEndToEndTest {
     void sepaFieldRuleViolationsAreReportedWithTheirReasonCodes() throws Exception {
         Delivery delivery = submit(Fixtures.withSepaFieldRuleViolations(uniqueMessageId()));
 
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("RJCT");
         assertThat(reasonCodes(delivery.report())).containsExactlyInAnyOrder("AM01", "RC01", "AM12", "FF01", "FF01");
         assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
         assertAuditTrailComplete(delivery.fileName());
@@ -121,7 +133,8 @@ class PaymentFileProcessingEndToEndTest {
     void unstructuredAddressAndMissingCreditorNameAreRejectedWithRr03() throws Exception {
         Delivery delivery = submit(Fixtures.withCreditorNameAndAddressViolations(uniqueMessageId()));
 
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("RJCT");
         assertThat(reasonCodes(delivery.report())).containsExactly("RR03", "RR03");
         assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
         assertAuditTrailComplete(delivery.fileName());
@@ -131,10 +144,11 @@ class PaymentFileProcessingEndToEndTest {
     void pastDatedSepaInstantWithAnUnstructuredAddressIsRejectedWithRr03() throws Exception {
         java.time.LocalDate pastSunday = java.time.LocalDate.of(2026, 10, 25);
 
-        Delivery delivery = submit(Fixtures.pastDatedInstantWithUnstructuredCreditorAddress(uniqueMessageId(),
-                pastSunday));
+        Delivery delivery =
+                submit(Fixtures.pastDatedInstantWithUnstructuredCreditorAddress(uniqueMessageId(), pastSunday));
 
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("RJCT");
         assertThat(reasonCodes(delivery.report())).containsExactly("RR03");
         assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
         assertAuditTrailComplete(delivery.fileName());
@@ -144,7 +158,8 @@ class PaymentFileProcessingEndToEndTest {
     void charactersOutsideTheDkCharacterSetAreRejectedWithCh16() throws Exception {
         Delivery delivery = submit(Fixtures.withCharacterSetViolations(uniqueMessageId()));
 
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("RJCT");
         assertThat(reasonCodes(delivery.report())).containsExactly("CH16", "CH16");
         assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
         assertAuditTrailComplete(delivery.fileName());
@@ -156,7 +171,8 @@ class PaymentFileProcessingEndToEndTest {
 
         Delivery delivery = submit(Fixtures.validInstantPain001(uniqueMessageId(), pastSunday));
 
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("ACCP");
         assertThat(reasonCodes(delivery.report())).isEmpty();
         assertThat(fileStatus(delivery.fileName())).isEqualTo("ACCEPTED");
         assertAuditTrailComplete(delivery.fileName());
@@ -164,27 +180,29 @@ class PaymentFileProcessingEndToEndTest {
 
     @Test
     void sepaInstantInboxAcceptsSepaInstantAndRejectsSepaCreditTransfersWithAg02() throws Exception {
-        Delivery instant = submit("inbound-instant",
-                Fixtures.validInstantPain001(uniqueMessageId(), Fixtures.futureExecutionDate()));
+        Delivery instant = submit(
+                "inbound-instant", Fixtures.validInstantPain001(uniqueMessageId(), Fixtures.futureExecutionDate()));
         Delivery creditTransfer = submit("inbound-instant", validPain001(uniqueMessageId()));
 
         assertThat(xpath(instant.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
-        assertThat(xpath(creditTransfer.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(xpath(creditTransfer.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("RJCT");
         assertThat(reasonCodes(creditTransfer.report())).containsExactly("AG02");
         assertAuditTrailComplete(instant.fileName());
     }
 
     @Test
     void ordersOutsideSepaCreditTransferAreRejected() throws Exception {
-        Delivery cheque = submit(validPain001(uniqueMessageId())
-                .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>CHK</PmtMtd>"));
-        Delivery chargesToDebtor = submit(validPain001(uniqueMessageId())
-                .replace("<ChrgBr>SLEV</ChrgBr>", "<ChrgBr>DEBT</ChrgBr>"));
-        Delivery urgentPayment = submit(validPain001(uniqueMessageId())
-                .replaceFirst("(<SvcLvl>\\s*<Cd>)SEPA(</Cd>)", "$1URGP$2"));
+        Delivery cheque =
+                submit(validPain001(uniqueMessageId()).replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>CHK</PmtMtd>"));
+        Delivery chargesToDebtor =
+                submit(validPain001(uniqueMessageId()).replace("<ChrgBr>SLEV</ChrgBr>", "<ChrgBr>DEBT</ChrgBr>"));
+        Delivery urgentPayment =
+                submit(validPain001(uniqueMessageId()).replaceFirst("(<SvcLvl>\\s*<Cd>)SEPA(</Cd>)", "$1URGP$2"));
 
         for (Delivery delivery : List.of(cheque, chargesToDebtor, urgentPayment)) {
-            assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+            assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                    .isEqualTo("RJCT");
             assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
             assertAuditTrailComplete(delivery.fileName());
         }
@@ -200,7 +218,8 @@ class PaymentFileProcessingEndToEndTest {
 
         Delivery delivery = submit(validPain001(uniqueMessageId(), saturday));
 
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("RJCT");
         assertThat(reasonCodes(delivery.report())).containsExactly("DT01");
         assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
         assertAuditTrailComplete(delivery.fileName());
@@ -212,13 +231,20 @@ class PaymentFileProcessingEndToEndTest {
         String rejectedMessageId = uniqueMessageId();
         String fileName = "e2e-container-" + UUID.randomUUID() + ".xml";
         String baseName = fileName.replace(".xml", "");
-        customer.upload("inbound", fileName, bytes(Fixtures.container(validPain001(acceptedMessageId),
-                validPain001(rejectedMessageId).replace("NL91ABNA0417164300", "NL91ABNA0417164301"))));
+        customer.upload(
+                "inbound",
+                fileName,
+                bytes(Fixtures.container(
+                        validPain001(acceptedMessageId),
+                        validPain001(rejectedMessageId).replace("NL91ABNA0417164300", "NL91ABNA0417164301"))));
 
-        List<String> reports = await().atMost(TIMEOUT).until(
-                () -> customer.list("outbound").stream().filter(name -> name.startsWith(baseName + "-")).sorted()
-                        .toList(),
-                names -> names.size() == 2);
+        List<String> reports = await().atMost(TIMEOUT)
+                .until(
+                        () -> customer.list("outbound").stream()
+                                .filter(name -> name.startsWith(baseName + "-"))
+                                .sorted()
+                                .toList(),
+                        names -> names.size() == 2);
 
         assertThat(reports).allSatisfy(name -> assertThat(name).startsWith(baseName + "-msg"));
         byte[] first = customer.download("outbound", reports.get(0));
@@ -232,9 +258,12 @@ class PaymentFileProcessingEndToEndTest {
         assertThat(xpath(second, GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
         assertThat(reasonCodes(second)).containsExactly("AC03");
         assertThat(fileStatus(fileName)).isEqualTo("SPLIT");
-        await().during(Duration.ofSeconds(2)).atMost(TIMEOUT).untilAsserted(() ->
-                assertThat(customer.list("outbound")).filteredOn(name -> name.startsWith(baseName + "-"))
-                        .as("no status report for the container itself").hasSize(2));
+        await().during(Duration.ofSeconds(2))
+                .atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(customer.list("outbound"))
+                        .filteredOn(name -> name.startsWith(baseName + "-"))
+                        .as("no status report for the container itself")
+                        .hasSize(2));
     }
 
     @Test
@@ -243,15 +272,19 @@ class PaymentFileProcessingEndToEndTest {
         String baseName = fileName.replace(".xml", "");
         customer.upload("inbound", fileName, bytes(Fixtures.CONTAINER_WITH_HASH));
 
-        List<String> reports = await().atMost(TIMEOUT).until(
-                () -> customer.list("outbound").stream().filter(name -> name.startsWith(baseName + "-msg")).sorted()
-                        .toList(),
-                names -> names.size() == 2);
+        List<String> reports = await().atMost(TIMEOUT)
+                .until(
+                        () -> customer.list("outbound").stream()
+                                .filter(name -> name.startsWith(baseName + "-msg"))
+                                .sorted()
+                                .toList(),
+                        names -> names.size() == 2);
 
         for (int i = 0; i < 2; i++) {
             byte[] report = customer.download("outbound", reports.get(i));
             assertPain002SchemaValid(report);
-            assertThat(xpath(report, GROUP + "/*[local-name()='OrgnlMsgId']")).isEqualTo("MSG-CONTAINER-HASH-" + (i + 1));
+            assertThat(xpath(report, GROUP + "/*[local-name()='OrgnlMsgId']"))
+                    .isEqualTo("MSG-CONTAINER-HASH-" + (i + 1));
             assertThat(xpath(report, GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
         }
         assertThat(fileStatus(fileName)).isEqualTo("SPLIT");
@@ -262,18 +295,21 @@ class PaymentFileProcessingEndToEndTest {
         Delivery delivery = submit(Fixtures.container(validPain001(uniqueMessageId()))
                 .replaceFirst("(?s)<ContainerId>.*?</ContainerId>", ""));
 
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='OrgnlMsgId']")).isEqualTo("NOTPROVIDED");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("RJCT");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='OrgnlMsgId']"))
+                .isEqualTo("NOTPROVIDED");
         assertThat(reasonCodes(delivery.report())).isNotEmpty().containsOnly("FF01");
         assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
     }
 
     @Test
     void schemaInvalidFileIsRejectedWithFf01() throws Exception {
-        Delivery delivery = submit(validPain001(uniqueMessageId())
-                .replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>XYZ</PmtMtd>"));
+        Delivery delivery =
+                submit(validPain001(uniqueMessageId()).replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>XYZ</PmtMtd>"));
 
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("RJCT");
         assertThat(reasonCodes(delivery.report())).isNotEmpty().containsOnly("FF01");
         assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
     }
@@ -285,8 +321,10 @@ class PaymentFileProcessingEndToEndTest {
 
         Delivery resubmission = submit(xml);
 
-        assertThat(xpath(original.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
-        assertThat(xpath(resubmission.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(xpath(original.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("ACCP");
+        assertThat(xpath(resubmission.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("RJCT");
         assertThat(reasonCodes(resubmission.report())).containsExactly("DU01");
         assertThat(fileStatus(original.fileName())).isEqualTo("ACCEPTED");
         assertThat(fileStatus(resubmission.fileName())).isEqualTo("REJECTED");
@@ -299,13 +337,21 @@ class PaymentFileProcessingEndToEndTest {
         String fileName = "slow-e2e-" + UUID.randomUUID() + ".xml";
         String reportPrefix = fileName.replace(".xml", "") + "-";
 
-        customer.uploadSlowly("inbound", fileName, bytes(validPain001(messageId)), 20, Duration.ofMillis(100),
+        customer.uploadSlowly(
+                "inbound",
+                fileName,
+                bytes(validPain001(messageId)),
+                20,
+                Duration.ofMillis(100),
                 () -> assertThat(customer.list("outbound")).noneMatch(name -> name.startsWith(reportPrefix)));
 
-        String reportName = await().atMost(TIMEOUT).until(
-                () -> customer.list("outbound").stream().filter(name -> name.startsWith(reportPrefix))
-                        .findFirst().orElse(null),
-                name -> name != null);
+        String reportName = await().atMost(TIMEOUT)
+                .until(
+                        () -> customer.list("outbound").stream()
+                                .filter(name -> name.startsWith(reportPrefix))
+                                .findFirst()
+                                .orElse(null),
+                        name -> name != null);
         byte[] report = customer.download("outbound", reportName);
         assertThat(xpath(report, GROUP + "/*[local-name()='GrpSts']")).isEqualTo("ACCP");
         assertThat(xpath(report, GROUP + "/*[local-name()='OrgnlMsgId']")).isEqualTo(messageId);
@@ -319,8 +365,10 @@ class PaymentFileProcessingEndToEndTest {
 
         customer.upload("processing", UUID.randomUUID() + "-" + fileName, bytes(validPain001(uniqueMessageId())));
 
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(customer.list("outbound"))
-                .filteredOn(name -> name.startsWith(reportPrefix)).hasSize(1));
+        await().atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(customer.list("outbound"))
+                        .filteredOn(name -> name.startsWith(reportPrefix))
+                        .hasSize(1));
         assertThat(fileStatus(fileName)).isEqualTo("ACCEPTED");
         assertAuditTrailComplete(fileName);
     }
@@ -329,7 +377,8 @@ class PaymentFileProcessingEndToEndTest {
     void fileAboveTheMaximumSizeIsRejectedWithFf01() throws Exception {
         Delivery delivery = submit(Fixtures.paddedTo(validPain001(uniqueMessageId()), 1_100_000));
 
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("RJCT");
         assertThat(reasonCodes(delivery.report())).containsExactly("FF01");
         assertThat(fileStatus(delivery.fileName())).isEqualTo("REJECTED");
     }
@@ -354,14 +403,15 @@ class PaymentFileProcessingEndToEndTest {
                 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.09">&xxe;</Document>
                 """);
 
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
-        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='OrgnlMsgId']")).isEqualTo("NOTPROVIDED");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("RJCT");
+        assertThat(xpath(delivery.report(), GROUP + "/*[local-name()='OrgnlMsgId']"))
+                .isEqualTo("NOTPROVIDED");
         assertThat(reasonCodes(delivery.report())).containsExactly("FF01");
         assertThat(new String(delivery.report())).doesNotContain("root:");
     }
 
-    private record Delivery(String fileName, byte[] report) {
-    }
+    private record Delivery(String fileName, byte[] report) {}
 
     private Delivery submit(String xml) {
         return submit("inbound", xml);
@@ -372,31 +422,43 @@ class PaymentFileProcessingEndToEndTest {
         String reportPrefix = fileName.replace(".xml", "") + "-";
         customer.upload(inbox, fileName, bytes(xml));
 
-        String reportName = await().atMost(TIMEOUT).until(
-                () -> customer.list("outbound").stream().filter(name -> name.startsWith(reportPrefix))
-                        .findFirst().orElse(null),
-                name -> name != null);
+        String reportName = await().atMost(TIMEOUT)
+                .until(
+                        () -> customer.list("outbound").stream()
+                                .filter(name -> name.startsWith(reportPrefix))
+                                .findFirst()
+                                .orElse(null),
+                        name -> name != null);
         byte[] report = customer.download("outbound", reportName);
         assertPain002SchemaValid(report);
         return new Delivery(fileName, report);
     }
 
     private UUID fileId(String fileName) {
-        return jdbc.sql("select id from payment_file where file_name = ?").param(fileName)
-                .query(UUID.class).single();
+        return jdbc.sql("select id from payment_file where file_name = ?")
+                .param(fileName)
+                .query(UUID.class)
+                .single();
     }
 
     private String fileStatus(String fileName) {
-        return jdbc.sql("select status from payment_file where file_name = ?").param(fileName)
-                .query(String.class).single();
+        return jdbc.sql("select status from payment_file where file_name = ?")
+                .param(fileName)
+                .query(String.class)
+                .single();
     }
 
     private void assertAuditTrailComplete(String fileName) {
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(jdbc.sql("""
+        await().atMost(TIMEOUT)
+                .untilAsserted(() -> assertThat(jdbc.sql("""
                         select a.event_type from audit_event a
                         join payment_file f on f.id = a.file_id
-                        where f.file_name = ?""").param(fileName).query(String.class).list())
-                .containsExactlyInAnyOrder("PaymentFileReceived", "PaymentFileValidated", "StatusReportDelivered"));
+                        where f.file_name = ?""")
+                                .param(fileName)
+                                .query(String.class)
+                                .list())
+                        .containsExactlyInAnyOrder(
+                                "PaymentFileReceived", "PaymentFileValidated", "StatusReportDelivered"));
     }
 
     private static void assertPain002SchemaValid(byte[] report) {
@@ -411,11 +473,15 @@ class PaymentFileProcessingEndToEndTest {
     }
 
     private static List<String> reasonCodes(byte[] report) throws Exception {
-        NodeList nodes = (NodeList) XPathFactory.newDefaultInstance().newXPath().evaluate(
-                GROUP + "/*[local-name()='StsRsnInf']/*[local-name()='Rsn']/*[local-name()='Cd']",
-                document(report), XPathConstants.NODESET);
+        NodeList nodes = (NodeList) XPathFactory.newDefaultInstance()
+                .newXPath()
+                .evaluate(
+                        GROUP + "/*[local-name()='StsRsnInf']/*[local-name()='Rsn']/*[local-name()='Cd']",
+                        document(report),
+                        XPathConstants.NODESET);
         return java.util.stream.IntStream.range(0, nodes.getLength())
-                .mapToObj(i -> nodes.item(i).getTextContent()).toList();
+                .mapToObj(i -> nodes.item(i).getTextContent())
+                .toList();
     }
 
     private static String xpath(byte[] report, String expression) throws Exception {

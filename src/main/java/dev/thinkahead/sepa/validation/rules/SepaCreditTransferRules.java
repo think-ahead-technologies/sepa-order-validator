@@ -18,9 +18,14 @@ import java.util.List;
 
 public final class SepaCreditTransferRules implements Pain001Handler {
 
-    private static final List<ValidationRule<CreditTransferTransaction>> TRANSACTION_RULES =
-            List.of(new CreditorIbanRule(), new EuroCurrencyRule(), new AmountRule(), new CreditorAgentRule(),
-                    new RemittanceInformationRule(), new CreditorReferenceRule(), new CreditorNameRule());
+    private static final List<ValidationRule<CreditTransferTransaction>> TRANSACTION_RULES = List.of(
+            new CreditorIbanRule(),
+            new EuroCurrencyRule(),
+            new AmountRule(),
+            new CreditorAgentRule(),
+            new RemittanceInformationRule(),
+            new CreditorReferenceRule(),
+            new CreditorNameRule());
     private static final List<ValidationRule<Totals>> TOTALS_RULES =
             List.of(new NumberOfTransactionsRule(), new ControlSumRule());
     private static final List<ValidationRule<PartyName>> PARTY_NAME_RULES = List.of(new PartyNameLengthRule());
@@ -47,8 +52,12 @@ public final class SepaCreditTransferRules implements Pain001Handler {
      */
     public SepaCreditTransferRules(int maxReportedViolations, LocalDate today, Submission submission) {
         this.maxReportedViolations = maxReportedViolations;
-        this.paymentInformationRules = List.of(new DebtorIbanRule(), new DebtorAgentRule(),
-                new UniquePaymentInformationIdRule(), new ExecutionDateRule(today), new SingleSchemeRule(),
+        this.paymentInformationRules = List.of(
+                new DebtorIbanRule(),
+                new DebtorAgentRule(),
+                new UniquePaymentInformationIdRule(),
+                new ExecutionDateRule(today),
+                new SingleSchemeRule(),
                 new SubmissionRule(submission));
     }
 
@@ -92,8 +101,8 @@ public final class SepaCreditTransferRules implements Pain001Handler {
             return List.copyOf(violations);
         }
         var reported = new ArrayList<>(violations);
-        reported.add(new Violation("NARR", "Document",
-                "... and " + unreportedViolations + " more violations not listed"));
+        reported.add(
+                new Violation("NARR", "Document", "... and " + unreportedViolations + " more violations not listed"));
         return List.copyOf(reported);
     }
 

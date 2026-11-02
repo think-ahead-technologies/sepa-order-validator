@@ -24,13 +24,15 @@ public class AmountRule implements ValidationRule<CreditTransferTransaction> {
         }
         var violations = new ArrayList<Violation>();
         if (amount.compareTo(MAXIMUM) > 0) {
-            violations.add(new Violation("AM02", path,
+            violations.add(new Violation(
+                    "AM02",
+                    path,
                     "Amount " + amount.toPlainString() + " exceeds the SEPA maximum of " + MAXIMUM.toPlainString()));
         }
         // Trailing zeros are insignificant, as for the XSD fractionDigits facet: 1.500 has one decimal place.
         if (amount.stripTrailingZeros().scale() > 2) {
-            violations.add(new Violation("AM12", path,
-                    "Amount " + amount.toPlainString() + " has more than two decimal places"));
+            violations.add(new Violation(
+                    "AM12", path, "Amount " + amount.toPlainString() + " has more than two decimal places"));
         }
         return List.copyOf(violations);
     }

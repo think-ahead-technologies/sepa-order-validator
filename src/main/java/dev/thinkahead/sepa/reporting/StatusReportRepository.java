@@ -1,4 +1,4 @@
-// ABOUTME: Stores exactly one pain.002 status report per payment file, for delivery, redelivery and audit (spec status-report).
+// ABOUTME: Stores exactly one pain.002 status report per payment file, for delivery, redelivery and audit.
 // ABOUTME: Uses plain SQL via JdbcClient against the Flyway-managed status_report table.
 package dev.thinkahead.sepa.reporting;
 
@@ -16,8 +16,11 @@ class StatusReportRepository {
     }
 
     boolean existsForFile(UUID fileId) {
-        return jdbc.sql("select count(*) from status_report where file_id = ?").param(fileId)
-                .query(Integer.class).single() > 0;
+        return jdbc.sql("select count(*) from status_report where file_id = ?")
+                        .param(fileId)
+                        .query(Integer.class)
+                        .single()
+                > 0;
     }
 
     /**
@@ -28,12 +31,13 @@ class StatusReportRepository {
                         insert into status_report (message_id, file_id, group_status, content, created_at)
                         values (:messageId, :fileId, :groupStatus, :content, :createdAt)
                         on conflict (file_id) do nothing""")
-                .param("messageId", report.messageId())
-                .param("fileId", fileId)
-                .param("groupStatus", report.groupStatus().name())
-                .param("content", content)
-                .param("createdAt", report.creationDateTime())
-                .update() == 1;
+                        .param("messageId", report.messageId())
+                        .param("fileId", fileId)
+                        .param("groupStatus", report.groupStatus().name())
+                        .param("content", content)
+                        .param("createdAt", report.creationDateTime())
+                        .update()
+                == 1;
     }
 
     StoredStatusReport findByFile(UUID fileId) {
@@ -47,9 +51,10 @@ class StatusReportRepository {
     }
 
     void markDelivered(UUID fileId) {
-        jdbc.sql("update status_report set delivered_at = now() where file_id = ?").param(fileId).update();
+        jdbc.sql("update status_report set delivered_at = now() where file_id = ?")
+                .param(fileId)
+                .update();
     }
 
-    record StoredStatusReport(String messageId, GroupStatus groupStatus, byte[] content) {
-    }
+    record StoredStatusReport(String messageId, GroupStatus groupStatus, byte[] content) {}
 }

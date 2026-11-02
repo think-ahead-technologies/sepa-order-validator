@@ -40,21 +40,33 @@ public class TestcontainersConfiguration {
     private static final Duration EXEC_TIMEOUT = Duration.ofSeconds(30);
 
     private static final List<String> APPLICATION_PROPERTY_NAMES = List.of(
-            "sepa.sftp.host", "sepa.sftp.port", "sepa.sftp.username", "sepa.sftp.password",
-            "sepa.sftp.known-hosts", "sepa.sftp.poll-interval", "sepa.sftp.instant-inbound-directory",
-            "sepa.leader-election.lock-time-to-live", "sepa.leader-election.heartbeat", "sepa.intake.max-file-size",
-            "sepa.intake.reply-check-interval", "server.port", "server.address", "sepa.processing.deliver.poll-interval",
-            "sepa.processing.deliver.initial-backoff", "sepa.processing.deliver.max-backoff",
-            "sepa.processing.deliver.lease", "sepa.processing.deliver.timeout",
-            "sepa.processing.validate.poll-interval", "sepa.processing.validate.initial-backoff",
-            "sepa.processing.validate.max-backoff", "sepa.processing.validate.max-attempts",
-            "sepa.processing.report.poll-interval", "sepa.processing.report.initial-backoff",
+            "sepa.sftp.host",
+            "sepa.sftp.port",
+            "sepa.sftp.username",
+            "sepa.sftp.password",
+            "sepa.sftp.known-hosts",
+            "sepa.sftp.poll-interval",
+            "sepa.sftp.instant-inbound-directory",
+            "sepa.leader-election.lock-time-to-live",
+            "sepa.leader-election.heartbeat",
+            "sepa.intake.max-file-size",
+            "sepa.intake.reply-check-interval",
+            "server.port",
+            "server.address",
+            "sepa.processing.deliver.poll-interval",
+            "sepa.processing.deliver.initial-backoff",
+            "sepa.processing.deliver.max-backoff",
+            "sepa.processing.deliver.lease",
+            "sepa.processing.deliver.timeout",
+            "sepa.processing.validate.poll-interval",
+            "sepa.processing.validate.initial-backoff",
+            "sepa.processing.validate.max-backoff",
+            "sepa.processing.validate.max-attempts",
+            "sepa.processing.report.poll-interval",
+            "sepa.processing.report.initial-backoff",
             "sepa.processing.report.max-backoff");
 
-    private static final String[] HOST_KEYS = {
-            "/etc/ssh/ssh_host_ecdsa_key.pub",
-            "/etc/ssh/ssh_host_rsa_key.pub"
-    };
+    private static final String[] HOST_KEYS = {"/etc/ssh/ssh_host_ecdsa_key.pub", "/etc/ssh/ssh_host_rsa_key.pub"};
 
     @Bean
     @ServiceConnection
@@ -136,8 +148,8 @@ public class TestcontainersConfiguration {
         sessions.setUser(SFTP_USER);
         sessions.setPassword(SFTP_PASSWORD);
         sessions.setKnownHostsResource(new FileSystemResource(knownHostsFile(sftp)));
-        sessions.setSshClientConfigurer(client ->
-                client.setKeyIdentityProvider(KeyIdentityProvider.EMPTY_KEYS_PROVIDER));
+        sessions.setSshClientConfigurer(
+                client -> client.setKeyIdentityProvider(KeyIdentityProvider.EMPTY_KEYS_PROVIDER));
         return new SftpTestClient(sessions);
     }
 
@@ -151,10 +163,15 @@ public class TestcontainersConfiguration {
         try {
             exec(sftp, "ssh-keygen", "-q", "-t", "ecdsa", "-b", "256", "-N", passphrase, "-f", keyFile);
             if (authorize) {
-                exec(sftp, "sh", "-c", "mkdir -p " + sshDirectory
-                        + " && cat " + keyFile + ".pub >> " + sshDirectory + "/authorized_keys"
-                        + " && chown -R " + SFTP_USER + ":" + SFTP_USER + " " + sshDirectory
-                        + " && chmod 700 " + sshDirectory + " && chmod 600 " + sshDirectory + "/authorized_keys");
+                exec(
+                        sftp,
+                        "sh",
+                        "-c",
+                        "mkdir -p " + sshDirectory
+                                + " && cat " + keyFile + ".pub >> " + sshDirectory + "/authorized_keys"
+                                + " && chown -R " + SFTP_USER + ":" + SFTP_USER + " " + sshDirectory
+                                + " && chmod 700 " + sshDirectory + " && chmod 600 " + sshDirectory
+                                + "/authorized_keys");
             }
             Path file = Files.createTempFile("sftp-client-key", "");
             file.toFile().deleteOnExit();
@@ -191,8 +208,8 @@ public class TestcontainersConfiguration {
         try {
             var result = withinExecTimeout(() -> container.execInContainer(command));
             if (result.getExitCode() != 0) {
-                throw new IllegalStateException("Command " + String.join(" ", command) + " failed: "
-                        + result.getStderr());
+                throw new IllegalStateException(
+                        "Command " + String.join(" ", command) + " failed: " + result.getStderr());
             }
             return result.getStdout();
         } catch (IOException e) {
@@ -209,8 +226,16 @@ public class TestcontainersConfiguration {
             for (String hostKey : HOST_KEYS) {
                 String publicKey = exec(sftp, "cat", hostKey).trim();
                 String[] typeAndKey = publicKey.split(" ");
-                knownHosts.append("[").append(sftp.getHost()).append("]:").append(sftp.getMappedPort(SFTP_PORT))
-                        .append(' ').append(typeAndKey[0]).append(' ').append(typeAndKey[1]).append('\n');
+                knownHosts
+                        .append("[")
+                        .append(sftp.getHost())
+                        .append("]:")
+                        .append(sftp.getMappedPort(SFTP_PORT))
+                        .append(' ')
+                        .append(typeAndKey[0])
+                        .append(' ')
+                        .append(typeAndKey[1])
+                        .append('\n');
             }
             Path file = Files.createTempFile("sftp-known-hosts", "");
             file.toFile().deleteOnExit();

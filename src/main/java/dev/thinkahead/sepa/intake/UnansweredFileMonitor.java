@@ -1,4 +1,4 @@
-// ABOUTME: Alerts (ERROR log and the sepa.intake.files.unanswered gauge) about files whose customer got no reply in time.
+// ABOUTME: Alerts (ERROR log, sepa.intake.files.unanswered gauge) about files whose customer got no reply in time.
 // ABOUTME: Catches every cause of a missing reply, from a stuck validation to an unreachable delivery channel.
 package dev.thinkahead.sepa.intake;
 
@@ -22,7 +22,10 @@ class UnansweredFileMonitor {
     private final IntakeLeadership leadership;
     private final IntakeProperties properties;
 
-    UnansweredFileMonitor(PaymentFileRepository repository, IntakeLeadership leadership, IntakeProperties properties,
+    UnansweredFileMonitor(
+            PaymentFileRepository repository,
+            IntakeLeadership leadership,
+            IntakeProperties properties,
             MeterRegistry meters) {
         this.repository = repository;
         this.leadership = leadership;
@@ -34,7 +37,8 @@ class UnansweredFileMonitor {
                 .register(meters);
     }
 
-    @Scheduled(fixedDelayString = "${sepa.intake.reply-check-interval}",
+    @Scheduled(
+            fixedDelayString = "${sepa.intake.reply-check-interval}",
             initialDelayString = "${sepa.intake.reply-check-interval}")
     void scheduledCheck() {
         if (leadership.isLeader()) {
@@ -48,8 +52,11 @@ class UnansweredFileMonitor {
     List<UUID> check() {
         List<UUID> overdue = repository.unansweredSince(properties.replyOverdueAfter(), MAX_LISTED);
         if (!overdue.isEmpty()) {
-            LOG.error("{} payment file(s) without a reply to the customer for more than {}: {}",
-                    overdue.size(), properties.replyOverdueAfter(), overdue);
+            LOG.error(
+                    "{} payment file(s) without a reply to the customer for more than {}: {}",
+                    overdue.size(),
+                    properties.replyOverdueAfter(),
+                    overdue);
         }
         return overdue;
     }

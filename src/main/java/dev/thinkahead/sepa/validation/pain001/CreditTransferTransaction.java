@@ -12,5 +12,4 @@ public record CreditTransferTransaction(
         String creditorIban,
         Agent creditorAgent,
         RemittanceInformation remittanceInformation,
-        String creditorName) {
-}
+        String creditorName) {}

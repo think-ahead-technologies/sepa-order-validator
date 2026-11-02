@@ -53,8 +53,8 @@ public class PaymentFiles {
      * @return false if an outcome was already recorded, e.g. by a concurrent delivery of the same event
      */
     public boolean recordValidationOutcome(UUID fileId, boolean accepted) {
-        return repository.updateStatus(fileId, FileStatus.RECEIVED,
-                accepted ? FileStatus.ACCEPTED : FileStatus.REJECTED);
+        return repository.updateStatus(
+                fileId, FileStatus.RECEIVED, accepted ? FileStatus.ACCEPTED : FileStatus.REJECTED);
     }
 
     /**
@@ -84,8 +84,9 @@ public class PaymentFiles {
         StoredPaymentFile file = repository.find(fileId);
         switch (file.channel()) {
             case SFTP -> sftp.writeOutbound(statusReportName(file), report);
-            default -> throw new IllegalStateException(
-                    "No status report delivery for channel " + file.channel() + " of file " + fileId);
+            default ->
+                throw new IllegalStateException(
+                        "No status report delivery for channel " + file.channel() + " of file " + fileId);
         }
     }
 

@@ -24,8 +24,8 @@ class Pain002Writer {
     byte[] write(StatusReport report) {
         var out = new ByteArrayOutputStream();
         try {
-            XMLStreamWriter xml = XMLOutputFactory.newDefaultFactory()
-                    .createXMLStreamWriter(out, StandardCharsets.UTF_8.name());
+            XMLStreamWriter xml =
+                    XMLOutputFactory.newDefaultFactory().createXMLStreamWriter(out, StandardCharsets.UTF_8.name());
             xml.writeStartDocument(StandardCharsets.UTF_8.name(), "1.0");
             xml.writeStartElement("Document");
             xml.writeDefaultNamespace(NAMESPACE);
@@ -33,8 +33,11 @@ class Pain002Writer {
 
             xml.writeStartElement("GrpHdr");
             element(xml, "MsgId", report.messageId());
-            element(xml, "CreDtTm", DateTimeFormatter.ISO_OFFSET_DATE_TIME
-                    .format(report.creationDateTime().truncatedTo(ChronoUnit.SECONDS)));
+            element(
+                    xml,
+                    "CreDtTm",
+                    DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(
+                            report.creationDateTime().truncatedTo(ChronoUnit.SECONDS)));
             xml.writeEndElement();
 
             xml.writeStartElement("OrgnlGrpInfAndSts");

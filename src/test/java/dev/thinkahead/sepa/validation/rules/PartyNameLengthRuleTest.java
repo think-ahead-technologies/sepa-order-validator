@@ -29,7 +29,9 @@ class PartyNameLengthRuleTest {
                 .satisfies(v -> {
                     assertThat(v.reasonCode()).isEqualTo("FF01");
                     assertThat(v.path()).isEqualTo("PmtInf[1]/CdtTrfTxInf[2]/Cdtr/Nm");
-                    assertThat(v.message()).contains(String.valueOf(name.length())).contains("70");
+                    assertThat(v.message())
+                            .contains(String.valueOf(name.length()))
+                            .contains("70");
                 });
     }
 }

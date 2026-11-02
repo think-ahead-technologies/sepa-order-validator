@@ -12,8 +12,11 @@ public enum MessageFormat {
      * DK-TVS_SEPA_GBIC_5zzglISO_Originale.zip), unchanged; it restricts the message to SEPA, e.g. payment method TRF
      * and charge bearer SLEV only (spec file-validation).
      */
-    PAIN_001_001_09("urn:iso:std:iso:20022:tech:xsd:pain.001.001.09", "pain.001.001.09",
-            "/xsd/pain.001.001.09.xsd", "/xsd/pain.001.001.09_GBIC_5.xsd");
+    PAIN_001_001_09(
+            "urn:iso:std:iso:20022:tech:xsd:pain.001.001.09",
+            "pain.001.001.09",
+            "/xsd/pain.001.001.09.xsd",
+            "/xsd/pain.001.001.09_GBIC_5.xsd");
 
     private final String namespace;
     private final String messageNameId;
@@ -28,7 +31,9 @@ public enum MessageFormat {
     }
 
     public static Optional<MessageFormat> byNamespace(String namespace) {
-        return Arrays.stream(values()).filter(format -> format.namespace.equals(namespace)).findFirst();
+        return Arrays.stream(values())
+                .filter(format -> format.namespace.equals(namespace))
+                .findFirst();
     }
 
     public String messageNameId() {

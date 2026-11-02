@@ -1,4 +1,4 @@
-// ABOUTME: TARGET (T2) business days: closed on weekends, 1 January, Good Friday, Easter Monday, 1 May, 25 and 26 December.
+// ABOUTME: TARGET (T2) business days: closed on weekends, 1 January, Good Friday, Easter Monday, 1 May, 25/26 December.
 // ABOUTME: Standing ECB calendar since 2002; national holidays such as German Unity Day do not close TARGET.
 package dev.thinkahead.sepa.validation.rules;
 
@@ -9,11 +9,10 @@ import java.util.Set;
 
 public final class TargetCalendar {
 
-    private static final Set<MonthDay> FIXED_CLOSING_DAYS = Set.of(
-            MonthDay.of(1, 1), MonthDay.of(5, 1), MonthDay.of(12, 25), MonthDay.of(12, 26));
+    private static final Set<MonthDay> FIXED_CLOSING_DAYS =
+            Set.of(MonthDay.of(1, 1), MonthDay.of(5, 1), MonthDay.of(12, 25), MonthDay.of(12, 26));
 
-    private TargetCalendar() {
-    }
+    private TargetCalendar() {}
 
     public static boolean isBusinessDay(LocalDate date) {
         if (date.getDayOfWeek() == DayOfWeek.SATURDAY || date.getDayOfWeek() == DayOfWeek.SUNDAY) {

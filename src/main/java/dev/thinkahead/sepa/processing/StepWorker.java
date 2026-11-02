@@ -33,7 +33,10 @@ final class StepWorker {
     private Thread poller;
     private ExecutorService workers;
 
-    StepWorker(ProcessingStep step, StepSettings settings, WorkItemRepository workItems,
+    StepWorker(
+            ProcessingStep step,
+            StepSettings settings,
+            WorkItemRepository workItems,
             TransactionTemplate transactions) {
         this.step = step;
         this.settings = settings;
@@ -45,7 +48,8 @@ final class StepWorker {
     void start() {
         String name = "step-" + step.step().name().toLowerCase();
         running = true;
-        workers = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name(name + "-", 1).factory());
+        workers = Executors.newThreadPerTaskExecutor(
+                Thread.ofVirtual().name(name + "-", 1).factory());
         poller = Thread.ofVirtual().name(name + "-poller").start(this::poll);
     }
 
@@ -170,10 +174,16 @@ final class StepWorker {
             return;
         }
         Duration backoff = settings.backoffAfter(item.attempt());
-        LOG.warn("{} failed (attempt {} of {}), retrying in {}", step.step(), item.attempt(),
-                settings.maxAttempts(), backoff, e);
+        LOG.warn(
+                "{} failed (attempt {} of {}), retrying in {}",
+                step.step(),
+                item.attempt(),
+                settings.maxAttempts(),
+                backoff,
+                e);
         if (!workItems.retryLater(item, backoff, error)) {
-            LOG.warn("{} lost its lease before recording the failure; another worker has taken the item over",
+            LOG.warn(
+                    "{} lost its lease before recording the failure; another worker has taken the item over",
                     step.step());
         }
     }
@@ -184,8 +194,8 @@ final class StepWorker {
     private void giveUp(ClaimedItem item, String error, RuntimeException cause) {
         Optional<Completion> fallback = step.whenAttemptsExhausted(item.fileId());
         if (fallback.isPresent()) {
-            LOG.error("{} gave up after {} attempts; recording its fallback outcome", step.step(), item.attempt(),
-                    cause);
+            LOG.error(
+                    "{} gave up after {} attempts; recording its fallback outcome", step.step(), item.attempt(), cause);
             try {
                 completeWith(item, fallback.get());
                 return;
@@ -193,11 +203,15 @@ final class StepWorker {
                 LOG.error("{} could not record its fallback outcome", step.step(), e);
             }
         } else {
-            LOG.error("{} failed for good after {} attempts; the work item needs a manual re-drive", step.step(),
-                    item.attempt(), cause);
+            LOG.error(
+                    "{} failed for good after {} attempts; the work item needs a manual re-drive",
+                    step.step(),
+                    item.attempt(),
+                    cause);
         }
         if (!workItems.fail(item, error)) {
-            LOG.warn("{} lost its lease before recording the failure; another worker has taken the item over",
+            LOG.warn(
+                    "{} lost its lease before recording the failure; another worker has taken the item over",
                     step.step());
         }
     }

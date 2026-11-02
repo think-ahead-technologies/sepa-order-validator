@@ -1,5 +1,6 @@
 // ABOUTME: Unit tests for the rules on payment type information (DK Anlage 3 v3.9, 2.2.4.1, GBIC_5 TVS).
-// ABOUTME: Service level SEPA and local instrument INST (AG02), one scheme per file (AG02), PmtTpInf on one level (FF01).
+// ABOUTME: Service level SEPA and local instrument INST (AG02), one scheme per file (AG02), PmtTpInf on one level
+// (FF01).
 package dev.thinkahead.sepa.validation.rules;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -15,22 +16,29 @@ import org.junit.jupiter.api.Test;
 class PaymentTypeRulesTest {
 
     private static PaymentInformation paymentInformation(int index, CreditTransferScheme scheme) {
-        return new PaymentInformation("PmtInf[" + index + "]", "PMT-00" + index, "DE89370400440532013000", null,
-                LocalDate.of(2026, 11, 2), scheme);
+        return new PaymentInformation(
+                "PmtInf[" + index + "]",
+                "PMT-00" + index,
+                "DE89370400440532013000",
+                null,
+                LocalDate.of(2026, 11, 2),
+                scheme);
     }
 
     @Test
     void localInstrumentRuleAcceptsNoLocalInstrumentAndInst() {
         var rule = new LocalInstrumentRule();
 
-        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", null, null, null))).isEmpty();
-        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null, null))).isEmpty();
+        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", null, null, null)))
+                .isEmpty();
+        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null, null)))
+                .isEmpty();
     }
 
     @Test
     void localInstrumentRuleReportsAg02ForOtherCodes() {
-        assertThat(new LocalInstrumentRule().validate(
-                new PaymentTypeInformation("PmtInf[1]/CdtTrfTxInf[3]/PmtTpInf", "SDCL", null, null)))
+        assertThat(new LocalInstrumentRule()
+                        .validate(new PaymentTypeInformation("PmtInf[1]/CdtTrfTxInf[3]/PmtTpInf", "SDCL", null, null)))
                 .singleElement()
                 .satisfies(v -> {
                     assertThat(v.reasonCode()).isEqualTo("AG02");
@@ -41,8 +49,8 @@ class PaymentTypeRulesTest {
 
     @Test
     void localInstrumentRuleReportsAg02ForAProprietaryLocalInstrument() {
-        assertThat(new LocalInstrumentRule().validate(
-                new PaymentTypeInformation("PmtInf[1]/PmtTpInf", null, "INSTANT", null)))
+        assertThat(new LocalInstrumentRule()
+                        .validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", null, "INSTANT", null)))
                 .extracting(Violation::reasonCode, Violation::path)
                 .containsExactly(tuple("AG02", "PmtInf[1]/PmtTpInf/LclInstrm"));
     }
@@ -51,14 +59,16 @@ class PaymentTypeRulesTest {
     void serviceLevelRuleAcceptsNoServiceLevelAndSepa() {
         var rule = new ServiceLevelRule();
 
-        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", null, null, null))).isEmpty();
-        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null, "SEPA"))).isEmpty();
+        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", null, null, null)))
+                .isEmpty();
+        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null, "SEPA")))
+                .isEmpty();
     }
 
     @Test
     void serviceLevelRuleReportsAg02ForOtherCodes() {
-        assertThat(new ServiceLevelRule().validate(
-                new PaymentTypeInformation("PmtInf[1]/CdtTrfTxInf[2]/PmtTpInf", null, null, "URGP")))
+        assertThat(new ServiceLevelRule()
+                        .validate(new PaymentTypeInformation("PmtInf[1]/CdtTrfTxInf[2]/PmtTpInf", null, null, "URGP")))
                 .singleElement()
                 .satisfies(v -> {
                     assertThat(v.reasonCode()).isEqualTo("AG02");
@@ -71,7 +81,8 @@ class PaymentTypeRulesTest {
     void levelRuleAcceptsPaymentTypeInformationOnEitherLevel() {
         var rule = new PaymentTypeInformationLevelRule();
 
-        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null, null))).isEmpty();
+        assertThat(rule.validate(new PaymentTypeInformation("PmtInf[1]/PmtTpInf", "INST", null, null)))
+                .isEmpty();
         assertThat(rule.validate(new PaymentTypeInformation("PmtInf[2]/CdtTrfTxInf[1]/PmtTpInf", "INST", null, null)))
                 .isEmpty();
     }
@@ -91,10 +102,14 @@ class PaymentTypeRulesTest {
         var sct = new SingleSchemeRule();
         var instant = new SingleSchemeRule();
 
-        assertThat(sct.validate(paymentInformation(1, CreditTransferScheme.SCT))).isEmpty();
-        assertThat(sct.validate(paymentInformation(2, CreditTransferScheme.SCT))).isEmpty();
-        assertThat(instant.validate(paymentInformation(1, CreditTransferScheme.SCT_INST))).isEmpty();
-        assertThat(instant.validate(paymentInformation(2, CreditTransferScheme.SCT_INST))).isEmpty();
+        assertThat(sct.validate(paymentInformation(1, CreditTransferScheme.SCT)))
+                .isEmpty();
+        assertThat(sct.validate(paymentInformation(2, CreditTransferScheme.SCT)))
+                .isEmpty();
+        assertThat(instant.validate(paymentInformation(1, CreditTransferScheme.SCT_INST)))
+                .isEmpty();
+        assertThat(instant.validate(paymentInformation(2, CreditTransferScheme.SCT_INST)))
+                .isEmpty();
     }
 
     @Test

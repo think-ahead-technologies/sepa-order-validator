@@ -10,8 +10,14 @@ import org.junit.jupiter.api.Test;
 
 class ProcessingPropertiesTest {
 
-    private static final StepSettings STEP = new StepSettings(2, Duration.ofMinutes(2), Duration.ofMinutes(1), 10,
-            Duration.ofSeconds(1), Duration.ofSeconds(10), Duration.ofMinutes(10));
+    private static final StepSettings STEP = new StepSettings(
+            2,
+            Duration.ofMinutes(2),
+            Duration.ofMinutes(1),
+            10,
+            Duration.ofSeconds(1),
+            Duration.ofSeconds(10),
+            Duration.ofMinutes(10));
 
     @Test
     void returnsTheSettingsOfEachStep() {
@@ -23,17 +29,17 @@ class ProcessingPropertiesTest {
 
     @Test
     void requiresSettingsForEveryStep() {
-        assertThatIllegalArgumentException().isThrownBy(() ->
-                new ProcessingProperties(STEP, null, STEP, Duration.ofDays(7), Duration.ofHours(1)));
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> new ProcessingProperties(STEP, null, STEP, Duration.ofDays(7), Duration.ofHours(1)));
     }
 
     @Test
     void requiresAPositiveRetentionAndHousekeepingInterval() {
-        assertThatIllegalArgumentException().isThrownBy(() ->
-                        new ProcessingProperties(STEP, STEP, STEP, Duration.ZERO, Duration.ofHours(1)))
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> new ProcessingProperties(STEP, STEP, STEP, Duration.ZERO, Duration.ofHours(1)))
                 .withMessageContaining("retention");
-        assertThatIllegalArgumentException().isThrownBy(() ->
-                        new ProcessingProperties(STEP, STEP, STEP, Duration.ofDays(7), null))
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> new ProcessingProperties(STEP, STEP, STEP, Duration.ofDays(7), null))
                 .withMessageContaining("housekeeping-interval");
     }
 }

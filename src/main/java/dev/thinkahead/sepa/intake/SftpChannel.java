@@ -79,8 +79,8 @@ class SftpChannel {
 
     private boolean claimFrom(String inbox, String fileName, String claimedName) {
         try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
-            return renameIfPresent(session, inbox + "/" + fileName,
-                    properties.processingDirectory() + "/" + claimedName);
+            return renameIfPresent(
+                    session, inbox + "/" + fileName, properties.processingDirectory() + "/" + claimedName);
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot claim SFTP inbound file " + fileName, e);
         }
@@ -123,15 +123,16 @@ class SftpChannel {
      * A regular file as listed by the server; modifiedAt has the server's resolution, often whole seconds,
      * and is null if the server does not report it.
      */
-    record RemoteFile(String name, long size, Instant modifiedAt) {
-    }
+    record RemoteFile(String name, long size, Instant modifiedAt) {}
 
     /**
      * Moves a claimed file to the processed directory; a file another instance already archived is left alone.
      */
     void archive(String claimedName) {
         try (Session<SftpClient.DirEntry> session = sessions.getSession()) {
-            renameIfPresent(session, properties.processingDirectory() + "/" + claimedName,
+            renameIfPresent(
+                    session,
+                    properties.processingDirectory() + "/" + claimedName,
                     properties.processedDirectory() + "/" + claimedName);
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot archive SFTP processing file " + claimedName, e);
@@ -166,8 +167,8 @@ class SftpChannel {
 
     private static RemoteFile remoteFile(SftpClient.DirEntry entry) {
         FileTime modified = entry.getAttributes().getModifyTime();
-        return new RemoteFile(entry.getFilename(), entry.getAttributes().getSize(),
-                modified == null ? null : modified.toInstant());
+        return new RemoteFile(
+                entry.getFilename(), entry.getAttributes().getSize(), modified == null ? null : modified.toInstant());
     }
 
     private static boolean renameIfPresent(Session<SftpClient.DirEntry> session, String from, String to)

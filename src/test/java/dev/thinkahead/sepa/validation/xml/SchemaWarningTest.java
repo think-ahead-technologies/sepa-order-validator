@@ -24,7 +24,8 @@ class SchemaWarningTest {
         handler.warning(new SAXParseException("value 'DE89370400440532013000' of element 'IBAN'", null, null, 12, 7));
 
         assertThat(errors).isEmpty();
-        assertThat(output).contains("Schema validation warning at line 12, column 7")
+        assertThat(output)
+                .contains("Schema validation warning at line 12, column 7")
                 .doesNotContain("DE89370400440532013000");
     }
 

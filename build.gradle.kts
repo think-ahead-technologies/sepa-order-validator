@@ -60,15 +60,19 @@ tasks.withType<Test>().configureEach {
     }
 }
 
-// Fast inner loop: everything except *IntegrationTest and *EndToEndTest, so no Spring context, PostgreSQL or SFTP.
-// `build` still runs the full suite through `test`.
-tasks.register<Test>("unitTest") {
-    description = "Runs the unit tests only, without Spring contexts or Testcontainers."
-    group = LifecycleBasePlugin.VERIFICATION_GROUP
-    testClassesDirs = sourceSets.test.get().output.classesDirs
-    classpath = sourceSets.test.get().runtimeClasspath
+// `test`, and with it `build`, runs the unit tests only: no Spring context, PostgreSQL or SFTP container.
+tasks.test {
     filter {
         excludeTestsMatching("*IntegrationTest")
         excludeTestsMatching("*EndToEndTest")
     }
+}
+
+// The full suite, including integration and end-to-end tests against PostgreSQL and SFTP containers.
+// Run it before every commit; there is no CI that runs it.
+tasks.register<Test>("fullTest") {
+    description = "Runs all tests, including integration and end-to-end tests with Testcontainers."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
 }

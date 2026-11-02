@@ -65,3 +65,4 @@ rules:
     - Record the alternatives considered for every decision and why they were rejected; once archived, this file is the decision record.
   tasks:
     - Order tasks test first - unit, integration (*IntegrationTest) and end-to-end (*EndToEndTest) - and give every task a verification command.
+    - End with a task that runs `mise exec -- ./gradlew fullTest`; `build` runs the unit tests only.

@@ -10,9 +10,9 @@ Behaviour: OpenSpec capability specs in `openspec/specs/`; project context in `o
 
 - Java and Gradle are pinned in `mise.toml`. Run everything through mise:
   - `mise install` — install the pinned JDK and Gradle
-  - `mise exec -- ./gradlew build` — compile and run all tests
-  - `mise exec -- ./gradlew unitTest` — unit tests only (no Spring context, no containers), for the inner loop
-  - `mise exec -- ./gradlew test --tests '*IbanCheckTest'` — single test class
+  - `mise exec -- ./gradlew build` — compile and run the unit tests (no Spring context, no containers), seconds
+  - `mise exec -- ./gradlew fullTest` — all tests including integration and end-to-end; run before every commit
+  - `mise exec -- ./gradlew test --tests '*IbanCheckTest'` — single unit test class; use `fullTest --tests ...` for an integration or end-to-end test class
   - `mise exec -- ./gradlew bootTestRun` — run the app locally with PostgreSQL and SFTP from Testcontainers
 - Docker must be running: integration and end-to-end tests use Testcontainers (PostgreSQL and an SFTP server).
 - The test SFTP server is built from `src/test/resources/sftp/Dockerfile` (alpine + OpenSSH, native on arm64). Do not switch to `atmoz/sftp`: it is amd64-only and its sshd segfaults under emulation on Apple Silicon.

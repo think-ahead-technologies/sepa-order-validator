@@ -69,7 +69,7 @@ tasks.test {
 }
 
 // The full suite, including integration and end-to-end tests against PostgreSQL and SFTP containers.
-// Run it before every commit; there is no CI that runs it.
+// Meant for CI; locally only when a change can affect integration or end-to-end behaviour (see CLAUDE.md).
 tasks.register<Test>("fullTest") {
     description = "Runs all tests, including integration and end-to-end tests with Testcontainers."
     group = LifecycleBasePlugin.VERIFICATION_GROUP

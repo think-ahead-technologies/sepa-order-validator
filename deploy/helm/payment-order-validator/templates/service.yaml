@@ -1,0 +1,17 @@
+# ABOUTME: ClusterIP Service on the actuator port, so Prometheus can scrape /actuator/prometheus on every pod.
+# ABOUTME: The app takes no inbound business traffic: files arrive by SFTP polling, reports leave by SFTP upload.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pov.fullname" . }}
+  labels:
+    {{- include "pov.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "pov.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP

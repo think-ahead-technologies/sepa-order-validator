@@ -1,0 +1,26 @@
+# ABOUTME: Environment variables (database URL, SFTP server, overrides of application.yaml) and the SFTP known_hosts.
+# ABOUTME: Pods roll on any change, because the Deployment carries a checksum of this file.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pov.fullname" . }}-env
+  labels:
+    {{- include "pov.labels" . | nindent 4 }}
+data:
+  SPRING_DATASOURCE_URL: {{ required "database.url is required" .Values.database.url | quote }}
+  SEPA_SFTP_HOST: {{ required "sftp.host is required" .Values.sftp.host | quote }}
+  SEPA_SFTP_PORT: {{ .Values.sftp.port | quote }}
+  SEPA_SFTP_USERNAME: {{ required "sftp.username is required" .Values.sftp.username | quote }}
+  {{- range $name, $value := .Values.env }}
+  {{ $name }}: {{ $value | quote }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pov.fullname" . }}-sftp-known-hosts
+  labels:
+    {{- include "pov.labels" . | nindent 4 }}
+data:
+  known_hosts: |
+    {{- required "sftp.knownHosts is required" .Values.sftp.knownHosts | nindent 4 }}

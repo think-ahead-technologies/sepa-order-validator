@@ -1,0 +1,59 @@
+# ABOUTME: Default values of the chart; every value marked "required" must be set per environment.
+# ABOUTME: Secrets are never values: the chart only references Secrets created by the central secrets manager.
+
+# Several instances are supported: one is elected intake leader, all of them work the queue (baseline design A5, A6).
+replicaCount: 2
+
+image:
+  # required: the signed image, always referenced by digest (docs/roadmap.md, supply chain)
+  repository: ""
+  # required: e.g. sha256:<64 hex characters>
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+database:
+  # required: JDBC URL, e.g. jdbc:postgresql://postgres.example.internal:5432/sepa?sslmode=verify-full
+  url: ""
+  # Secret with the keys SPRING_DATASOURCE_USERNAME and SPRING_DATASOURCE_PASSWORD
+  existingSecret: payment-order-validator-db
+
+sftp:
+  # required: host name of the customer SFTP server
+  host: ""
+  port: 22
+  # required: SFTP account
+  username: ""
+  # Secret with the key private-key (OpenSSH or PEM) and the optional key passphrase
+  existingSecret: payment-order-validator-sftp
+  # required: known_hosts lines of the SFTP server, verified out of band; host keys are always checked
+  knownHosts: ""
+
+# Further environment variables; each one overrides the matching property in application.yaml,
+# e.g. SEPA_SFTP_INSTANT_INBOUND_DIRECTORY: instant
+env: {}
+
+# The JVM default heap is 25 % of the container memory; payment files of up to 100 MB need more.
+javaToolOptions: "-XX:MaxRAMPercentage=75.0"
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 2Gi
+  limits:
+    memory: 2Gi
+
+# Three step workers wait up to 10 s each for running items, then Spring's graceful shutdown phase follows.
+terminationGracePeriodSeconds: 60
+
+podDisruptionBudget:
+  minAvailable: 1
+
+service:
+  port: 8080
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

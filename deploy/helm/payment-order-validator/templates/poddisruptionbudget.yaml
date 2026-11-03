@@ -1,0 +1,13 @@
+# ABOUTME: Keeps a minimum of validator pods running during voluntary disruptions such as node drains.
+# ABOUTME: Any surviving pod takes over the intake leader lock and the leases of work items from stopped pods.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "pov.fullname" . }}
+  labels:
+    {{- include "pov.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "pov.selectorLabels" . | nindent 6 }}

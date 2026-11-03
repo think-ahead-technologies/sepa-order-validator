@@ -1,0 +1,8 @@
+# ABOUTME: Helm chart for the SEPA Payment Order Validator: hardened Deployment, Service, PodDisruptionBudget.
+# ABOUTME: Image digest, database, SFTP server and the names of pre-existing Secrets come from the values.
+apiVersion: v2
+name: payment-order-validator
+description: Validates SEPA payment order files received by SFTP and answers with pain.002 status reports.
+type: application
+version: 0.1.0
+appVersion: "0.1.0-SNAPSHOT"

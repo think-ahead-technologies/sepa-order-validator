@@ -1,0 +1,15 @@
+# ABOUTME: Example values for one environment, also used to lint and render the chart: copy per environment.
+# ABOUTME: Every value here is a placeholder; secrets are not values and come from the central secrets manager.
+image:
+  repository: registry.example.com/sepa/payment-order-validator
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+
+database:
+  url: jdbc:postgresql://postgres.example.internal:5432/sepa?sslmode=verify-full
+
+sftp:
+  host: sftp.example.internal
+  username: sepa-validator
+  # Replace with the output of `ssh-keyscan -p 22 sftp.example.internal`, verified out of band.
+  knownHosts: |
+    sftp.example.internal ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPlaceholderPlaceholderPlaceholderPlaceho

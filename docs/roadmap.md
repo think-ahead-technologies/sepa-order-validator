@@ -72,6 +72,7 @@ Built today: dependency and wrapper verification (spec `supply-chain`). Planned:
 - GitHub Actions (`.github/workflows/ci.yml`) runs the same `build` and `fullTest` jobs on push to `main` and on pull requests, on GitHub-hosted runners.
 - Management APIs (e.g. re-driving work items, today a database function, see [runbook](operations/redrive-work-items.md)) once management APIs have OAuth2.
 - Raw files stored as streams (object storage or PostgreSQL large objects) for flat memory per file, when volumes require it; depends on Q9.
+- Helm chart (`deploy/helm/payment-order-validator/`) with example values; no environment values, container image build, secret delivery from the secrets manager or NetworkPolicy yet. Memory (2 GiB) and CPU requests are estimates, not measured.
 
 ## Decisions pending
 

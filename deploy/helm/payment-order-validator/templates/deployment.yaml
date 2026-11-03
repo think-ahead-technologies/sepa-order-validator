@@ -1,0 +1,140 @@
+# ABOUTME: Deployment of the validator: several instances share the SFTP inbox and the PostgreSQL work queue.
+# ABOUTME: Runs restricted (non-root, read-only root, no capabilities) so it fits the OpenShift restricted-v2 SCC.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pov.fullname" . }}
+  labels:
+    {{- include "pov.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "pov.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pov.labels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "pov.fullname" . }}
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        # No runAsUser: OpenShift assigns a UID from the namespace range.
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "pov.selectorLabels" . | nindent 14 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: app
+          image: "{{ required "image.repository is required" .Values.image.repository }}@{{ required "image.digest is required" .Values.image.digest }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: {{ .Values.javaToolOptions | quote }}
+            - name: SEPA_SFTP_PRIVATE_KEY
+              value: file:/etc/sepa/sftp-key/private-key
+            - name: SEPA_SFTP_PRIVATE_KEY_PASSPHRASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.sftp.existingSecret }}
+                  key: passphrase
+                  optional: true
+            - name: SEPA_SFTP_KNOWN_HOSTS
+              value: file:/etc/sepa/sftp-known-hosts/known_hosts
+          envFrom:
+            - configMapRef:
+                name: {{ include "pov.fullname" . }}-env
+            # SPRING_DATASOURCE_USERNAME and SPRING_DATASOURCE_PASSWORD.
+            - secretRef:
+                name: {{ .Values.database.existingSecret }}
+          startupProbe:
+            # Covers Flyway migrations at startup: up to 3 minutes before liveness takes over.
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: sftp-key
+              mountPath: /etc/sepa/sftp-key
+              readOnly: true
+            - name: sftp-known-hosts
+              mountPath: /etc/sepa/sftp-known-hosts
+              readOnly: true
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: sftp-key
+          secret:
+            secretName: {{ .Values.sftp.existingSecret }}
+            items:
+              - key: private-key
+                path: private-key
+            # Group-readable: the pod's assigned UID reads the file through the fsGroup.
+            defaultMode: 0440
+        - name: sftp-known-hosts
+          configMap:
+            name: {{ include "pov.fullname" . }}-sftp-known-hosts

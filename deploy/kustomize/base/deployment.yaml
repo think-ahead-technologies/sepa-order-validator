@@ -1,0 +1,126 @@
+# ABOUTME: Deployment of the validator: several instances share the SFTP inbox and the PostgreSQL work queue.
+# ABOUTME: Runs restricted (non-root, read-only root, no capabilities) so it fits the OpenShift restricted-v2 SCC.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-order-validator
+spec:
+  # Several instances are supported: one is elected intake leader, all of them work the queue (baseline design A5, A6).
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: payment-order-validator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: payment-order-validator
+    spec:
+      serviceAccountName: payment-order-validator
+      automountServiceAccountToken: false
+      # Three step workers wait up to 10 s each for running items, then Spring's graceful shutdown phase follows.
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        # No runAsUser: OpenShift assigns a UID from the namespace range.
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: payment-order-validator
+      containers:
+        - name: app
+          # Replaced by the overlay with the signed image, referenced by digest.
+          image: payment-order-validator
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            # The JVM default heap is 25 % of the container memory; payment files of up to 100 MB need more.
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=75.0"
+            - name: SEPA_SFTP_PRIVATE_KEY
+              value: file:/etc/sepa/sftp-key/private-key
+            - name: SEPA_SFTP_PRIVATE_KEY_PASSPHRASE
+              valueFrom:
+                secretKeyRef:
+                  name: payment-order-validator-sftp
+                  key: passphrase
+                  optional: true
+            - name: SEPA_SFTP_KNOWN_HOSTS
+              value: file:/etc/sepa/sftp-known-hosts/known_hosts
+          envFrom:
+            # SPRING_DATASOURCE_URL, SEPA_SFTP_HOST, SEPA_SFTP_USERNAME and optional overrides of application.yaml.
+            - configMapRef:
+                name: payment-order-validator-env
+            # SPRING_DATASOURCE_USERNAME and SPRING_DATASOURCE_PASSWORD.
+            - secretRef:
+                name: payment-order-validator-db
+          startupProbe:
+            # Covers Flyway migrations at startup: up to 3 minutes before liveness takes over.
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: sftp-key
+              mountPath: /etc/sepa/sftp-key
+              readOnly: true
+            - name: sftp-known-hosts
+              mountPath: /etc/sepa/sftp-known-hosts
+              readOnly: true
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: sftp-key
+          secret:
+            secretName: payment-order-validator-sftp
+            items:
+              - key: private-key
+                path: private-key
+            # Group-readable: the pod's assigned UID reads the file through the fsGroup.
+            defaultMode: 0440
+        - name: sftp-known-hosts
+          configMap:
+            name: payment-order-validator-sftp-known-hosts

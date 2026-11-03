@@ -1,0 +1,2 @@
+# Placeholder: replace with the host key lines of the customer SFTP server, one per key type.
+# Format: <host> <key-type> <base64-key>, e.g. the output of `ssh-keyscan -p 22 sftp.example.internal`.

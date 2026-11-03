@@ -1,0 +1,33 @@
+# ABOUTME: Example overlay for one environment: copy it per environment (dev, staging, prod) and replace every value.
+# ABOUTME: It sets image digest, namespace, database URL and SFTP server; secrets come from the secrets manager.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: sepa-example
+
+resources:
+  - ../../base
+
+labels:
+  - pairs:
+      app.kubernetes.io/instance: payment-order-validator-example
+      app.kubernetes.io/version: "0.1.0"
+
+images:
+  # The signed image, always by digest (docs/roadmap.md, supply chain).
+  - name: payment-order-validator
+    newName: registry.example.com/sepa/payment-order-validator
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+
+configMapGenerator:
+  # Environment variables; every key here overrides the matching property in application.yaml.
+  - name: payment-order-validator-env
+    literals:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres.example.internal:5432/sepa?sslmode=verify-full
+      - SEPA_SFTP_HOST=sftp.example.internal
+      - SEPA_SFTP_PORT=22
+      - SEPA_SFTP_USERNAME=sepa-validator
+  # Host keys of the customer SFTP server, e.g. from ssh-keyscan, verified out of band.
+  - name: payment-order-validator-sftp-known-hosts
+    files:
+      - known_hosts

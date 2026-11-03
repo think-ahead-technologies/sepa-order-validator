@@ -17,7 +17,7 @@ Write "none" where nothing applies. Delete these comments.
 
 <!--
 Tick one. Low/Medium: one line why.
-High: short risk assessment (what can break, impact, rollback) - required by POL-8.
+High: short risk assessment (what can break, impact, rollback).
 -->
 
 - [ ] Low - docs, tests, refactoring without behaviour change
@@ -53,4 +53,3 @@ Where:
 - [ ] `./gradlew build` passes
 - [ ] `./gradlew fullTest` passes (if integration-relevant)
 - [ ] Specs in `openspec/specs/` match the behaviour
-- [ ] AI-assisted code (label the PR, POL-8)

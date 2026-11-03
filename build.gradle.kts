@@ -29,6 +29,8 @@ dependencies {
     implementation(libs.spring.boot.starter.jackson)
     implementation(libs.spring.boot.starter.webmvc)
     implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.spring.boot.starter.opentelemetry)
+    implementation(libs.opentelemetry.logback.appender)
     implementation(libs.spring.integration.sftp)
     implementation(libs.spring.integration.jdbc)
     implementation(libs.spring.modulith.starter.core)
@@ -44,6 +46,9 @@ dependencies {
     testImplementation(libs.spring.modulith.starter.test)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.testcontainers.grafana)
+    testImplementation(libs.micrometer.observation.test)
+    testImplementation(libs.opentelemetry.sdk.testing)
     testImplementation(libs.awaitility)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

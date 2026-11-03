@@ -14,8 +14,8 @@ Behaviour: OpenSpec capability specs in `openspec/specs/`; project context in `o
   - `mise exec -- ./gradlew fullTest` — all tests including integration and end-to-end; runs in CI (job `full-test` in `.github/workflows/ci.yml` and `.gitlab-ci.yml`)
 - Locally run `build` (unit tests). Run `fullTest` only when a change can affect integration or end-to-end behaviour: Spring wiring or configuration (`application.yaml`), Flyway migrations or SQL, intake and SFTP, the work queue, reporting and delivery, logging, module facades or events, or dependencies. Changes confined to rules or parsing logic that unit tests cover do not need it.
   - `mise exec -- ./gradlew test --tests '*IbanCheckTest'` — single unit test class; use `fullTest --tests ...` for an integration or end-to-end test class
-  - `mise exec -- ./gradlew bootTestRun` — run the app locally with PostgreSQL and SFTP from Testcontainers
-- Docker must be running: integration and end-to-end tests use Testcontainers (PostgreSQL and an SFTP server).
+  - `mise exec -- ./gradlew bootTestRun` — run the app locally with PostgreSQL, SFTP and a Grafana stack (`grafana/otel-lgtm`) from Testcontainers; the startup log names the Grafana URL showing the run's logs, traces and metrics
+- Docker must be running: integration and end-to-end tests use Testcontainers (PostgreSQL, an SFTP server and, for the OpenTelemetry tests, `grafana/otel-lgtm`).
 - GitLab CI runs `build` and then `fullTest` on Docker-in-Docker; the runner must allow privileged services. Images are pinned by tag and digest: when `mise.toml` changes the JDK, update the image in `.gitlab-ci.yml` too.
 - GitHub Actions (`.github/workflows/ci.yml`) runs the same two jobs on push to `main` and on pull requests, with the runner's own Docker. Java comes from `mise.toml` via mise-action; actions are pinned by commit SHA.
 - The test SFTP server is built from `src/test/resources/sftp/Dockerfile` (alpine + OpenSSH, native on arm64). Do not switch to `atmoz/sftp`: it is amd64-only and its sshd segfaults under emulation on Apple Silicon.
@@ -36,5 +36,6 @@ Behaviour: OpenSpec capability specs in `openspec/specs/`; project context in `o
 - Every source file starts with two `// ABOUTME:` comment lines, each at most 120 characters: the formatter wraps longer comments.
 - Formatting is palantir-java-format via Spotless; `build` fails on unformatted code, `mise exec -- ./gradlew spotlessApply` fixes it.
 - Violations carry ISO 20022 external status reason codes (e.g. `AC03`, `AM03`, `FF01`).
+- Logs, traces and metrics are exported via OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (metrics also need `OTEL_METRICS_EXPORTER=otlp`); exporters are wrapped in IBAN-masking decorators (spec `observability`).
 - Logs are ECS JSON. Never log values from a payment file (names, IBANs, amounts, violation or parser messages); log ids, reason codes and positions. Processing steps get the file id from their worker (spec `observability`).
 - Conventional commits, imperative mood. Never use `--no-verify`.

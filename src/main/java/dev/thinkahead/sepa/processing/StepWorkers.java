@@ -3,6 +3,7 @@
 package dev.thinkahead.sepa.processing;
 
 import com.zaxxer.hikari.HikariDataSource;
+import io.micrometer.observation.ObservationRegistry;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +25,8 @@ class StepWorkers implements SmartLifecycle {
             ProcessingProperties properties,
             WorkItemRepository workItems,
             TransactionTemplate transactions,
-            DataSource dataSource) {
+            DataSource dataSource,
+            ObservationRegistry observations) {
         ConnectionBudget.check(
                 maximumPoolSize(dataSource),
                 Stream.of(Step.values()).map(properties::settings).toList());
@@ -35,7 +37,8 @@ class StepWorkers implements SmartLifecycle {
                             + second.getClass().getName());
                 }));
         this.workers = byStep.values().stream()
-                .map(step -> new StepWorker(step, properties.settings(step.step()), workItems, transactions))
+                .map(step ->
+                        new StepWorker(step, properties.settings(step.step()), workItems, transactions, observations))
                 .toList();
     }
 

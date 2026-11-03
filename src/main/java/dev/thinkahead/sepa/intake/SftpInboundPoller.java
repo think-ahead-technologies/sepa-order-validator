@@ -1,9 +1,11 @@
 // ABOUTME: On the elected leader only: claims finished SFTP inbound uploads, then receives and archives claimed files.
-// ABOUTME: Each file is handled in isolation: a failing file is logged and retried without blocking the others.
+// ABOUTME: Each file is received in its own span and isolation: a failing file is logged and retried later.
 package dev.thinkahead.sepa.intake;
 
 import dev.thinkahead.sepa.LogContext;
 import dev.thinkahead.sepa.intake.SftpChannel.RemoteFile;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -22,6 +24,7 @@ class SftpInboundPoller implements SchedulingConfigurer {
     private final IntakeLeadership leadership;
     private final IntakeProperties properties;
     private final SftpProperties sftpProperties;
+    private final ObservationRegistry observations;
     private final FinishedUploads finishedUploads = new FinishedUploads();
     private final FinishedUploads finishedInstantUploads = new FinishedUploads();
 
@@ -30,12 +33,14 @@ class SftpInboundPoller implements SchedulingConfigurer {
             PaymentFileIntake intake,
             IntakeLeadership leadership,
             IntakeProperties properties,
-            SftpProperties sftpProperties) {
+            SftpProperties sftpProperties,
+            ObservationRegistry observations) {
         this.sftp = sftp;
         this.intake = intake;
         this.leadership = leadership;
         this.properties = properties;
         this.sftpProperties = sftpProperties;
+        this.observations = observations;
     }
 
     @Override
@@ -71,7 +76,10 @@ class SftpInboundPoller implements SchedulingConfigurer {
             }
             try (var ignored = LogContext.scopedToFile(claimed.get().fileId())) {
                 try {
-                    receiveAndArchive(claimed.get(), file.size());
+                    Observation.createNotStarted("sepa.intake.receive", observations)
+                            .highCardinalityKeyValue(
+                                    "sepa.file.id", claimed.get().fileId().toString())
+                            .observe(() -> receiveAndArchive(claimed.get(), file.size()));
                 } catch (RuntimeException e) {
                     LOG.error("Could not take in claimed file {}, retrying on the next poll", file.name(), e);
                 }

@@ -10,6 +10,7 @@ What the SEPA Payment Order Validator does today is specified in [`openspec/spec
 4. DK XML containers split into messages; only current DK message versions accepted.
 5. Work queue processing, leader election, structured logging and operational endpoints.
 6. DK technical validation subset GBIC_5 as final gate.
+7. OpenTelemetry export of logs, traces and metrics via OTLP (`OTEL_EXPORTER_OTLP_ENDPOINT`), a span and the timer `sepa.processing.step` per step attempt.
 
 ## Planned
 
@@ -70,7 +71,8 @@ Built today: dependency and wrapper verification (spec `supply-chain`). Planned:
 
 - GitLab CI (`.gitlab-ci.yml`) is defined: `build`, then `fullTest` on Docker-in-Docker, for merge requests and branches. It has not run yet: it needs a GitLab project as git remote and a runner that allows privileged services.
 - GitHub Actions (`.github/workflows/ci.yml`) runs the same `build` and `fullTest` jobs on push to `main` and on pull requests, on GitHub-hosted runners.
-- Kustomize manifests (`deploy/kustomize/`) define base and an example overlay; no environment overlay, container image build, secret delivery from the secrets manager or NetworkPolicy yet. Memory (2 GiB) and CPU requests are estimates, not measured.
+- Kustomize manifests (`deploy/kustomize/`) define base, an example overlay and a local overlay for the `gitops-workshop` cluster; the `Dockerfile` image is built locally only (no CI build, signing or registry), and there is no environment overlay, secret delivery from the secrets manager or NetworkPolicy yet. Memory (2 GiB) and CPU requests are estimates, not measured.
+- Deployment wiring of the OTLP export: Helm chart and the Kustomize environment overlays set `OTEL_EXPORTER_OTLP_ENDPOINT` (the local overlay already sets `http://alloy.monitoring.svc:4318`), `OTEL_METRICS_EXPORTER=otlp` and `OTEL_RESOURCE_ATTRIBUTES`, plus an egress path to the collector. The `gitops-workshop` Alloy forwards only traces today: it needs OTLP pipelines for logs (to Loki) and metrics (to Prometheus), and must stop tailing this application's pod console, or Loki stores every line twice.
 - Management APIs (e.g. re-driving work items, today a database function, see [runbook](operations/redrive-work-items.md)) once management APIs have OAuth2.
 - Raw files stored as streams (object storage or PostgreSQL large objects) for flat memory per file, when volumes require it; depends on Q9.
 - Helm chart (`deploy/helm/payment-order-validator/`) with example values; no environment values, container image build, secret delivery from the secrets manager or NetworkPolicy yet. Memory (2 GiB) and CPU requests are estimates, not measured.
@@ -84,7 +86,7 @@ Found when the specs were written from the code. Each is either confirmed as spe
 | D1 | SCT Inst amounts are capped at 999,999,999.99 (`AM02`) like SCT | The SCT Inst Rulebook 2025 has no scheme maximum. Drop the cap for SCT Inst, and where do customer limits come from (Q15)? | credit-transfer-rules |
 | D3 | IBAN rule messages quote the IBAN in the pain.002 `AddtlInf` | Acceptable on the customer's own channel, or mask it? | status-report, credit-transfer-rules |
 | D4 | `REPORT` writes no audit entry | Should every step transition be audited, including report creation? | file-processing |
-| D5 | A `FAILED` work item only logs an ERROR; the invariant "one open work item per non-terminal file" is not monitored | Add a metric for failed items and an invariant check? | file-processing, observability |
+| D5 | A `FAILED` work item only logs an ERROR; the invariant "one open work item per non-terminal file" is not monitored | Add a metric for failed items and an invariant check? `sepa_processing_step_seconds_count{sepa_outcome="failed"}` now counts failed attempts. | file-processing, observability |
 | D6 | A repeated delivery renames over an existing report | Keep (identical bytes under the same name), or treat an existing identical report as delivered without writing? | status-report |
 
 ## Open questions

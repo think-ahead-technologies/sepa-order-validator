@@ -3,6 +3,8 @@ spring-boot = "4.1.2"
 spring-modulith = "2.1.2"
 spotless = "8.10.4"
 palantir-java-format = "2.102.0"
+# Built against the OpenTelemetry API version the Spring Boot BOM manages (1.62.0); newer releases would upgrade it.
+opentelemetry-logback-appender = "2.28.1-alpha"
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
@@ -14,6 +16,8 @@ spring-boot-starter-jackson = { module = "org.springframework.boot:spring-boot-s
 spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
+spring-boot-starter-opentelemetry = { module = "org.springframework.boot:spring-boot-starter-opentelemetry" }
+opentelemetry-logback-appender = { module = "io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0", version.ref = "opentelemetry-logback-appender" }
 spring-integration-sftp = { module = "org.springframework.integration:spring-integration-sftp" }
 spring-integration-jdbc = { module = "org.springframework.integration:spring-integration-jdbc" }
 spring-modulith-starter-core = { module = "org.springframework.modulith:spring-modulith-starter-core" }
@@ -26,6 +30,9 @@ spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-te
 spring-modulith-starter-test = { module = "org.springframework.modulith:spring-modulith-starter-test" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
+testcontainers-grafana = { module = "org.testcontainers:testcontainers-grafana" }
+micrometer-observation-test = { module = "io.micrometer:micrometer-observation-test" }
+opentelemetry-sdk-testing = { module = "io.opentelemetry:opentelemetry-sdk-testing" }
 awaitility = { module = "org.awaitility:awaitility" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 

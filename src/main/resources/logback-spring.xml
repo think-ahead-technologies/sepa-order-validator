@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ABOUTME: Logging: structured (ECS JSON) lines on the console with IBAN masking, plus every record via OpenTelemetry.
+ABOUTME: The OTEL appender exports only when an OTLP endpoint is configured; TelemetryConfiguration installs it.
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>${CONSOLE_LOG_THRESHOLD}</level>
+        </filter>
+        <!-- format and JSON customizer (LogMasking) come from logging.structured.* in application.yaml -->
+        <encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+            <format>${CONSOLE_LOG_STRUCTURED_FORMAT}</format>
+            <charset>${CONSOLE_LOG_CHARSET}</charset>
+        </encoder>
+    </appender>
+
+    <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">
+        <captureMdcAttributes>fileId</captureMdcAttributes>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="OTEL"/>
+    </root>
+</configuration>

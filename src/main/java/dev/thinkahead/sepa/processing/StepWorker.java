@@ -1,9 +1,11 @@
 // ABOUTME: Runs one processing step: a poller claims due work items while a worker is free and hands them over.
-// ABOUTME: Failed attempts are retried with backoff; after the last one the step's fallback or a failure is recorded.
+// ABOUTME: Failed attempts are retried with backoff; each attempt is observed (span and timer) with its outcome.
 package dev.thinkahead.sepa.processing;
 
 import dev.thinkahead.sepa.LogContext;
+import dev.thinkahead.sepa.processing.StepAttemptObservation.Outcome;
 import dev.thinkahead.sepa.processing.WorkItemRepository.ClaimedItem;
+import io.micrometer.observation.ObservationRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -27,6 +29,7 @@ final class StepWorker {
     private final StepSettings settings;
     private final WorkItemRepository workItems;
     private final TransactionTemplate transactions;
+    private final ObservationRegistry observations;
     private final Semaphore freeWorkers;
 
     private volatile boolean running;
@@ -37,11 +40,13 @@ final class StepWorker {
             ProcessingStep step,
             StepSettings settings,
             WorkItemRepository workItems,
-            TransactionTemplate transactions) {
+            TransactionTemplate transactions,
+            ObservationRegistry observations) {
         this.step = step;
         this.settings = settings;
         this.workItems = workItems;
         this.transactions = transactions;
+        this.observations = observations;
         this.freeWorkers = new Semaphore(settings.workers());
     }
 
@@ -109,18 +114,26 @@ final class StepWorker {
     }
 
     void process(ClaimedItem item) {
-        try (var ignored = LogContext.scopedToFile(item.fileId())) {
+        var attempt = StepAttemptObservation.start(observations, step.step(), item.fileId());
+        Outcome outcome = Outcome.FAILED;
+        RuntimeException error = null;
+        try (var ignored = LogContext.scopedToFile(item.fileId());
+                var scope = attempt.openScope()) {
             if (item.attempt() > settings.maxAttempts()) {
                 // Earlier attempts ended without recording anything, e.g. their worker crashed: do not try again.
                 giveUp(item, "attempts exhausted without a recorded outcome", null);
                 return;
             }
             try {
-                Completion completion = performWithinHardStop(item);
+                Completion completion = performWithinHardStop(item, attempt);
                 completeWith(item, completion);
+                outcome = Outcome.COMPLETED;
             } catch (RuntimeException e) {
-                handleFailure(item, e);
+                error = e;
+                outcome = handleFailure(item, e);
             }
+        } finally {
+            attempt.end(outcome, error);
         }
     }
 
@@ -128,10 +141,11 @@ final class StepWorker {
      * Runs the step's work in its own thread and interrupts it at the hard stop, so a hanging attempt (e.g. on an
      * unresponsive SFTP server) ends before its lease expires and another worker could start.
      */
-    private Completion performWithinHardStop(ClaimedItem item) {
+    private Completion performWithinHardStop(ClaimedItem item, StepAttemptObservation attempt) {
         Instant deadline = Instant.now().plus(settings.timeout());
         var work = new FutureTask<>(() -> {
-            try (var ignored = LogContext.scopedToFile(item.fileId())) {
+            try (var ignored = LogContext.scopedToFile(item.fileId());
+                    var scope = attempt.openScope()) {
                 return step.perform(item.fileId(), deadline);
             }
         });
@@ -167,11 +181,11 @@ final class StepWorker {
         }
     }
 
-    private void handleFailure(ClaimedItem item, RuntimeException e) {
+    private Outcome handleFailure(ClaimedItem item, RuntimeException e) {
         String error = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
         if (item.attempt() >= settings.maxAttempts()) {
             giveUp(item, error, e);
-            return;
+            return Outcome.FAILED;
         }
         Duration backoff = settings.backoffAfter(item.attempt());
         LOG.warn(
@@ -186,6 +200,7 @@ final class StepWorker {
                     "{} lost its lease before recording the failure; another worker has taken the item over",
                     step.step());
         }
+        return Outcome.RETRIED;
     }
 
     /**

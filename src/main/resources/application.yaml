@@ -66,6 +66,17 @@ sepa:
     heartbeat: PT1S
 
 management:
+  # OTLP export (spec observability): logs and traces once OTEL_EXPORTER_OTLP_ENDPOINT is set; metrics additionally
+  # need OTEL_METRICS_EXPORTER=otlp, because the OTLP meter registry would otherwise push to localhost.
+  otlp:
+    metrics:
+      export:
+        enabled: false
+        # same metric names as on /actuator/prometheus, whichever way metrics are collected
+        base-time-unit: seconds
+  tracing:
+    sampling:
+      probability: 1.0
   endpoints:
     web:
       exposure:

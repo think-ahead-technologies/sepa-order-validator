@@ -1,0 +1,11 @@
+# ABOUTME: Keeps at least one validator pod running during voluntary disruptions such as node drains.
+# ABOUTME: Any surviving pod takes over the intake leader lock and the leases of work items from stopped pods.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: payment-order-validator
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: payment-order-validator

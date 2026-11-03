@@ -1,0 +1,19 @@
+# ABOUTME: Kustomize base for the SEPA Payment Order Validator: Deployment, Service, PodDisruptionBudget, ServiceAccount.
+# ABOUTME: Image digest, namespace, database, SFTP server and secrets are environment-specific and come from an overlay.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: payment-order-validator
+    includeSelectors: true
+  - pairs:
+      app.kubernetes.io/part-of: sepa-order-validator
+      app.kubernetes.io/component: backend
+      app.kubernetes.io/managed-by: kustomize
+
+resources:
+  - service-account.yaml
+  - deployment.yaml
+  - service.yaml
+  - pod-disruption-budget.yaml

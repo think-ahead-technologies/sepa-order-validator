@@ -11,12 +11,13 @@ Behaviour: OpenSpec capability specs in `openspec/specs/`; project context in `o
 - Java and Gradle are pinned in `mise.toml`. Run everything through mise:
   - `mise install` — install the pinned JDK and Gradle
   - `mise exec -- ./gradlew build` — compile and run the unit tests (no Spring context, no containers), seconds
-  - `mise exec -- ./gradlew fullTest` — all tests including integration and end-to-end; runs in GitLab CI (`.gitlab-ci.yml`, job `full-test`)
+  - `mise exec -- ./gradlew fullTest` — all tests including integration and end-to-end; runs in CI (job `full-test` in `.github/workflows/ci.yml` and `.gitlab-ci.yml`)
 - Locally run `build` (unit tests). Run `fullTest` only when a change can affect integration or end-to-end behaviour: Spring wiring or configuration (`application.yaml`), Flyway migrations or SQL, intake and SFTP, the work queue, reporting and delivery, logging, module facades or events, or dependencies. Changes confined to rules or parsing logic that unit tests cover do not need it.
   - `mise exec -- ./gradlew test --tests '*IbanCheckTest'` — single unit test class; use `fullTest --tests ...` for an integration or end-to-end test class
   - `mise exec -- ./gradlew bootTestRun` — run the app locally with PostgreSQL and SFTP from Testcontainers
 - Docker must be running: integration and end-to-end tests use Testcontainers (PostgreSQL and an SFTP server).
 - GitLab CI runs `build` and then `fullTest` on Docker-in-Docker; the runner must allow privileged services. Images are pinned by tag and digest: when `mise.toml` changes the JDK, update the image in `.gitlab-ci.yml` too.
+- GitHub Actions (`.github/workflows/ci.yml`) runs the same two jobs on push to `main` and on pull requests, with the runner's own Docker. Java comes from `mise.toml` via mise-action; actions are pinned by commit SHA.
 - The test SFTP server is built from `src/test/resources/sftp/Dockerfile` (alpine + OpenSSH, native on arm64). Do not switch to `atmoz/sftp`: it is amd64-only and its sshd segfaults under emulation on Apple Silicon.
 - SFTP host keys are always verified (`sepa.sftp.known-hosts` is mandatory); tests generate known_hosts from the container's keys.
 - Gradle dependency verification is on (`gradle/verification-metadata.xml`). After adding or upgrading a dependency: `mise exec -- ./gradlew --write-verification-metadata pgp,sha256 --export-keys --refresh-dependencies build`, then review the diff.

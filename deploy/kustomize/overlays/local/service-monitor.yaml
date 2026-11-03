@@ -1,0 +1,14 @@
+# ABOUTME: Tells the Prometheus Operator of the local kube-prometheus-stack to scrape /actuator/prometheus on every pod.
+# ABOUTME: Lives in the overlay because the ServiceMonitor CRD exists only where the Prometheus Operator runs.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: payment-order-validator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: payment-order-validator
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 30s

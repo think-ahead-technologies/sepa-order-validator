@@ -1,0 +1,46 @@
+# ABOUTME: Overlay for the local OrbStack cluster of the gitops-workshop repository, reconciled there by Flux.
+# ABOUTME: Locally built image, in-cluster PostgreSQL and SFTP server, Prometheus scraping and OTLP export to Alloy.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: sepa
+
+resources:
+  - ../../base
+  - service-monitor.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/instance: payment-order-validator-local
+      app.kubernetes.io/version: "0.1.0"
+
+images:
+  # Built on the host with `docker build -t payment-order-validator:0.1.0-local .`; OrbStack shares the image store.
+  - name: payment-order-validator
+    newTag: 0.1.0-local
+
+configMapGenerator:
+  - name: payment-order-validator-env
+    literals:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres.sepa.svc:5432/sepa
+      - SEPA_SFTP_HOST=sftp-server.sepa.svc
+      - SEPA_SFTP_PORT=22
+      - SEPA_SFTP_USERNAME=sepa
+      - OTEL_SERVICE_NAME=payment-order-validator
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy.monitoring.svc:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+
+patches:
+  # A local cluster has one node and little memory: 1 GiB per pod still holds a 100 MB payment file.
+  - target:
+      kind: Deployment
+      name: payment-order-validator
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 250m
+            memory: 1Gi
+          limits:
+            memory: 1Gi

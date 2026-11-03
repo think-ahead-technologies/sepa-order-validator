@@ -1,7 +1,8 @@
 # Kubernetes deployment (Kustomize)
 
 `base/` holds what every environment shares. `overlays/example/` is a template for one environment: copy it to
-`overlays/<env>/` (dev, staging, prod) and replace every value. Ingress is not part of the manifests: the app takes no
+`overlays/<env>/` (dev, staging, prod) and replace every value. `overlays/local/` runs the app on the local OrbStack
+cluster of the `gitops-workshop` repository (see below). Ingress is not part of the manifests: the app takes no
 inbound business traffic.
 
 ```sh
@@ -41,3 +42,24 @@ app accepts exactly one of password and private key.
 
 PostgreSQL is not part of the manifests: the environment provides the database. Instance clocks must be
 NTP-synchronised (baseline design A5).
+
+## Image
+
+The `Dockerfile` at the repository root builds the jar with the JDK pinned in `mise.toml` and runs it on the matching
+JRE as UID 1001 in group 0, so OpenShift can assign any UID. Tests are not run in the image build; CI runs them.
+
+```sh
+docker build -t payment-order-validator:<tag> .
+```
+
+## Local cluster (`overlays/local/`)
+
+Flux in the `gitops-workshop` repository reconciles this overlay into the namespace `sepa`. That repository provides
+PostgreSQL, a customer SFTP server and the Grafana stack, and its `apps/sepa/prepare-local.sh` builds the image
+`payment-order-validator:0.1.0-local` into OrbStack's shared image store and creates the Secrets and the known_hosts
+ConfigMap listed above. The overlay adds:
+
+- a `ServiceMonitor`, so the kube-prometheus-stack Prometheus scrapes `/actuator/prometheus`;
+- `OTEL_EXPORTER_OTLP_ENDPOINT` pointing at Grafana Alloy (`alloy.monitoring.svc:4318`); it takes effect once the
+  application exports OTLP;
+- 1 GiB memory per pod instead of 2 GiB.

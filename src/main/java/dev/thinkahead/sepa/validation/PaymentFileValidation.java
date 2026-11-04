@@ -1,5 +1,5 @@
 // ABOUTME: The VALIDATE processing step: validates a received file outside any transaction, then records the outcome.
-// ABOUTME: Recording registers the MsgId (DU01) and schedules REPORT; a container's messages are received instead.
+// ABOUTME: Recording registers MsgId (DU01) and PmtInfIds (DU02), schedules REPORT; containers are split instead.
 package dev.thinkahead.sepa.validation;
 
 import dev.thinkahead.sepa.audit.AuditTrail;
@@ -10,9 +10,12 @@ import dev.thinkahead.sepa.processing.ProcessingStep;
 import dev.thinkahead.sepa.processing.Step;
 import dev.thinkahead.sepa.processing.WorkQueue;
 import dev.thinkahead.sepa.validation.container.ContainerReading;
+import dev.thinkahead.sepa.validation.pain001.PaymentInformationReference;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,12 +26,14 @@ import org.springframework.stereotype.Component;
 class PaymentFileValidation implements ProcessingStep {
 
     static final String DUPLICATE_MESSAGE_ID = "DU01";
+    static final String DUPLICATE_PAYMENT_INFORMATION_ID = "DU02";
 
     private static final Logger LOG = LoggerFactory.getLogger(PaymentFileValidation.class);
 
     private final PaymentFiles paymentFiles;
     private final PaymentFileValidator validator;
     private final AcceptedMessages acceptedMessages;
+    private final AcceptedPaymentInformation acceptedPaymentInformation;
     private final ValidationOutcomeRepository outcomes;
     private final WorkQueue workQueue;
     private final AuditTrail auditTrail;
@@ -38,6 +43,7 @@ class PaymentFileValidation implements ProcessingStep {
             PaymentFiles paymentFiles,
             PaymentFileValidator validator,
             AcceptedMessages acceptedMessages,
+            AcceptedPaymentInformation acceptedPaymentInformation,
             ValidationOutcomeRepository outcomes,
             WorkQueue workQueue,
             AuditTrail auditTrail,
@@ -45,6 +51,7 @@ class PaymentFileValidation implements ProcessingStep {
         this.paymentFiles = paymentFiles;
         this.validator = validator;
         this.acceptedMessages = acceptedMessages;
+        this.acceptedPaymentInformation = acceptedPaymentInformation;
         this.outcomes = outcomes;
         this.workQueue = workQueue;
         this.auditTrail = auditTrail;
@@ -134,14 +141,7 @@ class PaymentFileValidation implements ProcessingStep {
         if (!paymentFiles.isAwaitingValidation(fileId)) {
             return;
         }
-        ValidationResult outcome = result;
-        if (outcome.accepted()
-                && !acceptedMessages.register(paymentFiles.submitter(fileId), outcome.originalMessageId(), fileId)) {
-            outcome = outcome.withViolation(new Violation(
-                    DUPLICATE_MESSAGE_ID,
-                    "GrpHdr/MsgId",
-                    "Message id " + outcome.originalMessageId() + " was already submitted and accepted"));
-        }
+        ValidationResult outcome = result.accepted() ? registerIds(fileId, result) : result;
         if (!paymentFiles.recordValidationOutcome(fileId, outcome.accepted())) {
             throw new IllegalStateException("Validation outcome of payment file " + fileId + " changed concurrently");
         }
@@ -156,6 +156,46 @@ class PaymentFileValidation implements ProcessingStep {
         auditTrail.record(fileId, validated);
         events.publishEvent(validated);
         logOutcome(outcome);
+    }
+
+    /**
+     * Registers the file's MsgId and then its PmtInfIds for its submitter, all or nothing (spec file-validation). A
+     * duplicate MsgId is reported alone as DU01; otherwise each PmtInfId already accepted is reported as DU02 and the
+     * file's own registrations are removed again. PmtInfIds are registered in sorted order, so concurrent files with
+     * overlapping ids take their row locks in the same order and cannot deadlock.
+     */
+    private ValidationResult registerIds(UUID fileId, ValidationResult result) {
+        String submitter = paymentFiles.submitter(fileId);
+        if (!acceptedMessages.register(submitter, result.originalMessageId(), fileId)) {
+            return result.withViolation(new Violation(
+                    DUPLICATE_MESSAGE_ID,
+                    "GrpHdr/MsgId",
+                    "Message id " + result.originalMessageId() + " was already submitted and accepted"));
+        }
+        Set<String> duplicates = new HashSet<>();
+        result.paymentInformationIds().stream()
+                .map(PaymentInformationReference::id)
+                .sorted()
+                .forEach(id -> {
+                    if (!acceptedPaymentInformation.register(submitter, id, fileId)) {
+                        duplicates.add(id);
+                    }
+                });
+        if (duplicates.isEmpty()) {
+            return result;
+        }
+        acceptedPaymentInformation.unregisterFile(fileId);
+        acceptedMessages.unregisterFile(fileId);
+        ValidationResult rejected = result;
+        for (PaymentInformationReference reference : result.paymentInformationIds()) {
+            if (duplicates.contains(reference.id())) {
+                rejected = rejected.withViolation(new Violation(
+                        DUPLICATE_PAYMENT_INFORMATION_ID,
+                        reference.path(),
+                        "Payment information id " + reference.id() + " was already submitted and accepted"));
+            }
+        }
+        return rejected;
     }
 
     /**

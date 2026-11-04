@@ -2,14 +2,27 @@
 // ABOUTME: A file is accepted only when it has no violations at all (whole-file rejection, spec file-validation).
 package dev.thinkahead.sepa.validation;
 
+import dev.thinkahead.sepa.validation.pain001.PaymentInformationReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-record ValidationResult(String originalMessageId, String originalMessageNameId, List<Violation> violations) {
+record ValidationResult(
+        String originalMessageId,
+        String originalMessageNameId,
+        List<Violation> violations,
+        List<PaymentInformationReference> paymentInformationIds) {
 
     ValidationResult {
         violations = List.copyOf(violations);
+        paymentInformationIds = List.copyOf(paymentInformationIds);
+    }
+
+    /**
+     * A result whose payment information ids are unknown, because the file's content was not parsed.
+     */
+    ValidationResult(String originalMessageId, String originalMessageNameId, List<Violation> violations) {
+        this(originalMessageId, originalMessageNameId, violations, List.of());
     }
 
     /**
@@ -58,6 +71,6 @@ record ValidationResult(String originalMessageId, String originalMessageNameId, 
     ValidationResult withViolation(Violation violation) {
         var all = new ArrayList<>(violations);
         all.add(violation);
-        return new ValidationResult(originalMessageId, originalMessageNameId, all);
+        return new ValidationResult(originalMessageId, originalMessageNameId, all, paymentInformationIds);
     }
 }

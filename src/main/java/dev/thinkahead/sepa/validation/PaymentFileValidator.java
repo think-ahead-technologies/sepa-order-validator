@@ -111,7 +111,8 @@ class PaymentFileValidator {
                 MAX_REPORTED_VIOLATIONS, LocalDate.now(clock.withZone(BANK_ZONE)), submission);
         GroupHeader header = beforeDeadline(deadline, () -> parser.parse(read(content, deadline), rules));
         if (!rules.violations().isEmpty()) {
-            return new ValidationResult(header.messageId(), format.messageNameId(), rules.violations());
+            return new ValidationResult(
+                    header.messageId(), format.messageNameId(), rules.violations(), rules.paymentInformationIds());
         }
 
         // Last gate (spec file-validation): a file the rules pass is accepted only if it also meets the DK subset.
@@ -125,7 +126,8 @@ class PaymentFileValidator {
                                 INVALID_FILE_FORMAT,
                                 "Line " + error.line() + ", column " + error.column(),
                                 DK_SUBSET + error.message()))
-                        .toList());
+                        .toList(),
+                rules.paymentInformationIds());
     }
 
     private static InputStream read(byte[] content, Instant deadline) {

@@ -1,11 +1,13 @@
 // ABOUTME: Integration tests for the validation module together with intake, using real SFTP and PostgreSQL.
-// ABOUTME: Covers outcomes, status updates, duplicate MsgIds, re-driven and exhausted VALIDATE work items.
+// ABOUTME: Covers outcomes, status updates, duplicate MsgIds and PmtInfIds, re-driven and exhausted work items.
 package dev.thinkahead.sepa.validation;
 
 import static dev.thinkahead.sepa.Fixtures.bytes;
 import static dev.thinkahead.sepa.Fixtures.uniqueMessageId;
 import static dev.thinkahead.sepa.Fixtures.validPain001;
+import static dev.thinkahead.sepa.Fixtures.validPain001WithPaymentInformationIds;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.groups.Tuple.tuple;
 import static org.awaitility.Awaitility.await;
 
 import dev.thinkahead.sepa.CapturedEvents;
@@ -53,6 +55,9 @@ class PaymentFileValidationIntegrationTest {
 
     @Autowired
     AcceptedMessages acceptedMessages;
+
+    @Autowired
+    AcceptedPaymentInformation acceptedPaymentInformation;
 
     @Autowired
     ValidationOutcomes validationOutcomes;
@@ -454,6 +459,153 @@ class PaymentFileValidationIntegrationTest {
         Callable<Boolean> register = () -> {
             start.await();
             return acceptedMessages.register("sftp:race", messageId, UUID.randomUUID());
+        };
+
+        try (var executor = Executors.newFixedThreadPool(contenders)) {
+            List<Future<Boolean>> results = IntStream.range(0, contenders)
+                    .mapToObj(i -> executor.submit(register))
+                    .toList();
+            start.countDown();
+
+            long winners = 0;
+            for (Future<Boolean> result : results) {
+                winners += result.get() ? 1 : 0;
+            }
+            assertThat(winners).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void rejectsAPaymentInformationIdReusedInALaterFileWithDu02(CapturedOutput output) {
+        String reused = uniqueMessageId();
+        PaymentFileValidated first =
+                uploadAndAwaitValidation(validPain001WithPaymentInformationIds(uniqueMessageId(), reused));
+
+        PaymentFileValidated second = uploadAndAwaitValidation(
+                validPain001WithPaymentInformationIds(uniqueMessageId(), uniqueMessageId(), reused));
+
+        assertThat(first.accepted()).isTrue();
+        assertThat(second.accepted()).isFalse();
+        assertThat(second.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(tuple("DU02", "PmtInf[2]/PmtInfId"));
+        assertThat(statusOf(second.fileId())).isEqualTo("REJECTED");
+        assertThat(LogLines.messagesForFile(output, second.fileId()))
+                .contains("Validated payment file: rejected with reason codes [DU02]");
+        assertThat(output).doesNotContain(reused);
+    }
+
+    @Test
+    void reportsEveryReusedPaymentInformationId() {
+        String a = uniqueMessageId();
+        String b = uniqueMessageId();
+        uploadAndAwaitValidation(validPain001WithPaymentInformationIds(uniqueMessageId(), a, b));
+
+        PaymentFileValidated later = uploadAndAwaitValidation(
+                validPain001WithPaymentInformationIds(uniqueMessageId(), a, uniqueMessageId(), b));
+
+        assertThat(later.violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(tuple("DU02", "PmtInf[1]/PmtInfId"), tuple("DU02", "PmtInf[3]/PmtInfId"));
+    }
+
+    @Test
+    void aFileRejectedForAReusedPaymentInformationIdRegistersNeitherItsMessageIdNorItsPaymentInformationIds() {
+        String reused = uniqueMessageId();
+        String fresh = uniqueMessageId();
+        String messageId = uniqueMessageId();
+        uploadAndAwaitValidation(validPain001WithPaymentInformationIds(uniqueMessageId(), reused));
+        PaymentFileValidated rejected =
+                uploadAndAwaitValidation(validPain001WithPaymentInformationIds(messageId, fresh, reused));
+
+        PaymentFileValidated corrected =
+                uploadAndAwaitValidation(validPain001WithPaymentInformationIds(messageId, fresh));
+
+        assertThat(rejected.violations()).extracting(Violation::reasonCode).containsExactly("DU02");
+        assertThat(corrected.accepted()).isTrue();
+    }
+
+    @Test
+    void scopesPaymentInformationIdsPerSubmitter() {
+        String id = uniqueMessageId();
+
+        assertThat(acceptedPaymentInformation.register("sftp:customer-a", id, UUID.randomUUID()))
+                .isTrue();
+        assertThat(acceptedPaymentInformation.register("sftp:customer-b", id, UUID.randomUUID()))
+                .isTrue();
+        assertThat(acceptedPaymentInformation.register("sftp:customer-a", id, UUID.randomUUID()))
+                .isFalse();
+    }
+
+    @Test
+    void messagesOfOneContainerSharingAPaymentInformationIdConflict() {
+        String shared = uniqueMessageId();
+        UUID containerId = uploadAndAwaitReceipt(dev.thinkahead.sepa.Fixtures.container(
+                validPain001WithPaymentInformationIds(uniqueMessageId(), shared),
+                validPain001WithPaymentInformationIds(uniqueMessageId(), shared)));
+
+        List<java.util.Map<String, Object>> messages = await().atMost(TIMEOUT)
+                .until(
+                        () -> jdbc.sql("""
+                                select id, status from payment_file
+                                where container_file_id = ? order by container_index""").param(containerId).query().listOfRows(),
+                        rows -> rows.size() == 2
+                                && rows.stream()
+                                        .noneMatch(row -> row.get("status").equals("RECEIVED")));
+
+        assertThat(messages).extracting(row -> row.get("status")).containsExactlyInAnyOrder("ACCEPTED", "REJECTED");
+        UUID rejectedId = (UUID) messages.stream()
+                .filter(row -> row.get("status").equals("REJECTED"))
+                .findFirst()
+                .orElseThrow()
+                .get("id");
+        assertThat(validationOutcomes.find(rejectedId).violations())
+                .extracting(Violation::reasonCode, Violation::path)
+                .containsExactly(tuple("DU02", "PmtInf[1]/PmtInfId"));
+    }
+
+    @Test
+    void acceptsExactlyOneOfConcurrentFilesSharingAPaymentInformationId() throws Exception {
+        String shared = uniqueMessageId();
+        List<String> messageIds =
+                IntStream.range(0, 8).mapToObj(i -> uniqueMessageId()).toList();
+
+        List<PaymentFileValidated> outcomes;
+        try (var executor = Executors.newFixedThreadPool(messageIds.size())) {
+            List<Future<PaymentFileValidated>> futures = messageIds.stream()
+                    .map(messageId -> executor.submit(
+                            () -> uploadAndAwaitValidation(validPain001WithPaymentInformationIds(messageId, shared))))
+                    .toList();
+            var collected = new java.util.ArrayList<PaymentFileValidated>();
+            for (Future<PaymentFileValidated> future : futures) {
+                collected.add(future.get());
+            }
+            outcomes = collected;
+        }
+
+        assertThat(outcomes).filteredOn(PaymentFileValidated::accepted).hasSize(1);
+        assertThat(outcomes)
+                .filteredOn(outcome -> !outcome.accepted())
+                .hasSize(7)
+                .allSatisfy(outcome -> assertThat(outcome.violations())
+                        .extracting(Violation::reasonCode)
+                        .containsExactly("DU02"));
+        assertThat(jdbc.sql("select count(*) from accepted_message where message_id in (:ids)")
+                        .param("ids", messageIds)
+                        .query(Integer.class)
+                        .single())
+                .as("only the accepted file's MsgId is registered")
+                .isEqualTo(1);
+    }
+
+    @Test
+    void registersAPaymentInformationIdExactlyOnceUnderConcurrentAcceptance() throws Exception {
+        String id = uniqueMessageId();
+        int contenders = 8;
+        var start = new CountDownLatch(1);
+        Callable<Boolean> register = () -> {
+            start.await();
+            return acceptedPaymentInformation.register("sftp:race", id, UUID.randomUUID());
         };
 
         try (var executor = Executors.newFixedThreadPool(contenders)) {

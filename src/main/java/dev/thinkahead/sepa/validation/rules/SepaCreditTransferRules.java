@@ -9,6 +9,7 @@ import dev.thinkahead.sepa.validation.pain001.ElementText;
 import dev.thinkahead.sepa.validation.pain001.Pain001Handler;
 import dev.thinkahead.sepa.validation.pain001.PartyName;
 import dev.thinkahead.sepa.validation.pain001.PaymentInformation;
+import dev.thinkahead.sepa.validation.pain001.PaymentInformationReference;
 import dev.thinkahead.sepa.validation.pain001.PaymentTypeInformation;
 import dev.thinkahead.sepa.validation.pain001.PostalAddress;
 import dev.thinkahead.sepa.validation.pain001.Totals;
@@ -36,6 +37,7 @@ public final class SepaCreditTransferRules implements Pain001Handler {
     private final List<ValidationRule<PaymentTypeInformation>> paymentTypeRules =
             List.of(new ServiceLevelRule(), new LocalInstrumentRule(), new PaymentTypeInformationLevelRule());
     private final List<Violation> violations = new ArrayList<>();
+    private final List<PaymentInformationReference> paymentInformationIds = new ArrayList<>();
     private final int maxReportedViolations;
     private long unreportedViolations;
 
@@ -63,6 +65,8 @@ public final class SepaCreditTransferRules implements Pain001Handler {
 
     @Override
     public void paymentInformation(PaymentInformation paymentInformation) {
+        paymentInformationIds.add(new PaymentInformationReference(
+                paymentInformation.paymentInformationId(), paymentInformation.path() + "/PmtInfId"));
         apply(paymentInformationRules, paymentInformation);
     }
 
@@ -94,6 +98,13 @@ public final class SepaCreditTransferRules implements Pain001Handler {
     @Override
     public void paymentTypeInformation(PaymentTypeInformation paymentTypeInformation) {
         apply(paymentTypeRules, paymentTypeInformation);
+    }
+
+    /**
+     * The payment information ids of the file in document order, needed for cross-file duplicate detection (DU02).
+     */
+    public List<PaymentInformationReference> paymentInformationIds() {
+        return List.copyOf(paymentInformationIds);
     }
 
     public List<Violation> violations() {

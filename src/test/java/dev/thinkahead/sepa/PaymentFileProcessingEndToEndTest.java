@@ -5,6 +5,7 @@ package dev.thinkahead.sepa;
 import static dev.thinkahead.sepa.Fixtures.bytes;
 import static dev.thinkahead.sepa.Fixtures.uniqueMessageId;
 import static dev.thinkahead.sepa.Fixtures.validPain001;
+import static dev.thinkahead.sepa.Fixtures.validPain001WithPaymentInformationIds;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -329,6 +330,22 @@ class PaymentFileProcessingEndToEndTest {
         assertThat(fileStatus(original.fileName())).isEqualTo("ACCEPTED");
         assertThat(fileStatus(resubmission.fileName())).isEqualTo("REJECTED");
         assertAuditTrailComplete(resubmission.fileName());
+    }
+
+    @Test
+    void paymentInformationIdReusedUnderANewMessageIdIsRejectedAsDuplicate() throws Exception {
+        String reused = uniqueMessageId();
+        Delivery original = submit(validPain001WithPaymentInformationIds(uniqueMessageId(), reused));
+
+        Delivery reuse = submit(validPain001WithPaymentInformationIds(uniqueMessageId(), reused));
+
+        assertThat(xpath(original.report(), GROUP + "/*[local-name()='GrpSts']"))
+                .isEqualTo("ACCP");
+        assertThat(xpath(reuse.report(), GROUP + "/*[local-name()='GrpSts']")).isEqualTo("RJCT");
+        assertThat(reasonCodes(reuse.report())).containsExactly("DU02");
+        assertThat(fileStatus(original.fileName())).isEqualTo("ACCEPTED");
+        assertThat(fileStatus(reuse.fileName())).isEqualTo("REJECTED");
+        assertAuditTrailComplete(reuse.fileName());
     }
 
     @Test

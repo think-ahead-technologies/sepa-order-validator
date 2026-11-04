@@ -134,7 +134,7 @@
       </InitgPty>
     </GrpHdr>
     <PmtInf>
-      <PmtInfId>PMT-001</PmtInfId>
+      <PmtInfId>PMT-002</PmtInfId>
       <PmtMtd>TRF</PmtMtd>
       <NbOfTxs>2</NbOfTxs>
       <CtrlSum>150.50</CtrlSum>

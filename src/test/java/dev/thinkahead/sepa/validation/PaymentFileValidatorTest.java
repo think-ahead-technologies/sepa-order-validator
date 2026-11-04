@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 
 import dev.thinkahead.sepa.validation.container.ContainerReading;
+import dev.thinkahead.sepa.validation.pain001.PaymentInformationReference;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -370,6 +371,24 @@ class PaymentFileValidatorTest {
         ValidationResult result = validator.validate(bytes(withTwoPaymentInformationBlocks("PMT-002")), NO_DEADLINE);
 
         assertThat(result.violations()).isEmpty();
+    }
+
+    @Test
+    void carriesThePaymentInformationIdsOfAnAcceptedFileWithTheirLocations() {
+        ValidationResult result = validator.validate(bytes(withTwoPaymentInformationBlocks("PMT-002")), NO_DEADLINE);
+
+        assertThat(result.paymentInformationIds())
+                .extracting(PaymentInformationReference::id, PaymentInformationReference::path)
+                .containsExactly(tuple("PMT-001", "PmtInf[1]/PmtInfId"), tuple("PMT-002", "PmtInf[2]/PmtInfId"));
+    }
+
+    @Test
+    void carriesNoPaymentInformationIdsForASchemaInvalidFile() {
+        var xml = VALID_PAIN_001.replace("<PmtMtd>TRF</PmtMtd>", "<PmtMtd>XYZ</PmtMtd>");
+
+        ValidationResult result = validator.validate(bytes(xml), NO_DEADLINE);
+
+        assertThat(result.paymentInformationIds()).isEmpty();
     }
 
     private static String withTwoPaymentInformationBlocks(String secondPaymentInformationId) {

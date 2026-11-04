@@ -18,7 +18,6 @@ What the SEPA Payment Order Validator does today is specified in [`openspec/spec
 
 | Check | Reason code | Notes |
 |---|---|---|
-| `PmtInfId` unique per submitter across files | DU02 | Within a file it is checked already |
 | End-to-End id unique within a configurable window | DU04 | Window to be decided |
 
 ### SEPA Direct Debit (Core and B2B)

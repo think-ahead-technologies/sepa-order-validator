@@ -26,4 +26,11 @@ class AcceptedMessages {
                         values (?, ?, ?)
                         on conflict (submitter, message_id) do nothing""").params(submitter, messageId, fileId).update() == 1;
     }
+
+    /**
+     * Removes the message id the file registered, when the file turns out to be rejected after all.
+     */
+    void unregisterFile(UUID fileId) {
+        jdbc.sql("delete from accepted_message where file_id = ?").param(fileId).update();
+    }
 }

@@ -6,6 +6,7 @@ import dev.thinkahead.sepa.validation.rules.TargetCalendar;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -15,12 +16,14 @@ public final class Fixtures {
 
     public static final String VALID_PAIN_001 = load("/fixtures/valid-pain.001.001.09.xml");
     public static final String SAMPLE_MESSAGE_ID = "MSG-2026-10-31-001";
+    public static final String SAMPLE_PAYMENT_INFORMATION_ID = "PMT-001";
     public static final LocalDate SAMPLE_EXECUTION_DATE = LocalDate.of(2026, 11, 2);
 
     /**
-     * A DK XML container with two copies of the sample (MsgIds MSG-CONTAINER-HASH-1 and -2, executed 2099-06-01). The
-     * first carries the SHA-256 over its C14N form in the container's context, computed with libxml2 (xmllint --c14n);
-     * the second has no hash. Use it once per test run, so its MsgIds are not rejected as duplicates.
+     * A DK XML container with two copies of the sample (MsgIds MSG-CONTAINER-HASH-1 and -2, PmtInfIds PMT-001 and
+     * PMT-002, executed 2099-06-01). The first carries the SHA-256 over its C14N form in the container's context, computed
+     * with libxml2 (xmllint --c14n); the second has no hash. Use it once per test run, so its ids are not rejected as
+     * duplicates.
      */
     public static final String CONTAINER_WITH_HASH = load("/fixtures/container-with-hash.xml");
 
@@ -36,8 +39,8 @@ public final class Fixtures {
     }
 
     /**
-     * The valid sample with the given MsgId, executed on {@link #futureExecutionDate()} so it passes DT01 whenever the
-     * tests run.
+     * The valid sample with the given MsgId and the PmtInfId {@link #paymentInformationId(String)}, executed on
+     * {@link #futureExecutionDate()} so it passes DT01 whenever the tests run.
      */
     public static String validPain001(String messageId) {
         return validPain001(messageId, futureExecutionDate());
@@ -46,7 +49,43 @@ public final class Fixtures {
     public static String validPain001(String messageId, LocalDate executionDate) {
         return VALID_PAIN_001
                 .replace("<MsgId>" + SAMPLE_MESSAGE_ID + "</MsgId>", "<MsgId>" + messageId + "</MsgId>")
+                .replace(
+                        "<PmtInfId>" + SAMPLE_PAYMENT_INFORMATION_ID + "</PmtInfId>",
+                        "<PmtInfId>" + paymentInformationId(messageId) + "</PmtInfId>")
                 .replace("<Dt>" + SAMPLE_EXECUTION_DATE + "</Dt>", "<Dt>" + executionDate + "</Dt>");
+    }
+
+    /**
+     * The PmtInfId that {@link #validPain001(String)} gives a file, derived from its MsgId (at most 35 characters), so
+     * a fresh MsgId also brings a fresh PmtInfId and uploads are not rejected with DU02 by accident.
+     */
+    public static String paymentInformationId(String messageId) {
+        String id = "P" + messageId;
+        return id.length() <= 35 ? id : id.substring(0, 35);
+    }
+
+    /**
+     * A valid file with the given MsgId and one copy of the sample's payment information block per given PmtInfId, in
+     * that order, with the group header totals adjusted.
+     */
+    public static String validPain001WithPaymentInformationIds(String messageId, String... paymentInformationIds) {
+        String xml = validPain001(messageId);
+        String block = paymentInformationBlock(xml);
+        var blocks = new StringBuilder();
+        for (String id : paymentInformationIds) {
+            if (!blocks.isEmpty()) {
+                blocks.append("\n    ");
+            }
+            blocks.append(block.replace(
+                    "<PmtInfId>" + paymentInformationId(messageId) + "</PmtInfId>", "<PmtInfId>" + id + "</PmtInfId>"));
+        }
+        int count = paymentInformationIds.length;
+        return xml.replace(block, blocks.toString())
+                .replace(
+                        "<NbOfTxs>2</NbOfTxs>\n      <CtrlSum>150.50</CtrlSum>\n      <InitgPty>",
+                        "<NbOfTxs>" + 2 * count + "</NbOfTxs>\n      <CtrlSum>"
+                                + new BigDecimal("150.50").multiply(BigDecimal.valueOf(count))
+                                + "</CtrlSum>\n      <InitgPty>");
     }
 
     /**
@@ -157,14 +196,16 @@ public final class Fixtures {
 
     /**
      * A file mixing schemes: the sample's payment information block as SEPA Instant, followed by a copy as plain SEPA
-     * credit transfer (PMT-002), which DK forbids within one file (AG02 at PmtInf[2]).
+     * credit transfer with its own PmtInfId, which DK forbids within one file (AG02 at PmtInf[2]).
      */
     public static String withMixedSchemes(String messageId) {
         String instant = validInstantPain001(messageId, futureExecutionDate());
         String sct = validPain001(messageId);
         String instantBlock = paymentInformationBlock(instant);
-        String sctBlock =
-                paymentInformationBlock(sct).replace("<PmtInfId>PMT-001</PmtInfId>", "<PmtInfId>PMT-002</PmtInfId>");
+        String sctBlock = paymentInformationBlock(sct)
+                .replace(
+                        "<PmtInfId>" + paymentInformationId(messageId) + "</PmtInfId>",
+                        "<PmtInfId>" + paymentInformationId(messageId).replaceFirst("^P", "S") + "</PmtInfId>");
         return instant.replace(instantBlock, instantBlock + "\n    " + sctBlock)
                 .replace(
                         "<NbOfTxs>2</NbOfTxs>\n      <CtrlSum>150.50</CtrlSum>\n      <InitgPty>",

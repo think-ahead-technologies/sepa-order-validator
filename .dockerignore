@@ -1,7 +1,5 @@
-# Only the Gradle build inputs reach the image build context.
+# ABOUTME: Docker build context allow-list: only the Dockerfile and the application jar built by Gradle enter the build.
+# ABOUTME: Everything else (sources, .git, build caches, local keys) stays out, including files added later.
 *
-!gradlew
-!settings.gradle.kts
-!build.gradle.kts
-!gradle/
-!src/main/
+!Dockerfile
+!build/libs/payment-order-validator.jar

@@ -1,0 +1,12 @@
+# ABOUTME: Grype configuration for the CI vulnerability gate: accepted risks of the image, reviewed in code review.
+# ABOUTME: Each rule names one vulnerability id and a reason starting with its expiry date.
+#
+# Each accepted risk names one vulnerability and a reason starting with its expiry date, for example:
+#
+#   - vulnerability: CVE-2026-12345
+#     package:
+#       name: example-library
+#     reason: "expires 2026-12-31: vulnerable code path not reachable; upgrade blocked until Spring Boot 4.2"
+#
+# Prefer upgrading the dependency or the base image over adding a rule here.
+ignore: []

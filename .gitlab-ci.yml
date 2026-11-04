@@ -1,5 +1,7 @@
 # GitLab CI for the SEPA Payment Order Validator.
 # build: compile, Spotless check and unit tests. full-test: all tests, with Testcontainers on Docker-in-Docker.
+# GitLab does not build the container image: building it, SBOMs, the vulnerability gate and publishing run on
+# GitHub Actions only while Q11 (system of record) is open.
 #
 # Runner requirement: full-test needs a Docker executor that allows privileged services (docker:dind).
 # Images are pinned by tag and digest; Java matches mise.toml, Gradle comes from the verified wrapper.

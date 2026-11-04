@@ -1,17 +1,22 @@
-# ABOUTME: Container image of the validator: builds the Spring Boot jar with the pinned JDK, runs it on the matching JRE.
-# ABOUTME: Runs as UID 1001 in group 0 with group-readable files, so OpenShift can assign any UID from its namespace range.
-FROM eclipse-temurin:25.0.5_8-jdk-noble@sha256:95e350ad1eb738f943e141640f7e3d797e483359a3b33c3864255bfd1ad71f8a AS build
-WORKDIR /src
-COPY gradlew settings.gradle.kts build.gradle.kts ./
-COPY gradle gradle
-COPY src/main src/main
-# Tests run in CI (build and fullTest); the image build only packages the jar.
-RUN --mount=type=cache,target=/root/.gradle ./gradlew --no-daemon bootJar \
-    && find build/libs -name '*.jar' ! -name '*-plain.jar' -exec cp {} /app.jar \;
+# ABOUTME: Container image of the SEPA Payment Order Validator: the verified Spring Boot jar on a pinned Temurin JRE.
+# ABOUTME: Build the jar first: mise exec -- ./gradlew bootJar && docker build -t payment-order-validator .
+#
+# Runs as non-root user 10001 in group 0 and also under OpenShift's arbitrary UID; the application files are owned by
+# root and read-only for the runtime user. Configuration (database, SFTP, known_hosts) comes from the environment.
+# Bump the base image digest together with the JDK in mise.toml and .gitlab-ci.yml.
+
+FROM eclipse-temurin:25.0.5_8-jre-noble@sha256:a98128a57de944a72bd31fbc79b898edd5a5864d3652071d5bbd2160ab7d7dce AS extract
+WORKDIR /build
+COPY build/libs/payment-order-validator.jar payment-order-validator.jar
+RUN java -Djarmode=tools -jar payment-order-validator.jar extract --layers --destination extracted
 
 FROM eclipse-temurin:25.0.5_8-jre-noble@sha256:a98128a57de944a72bd31fbc79b898edd5a5864d3652071d5bbd2160ab7d7dce
 WORKDIR /app
-COPY --from=build --chown=1001:0 --chmod=0440 /app.jar app.jar
-USER 1001:0
+# Least to most frequently changing, so a code-only change rebuilds and pushes only the last layer.
+COPY --from=extract /build/extracted/dependencies/ ./
+COPY --from=extract /build/extracted/spring-boot-loader/ ./
+COPY --from=extract /build/extracted/snapshot-dependencies/ ./
+COPY --from=extract /build/extracted/application/ ./
+USER 10001:0
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "payment-order-validator.jar"]

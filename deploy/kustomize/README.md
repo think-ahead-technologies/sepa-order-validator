@@ -45,11 +45,11 @@ NTP-synchronised (baseline design A5).
 
 ## Image
 
-The `Dockerfile` at the repository root builds the jar with the JDK pinned in `mise.toml` and runs it on the matching
-JRE as UID 1001 in group 0, so OpenShift can assign any UID. Tests are not run in the image build; CI runs them.
+The `Dockerfile` at the repository root packages the jar built by Gradle as layers on the JRE pinned to the JDK in
+`mise.toml` and runs it as UID 10001 in group 0, so OpenShift can assign any UID.
 
 ```sh
-docker build -t payment-order-validator:<tag> .
+mise exec -- ./gradlew bootJar && docker build -t payment-order-validator:<tag> .
 ```
 
 ## Local cluster (`overlays/local/`)

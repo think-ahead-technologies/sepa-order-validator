@@ -5,6 +5,8 @@ plugins {
     java
     alias(libs.plugins.spring.boot)
     alias(libs.plugins.spotless)
+    // Spring Boot embeds the CycloneDX SBOM in bootJar and serves it at /actuator/sbom/application.
+    alias(libs.plugins.cyclonedx)
 }
 
 group = "dev.thinkahead"
@@ -75,6 +77,16 @@ tasks.withType<Test>().configureEach {
         events("failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
+}
+
+// The SBOM embedded in the jar lists what ships: the runtime classpath, not test or build tooling dependencies.
+tasks.cyclonedxDirectBom {
+    includeConfigs = listOf("runtimeClasspath")
+}
+
+// The container image (Dockerfile) packages this jar under a fixed name.
+tasks.bootJar {
+    archiveFileName = "payment-order-validator.jar"
 }
 
 // `test`, and with it `build`, runs the unit tests only: no Spring context, PostgreSQL or SFTP container.

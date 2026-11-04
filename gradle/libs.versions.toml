@@ -5,6 +5,7 @@ spotless = "8.10.4"
 palantir-java-format = "2.102.0"
 # Built against the OpenTelemetry API version the Spring Boot BOM manages (1.62.0); newer releases would upgrade it.
 opentelemetry-logback-appender = "2.28.1-alpha"
+cyclonedx = "3.5.1"
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
@@ -39,3 +40,4 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+cyclonedx = { id = "org.cyclonedx.bom", version.ref = "cyclonedx" }

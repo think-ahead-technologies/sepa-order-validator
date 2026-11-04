@@ -80,7 +80,8 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,prometheus
+        # sbom serves the CycloneDX SBOM embedded in the jar; port 8080 stays cluster-internal (no route to /actuator)
+        include: health,prometheus,sbom
   endpoint:
     health:
       probes:
